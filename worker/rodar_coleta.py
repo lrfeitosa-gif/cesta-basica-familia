@@ -29,6 +29,13 @@ COLETORES = {
 UNIDADES = {"g", "kg", "ml", "l", "un"}
 
 
+def conectar():
+    """Cliente Supabase. Tolera o que costuma vir junto ao colar: espaços, aspas e o /rest/v1/ da URL."""
+    def limpo(nome: str) -> str:
+        return os.environ[nome].strip().strip("'\"").strip()
+    return create_client(limpo("SUPABASE_URL").split("/rest/v1")[0].rstrip("/"), limpo("SUPABASE_SERVICE_KEY"))
+
+
 def _norm(s: str | None) -> str:
     s = unicodedata.normalize("NFD", (s or "").lower().strip())
     return " ".join("".join(c for c in s if not unicodedata.combining(c)).split())
@@ -89,8 +96,7 @@ def main(argv: list[str] | None = None) -> None:
     if desconhecidos := set(a.mercados) - set(COLETORES):
         ap.error(f"mercado desconhecido: {', '.join(desconhecidos)}")
 
-    url = os.environ["SUPABASE_URL"].split("/rest/v1")[0].rstrip("/")  # aceita a URL copiada da tela de API
-    db = create_client(url, os.environ["SUPABASE_SERVICE_KEY"])
+    db = conectar()
     if a.arquivo:
         n = gravar(db, a.mercado, json.load(open(a.arquivo, encoding="utf-8-sig")))  # -sig: aceita JSON salvo pelo PowerShell
         print(f"{a.mercado}: {n} ofertas gravadas")

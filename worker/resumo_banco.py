@@ -3,11 +3,9 @@
 Uso:
     python resumo_banco.py
 """
-import os
+from rodar_coleta import conectar
 
-from supabase import create_client
-
-db = create_client(os.environ["SUPABASE_URL"].split("/rest/v1")[0].rstrip("/"), os.environ["SUPABASE_SERVICE_KEY"])
+db = conectar()
 
 
 def contar(tabela: str, **filtros) -> int:
