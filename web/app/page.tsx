@@ -1,16 +1,25 @@
 import Link from 'next/link';
 
-export default function Home() {
+export default function Inicio() {
   return (
-    <main>
-      <h1>Cesta Básica Família</h1>
-      <p>Diga o que sua família consome; o app avisa quando o preço está em oportunidade — e lembra o que você já tem.</p>
-      <nav style={{ display: 'grid', gap: 8 }}>
-        <Link href="/onboarding">Começar</Link>
-        <Link href="/notas">Escanear nota fiscal</Link>
-        <Link href="/alertas">Alertas</Link>
-        <Link href="/compra">Minha compra</Link>
-      </nav>
-    </main>
+    <>
+      <div className="brand">Cesta <span>Indaiatuba</span></div>
+      <div className="stack" style={{ marginTop: 'auto' }}>
+        <h1>Compre no preço de oportunidade</h1>
+        <p className="lead">
+          Diga o que sua família consome. O app avisa quando o preço está abaixo do normal nos mercados de
+          Indaiatuba e lembra o que você já tem em casa.
+        </p>
+        <ul className="muted" style={{ paddingLeft: 18, margin: 0, display: 'grid', gap: 4 }}>
+          <li>Preços de 8 mercados, atualizados todo dia às 7h</li>
+          <li>Comparação por kg ou litro, sem confusão de embalagem</li>
+          <li>Sem CPF, sem endereço exato</li>
+        </ul>
+      </div>
+      <div className="stack">
+        <Link href="/cadastro" className="btn btn-primary btn-block">Criar conta</Link>
+        <Link href="/entrar" className="btn btn-secondary btn-block">Já tenho conta</Link>
+      </div>
+    </>
   );
 }
