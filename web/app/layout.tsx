@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: 'Cesta Indaiatuba',
   description: 'Avisa quando o preço do que sua família consome está em oportunidade.',
   manifest: '/manifest.json',
+  icons: { icon: '/icon-192.png', apple: '/apple-touch-icon.png' },
+  // iPhone: notificações de app web só funcionam com o app adicionado à tela inicial
+  appleWebApp: { capable: true, title: 'Cesta', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: '#1d4ed8' };
