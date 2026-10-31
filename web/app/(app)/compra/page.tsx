@@ -15,6 +15,7 @@ const VARIANTES: [RegExp, RegExp][] = [
   [/^oleo(\s|$)/, /composto|misto/],
   [/^leite(\s|$)/, /condensado|em po|fermentado|de coco|vegetal/],
   [/^acucar(\s|$)/, /confeiteiro|mascavo|demerara|organico/],
+  [/^ovos?(\s|$)/, /codorna|pascoa|chocolate|conserva/],
 ];
 const tirarVariantes = (termo: string, l: Oferta[]) => {
   const t = norm(termo);
