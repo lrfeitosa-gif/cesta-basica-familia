@@ -1,111 +1,203 @@
-# fast-promotions-mk — Parte I: Integração e coleta de preços
+# fast-promotions-mk — Documentação do projeto (Parte I)
 
-Situação em 29/10/2026. O app se chamava "Cesta Básica Família" e foi renomeado para fast-promotions-mk em 30/10/2026. Este documento resume o que foi construído até aqui, onde cada peça fica e o que precisa ser guardado.
+Situação em 30/10/2026. O app começou como "Cesta Básica Família" e foi renomeado para **fast-promotions-mk** em 30/10/2026.
 
-## 1. Visão geral
+Este documento resume o que foi construído, como as peças se conectam, os requisitos técnicos, as chaves que precisam ser guardadas e o que falta.
 
-Todo dia às 7h (Brasília) um robô no GitHub coleta os preços dos mercados de Indaiatuba e grava no banco de dados. O app lê desse banco.
+---
+
+## 1. O que o app faz hoje
+
+O app ajuda a família a comprar quando o preço está bem mais em conta nos mercados de Indaiatuba.
+
+- **Ofertas:** maiores descontos do dia sobre o preço normal de cada mercado, com filtro por mercado e busca no topo.
+- **Comparar:** busca por palavras com filtro composto (`café pilão 500g`, `café -cápsula`), ordenada pelo preço por kg ou litro.
+- **Compra:** cesta com 10 itens básicos, mais os itens que a pessoa adicionar. Mostra o melhor mercado único, a economia frente ao 2º mais barato e o total comprando cada item no mais barato. Permite fixar a marca de cada item.
+- **Alertas:** a pessoa cadastra produto, marca (opcional) e preço-alvo (opcional). O alerta dispara quando o menor preço do dia fica abaixo do alvo ou 15% abaixo do preço normal. Por enquanto aparece só dentro do app.
+- **Notas:** leitura do QR Code da NFC-e de SP (câmera ou link colado). Guarda os itens comprados, sem CPF.
+- **Meus dados:** mostra o que é guardado, exporta um arquivo .json e exclui a conta.
+
+Cada preço mostra a fonte (**SITE** ou **ENCARTE**), o preço por kg ou litro e o link para o site do mercado ou para o encarte.
+
+---
+
+## 2. Visão geral da arquitetura
 
 ```
-Sites dos mercados ──┐
-Encartes (PDF/foto) ─┼─► Coletores (Python) ─► Extrator Claude (encartes) ─► Supabase (banco) ─► App / tela
-Prints enviados ─────┘          ▲
-                                └── GitHub Actions: roda sozinho todo dia às 7h
+Sites dos mercados (API VTEX) ─┐
+Encartes no site (PDF/JPG) ────┼─► Coletores Python ─► Extrator Claude (só encartes) ─► Supabase (Postgres)
+Prints enviados (Assaí, PdA) ──┘          ▲                                                  │
+                                          │                                                  ▼
+                       GitHub Actions (agenda de coletas)                   App web (Next.js) na Vercel
+                                                                            celular e computador
 ```
 
-## 2. Fontes de preço por mercado
+---
 
-| Mercado | Como coletamos | Observação |
+## 3. Fontes de preço por mercado
+
+| Mercado | Fonte | Como coletamos | Observação |
+|---|---|---|---|
+| Atacadão | Site | API pública VTEX | Loja online cobre parte dos itens; preço de atacado não aparece |
+| Covabra | Site | API pública VTEX | |
+| Pague Menos | Site | API pública VTEX | Muda preços ao longo do dia, principalmente na virada do mês |
+| Savegnago | Site | API pública VTEX | |
+| Roldão | Encarte | Imagens no site → extrator | Encarte "ITU-" é de outra cidade e é ignorado |
+| Sumerbol | Encarte | PDF no site → extrator | |
+| Assaí | Encarte | Prints enviados → extrator | Site bloqueia leitura automática |
+| Pão de Açúcar | Encarte | Prints enviados → extrator | Site bloqueia leitura automática |
+
+**Regras adotadas**
+- Só usamos fontes abertas. Sites que bloqueiam robôs não são contornados.
+- **Preço de site não é garantia de preço da loja física.** Os 4 sites devolvem o mesmo preço para qualquer CEP (um único vendedor central). As notas fiscais de Indaiatuba são o caminho para medir a diferença.
+- Mercados de encarte entram só com os itens em promoção. Na Compra, item sem preço é estimado pela média dos outros mercados e aparece com "≈".
+
+---
+
+## 4. Agenda de coleta (GitHub Actions)
+
+| Quando (Brasília) | O que coleta | Custo |
 |---|---|---|
-| Atacadão | API pública do site (plataforma VTEX), região de Indaiatuba | Loja online cobre só parte dos itens; preços de atacado não aparecem |
-| Covabra | API pública do site (VTEX) | Preço do site, pode diferir da loja |
-| Pague Menos | API pública do site (VTEX) | Coleção 161 = ofertas |
-| Savegnago | API pública do site (VTEX) | Site não aceita região: preço padrão |
-| Sumerbol | Encarte em PDF no site → extrator | |
-| Roldão | Encartes em imagem no site → extrator | Encarte "ITU-" é de outra cidade e é ignorado |
-| Assaí | Prints enviados manualmente → extrator | Site bloqueia acesso automático |
-| Pão de Açúcar | Prints enviados manualmente → extrator | Site bloqueia acesso automático |
+| 07:00, todo dia | Tudo: sites e encartes | ~8 chamadas à API do Claude |
+| 13:00, todo dia | Só sites | Grátis |
+| Dias 28 a 31 e 1º e 2, às 10h, 17h e 20h | Só sites (ofertas de virada de mês) | Grátis |
+| Sob demanda | Botão **Run workflow** na aba Actions (padrão: "sites"; vazio = tudo) | Conforme a escolha |
 
-Regra adotada: só usamos fontes abertas. Sites que bloqueiam robôs não são contornados.
+- Os sites são buscados por **~95 termos** (mercearia, laticínios, frios, carnes, hortifruti, bebidas, limpeza, higiene, pet), até 100 produtos por termo.
+- Uma coleta repetida no mesmo dia **substitui o preço** pelo mais recente e atualiza o horário "Atualizado às…".
+- Prints de encarte são gravados para **todos os dias da validade** (até 14 dias).
+- Duas coletas nunca rodam ao mesmo tempo. Tempo máximo de uma coleta: 120 minutos.
 
-## 3. Componentes
+---
 
-### 3.1 Coletores (`worker/coleta/`)
-- `vtex.py` — busca produtos nas APIs públicas dos mercados em VTEX. Traz preço, preço "de", código de barras (EAN) e estoque, informando o CEP de Indaiatuba.
-- `encartes.py` — encontra os encartes publicados nos sites (Sumerbol, Roldão) e envia cada um ao extrator.
-- `extrator.py` — envia a imagem ou o PDF do encarte para a API do Claude (modelo Claude Opus 5.5, com visão) e recebe a lista de ofertas estruturada: produto, marca, embalagem, preço, preço "de", condição e validade.
-- `comparar_gabarito.py` — mede a precisão do extrator contra uma transcrição manual. No encarte do Assaí de 26/10: preço 100%, preço "de" 99%, embalagem 96%.
+## 5. Componentes
 
-### 3.2 Orquestração (`worker/rodar_coleta.py`)
-Roda todos os coletores, converte cada oferta para o formato do banco e grava. Se um mercado falhar, os outros continuam. Prints entram com `--arquivo`.
+### 5.1 Coletores (`worker/coleta/`)
+- `vtex.py`: busca nas APIs públicas dos mercados em VTEX (preço, preço "de", EAN, estoque, link). Tenta de novo em quedas de conexão; para quando a loja falha em páginas profundas.
+- `encartes.py`: acha os encartes nos sites do Sumerbol e do Roldão e envia ao extrator. Fica com a maior versão de cada imagem.
+- `extrator.py`: envia imagem ou PDF ao Claude Opus 5.5 com visão e recebe as ofertas estruturadas (produto, marca, embalagem, preço, preço "de", condição, validade). Usa streaming para PDFs longos.
+- `comparar_gabarito.py`: mede a precisão do extrator contra uma transcrição manual. No encarte do Assaí (80 itens): preço 100%, preço "de" 99%, embalagem 96%.
 
-### 3.3 Banco de dados (Supabase / Postgres)
-Projeto `cesta-basica`, região São Paulo. Estrutura em `supabase/migrations/`:
-- `0001_schema.sql` — tabelas do app: família, regiões de interesse, mercados, produtos, ofertas, lista de interesse, compras, itens comprados, alertas. Regras de acesso (RLS): cada família só vê os próprios dados; produtos, mercados e ofertas são públicos para leitura.
-- `0002_coleta.sql` — ajustes para a coleta: chave única de produto (EAN ou nome+marca+embalagem), preço "de", condição, link, cadastro dos 8 mercados.
-- `0003_curva_preco.sql` — visões de histórico: preço médio diário por produto (curva de preço) e referência de 60/90 dias para os alertas.
+### 5.2 Orquestração (`worker/`)
+- `rodar_coleta.py`: roda os coletores, normaliza (chave do produto = EAN ou nome+marca+embalagem) e grava. Um mercado com falha não derruba os outros. Prints entram com `--arquivo`.
+- `resumo_banco.py`: ofertas por mercado e tamanho do catálogo.
+- `exportar_ofertas.py`: exporta as ofertas do dia (usado na prévia antiga).
 
-Uma oferta por produto, mercado, dia e fonte: rodar duas vezes no mesmo dia atualiza em vez de duplicar. Cada dia novo gera um registro novo, e isso forma o histórico.
+### 5.3 Motor de regras (`worker/motor/`)
+- `regras.py`: cruzamento oferta × interesse, gatilho de oportunidade, melhor mercado e dupla, quanto estocar, aviso de compra repetida. 8 testes automatizados. Ainda não ligado ao banco.
+- `nfce.py`: leitura da NFC-e (versão Python; o app usa a versão em `web/lib/nfce.ts`).
 
-Privacidade: o banco não tem campo para CPF, nome completo, endereço exato ou pagamento. A região da família é guardada arredondada (~1 km).
+### 5.4 Banco de dados (Supabase / Postgres, projeto `cesta-basica`, região São Paulo)
 
-### 3.4 Motor de regras (`worker/motor/regras.py`)
-Funções puras, com 8 testes automatizados:
-- cruzamento oferta × lista de interesse (por EAN, ou produto + marca + embalagem ±25%);
-- gatilho de oportunidade: preço-alvo, 15% abaixo da média de 60 dias ou menor preço de 90 dias, com limite de 1 alerta por produto a cada 7 dias;
-- melhor mercado único e melhor dupla, somando o deslocamento;
-- quanto estocar (até ~90 dias de consumo);
-- aviso de compra repetida.
-
-Ainda não está ligado ao banco: depende de algumas semanas de histórico.
-
-### 3.5 Leitura de nota fiscal (`worker/motor/nfce.py`)
-Lê a NFC-e de SP pela URL do QR Code: itens, quantidades, preços, CNPJ da loja e data. CPF e dados do consumidor não são lidos. Ainda não testado com notas reais.
-
-### 3.6 GitHub (repositório privado `lrfeitosa-gif/cesta-basica-familia`)
-- Guarda todo o código com histórico de versões.
-- `.github/workflows/coleta-diaria.yml` roda a coleta todo dia às 7h, de graça, sem depender do computador ligado. Botão "Run workflow" na aba Actions roda na hora.
-- Se a coleta falhar, o GitHub avisa por e-mail.
-
-### 3.7 App (`web/`)
-PWA em Next.js: telas de entrada, cadastro, família e leitura de notas. Prévia com dados reais publicada em https://claude.ai/artifact/9jRf6kjDgVoBB8SsjFKFhs.
-
-## 4. Chaves e contas — o que guardar
-
-Nunca coloque as chaves no código, no chat ou em e-mail.
-
-| Chave / conta | Para que serve | Onde está |
+| Migração | Conteúdo | Rodada? |
 |---|---|---|
-| Conta GitHub `lrfeitosa-gif` | Código e coleta diária | github.com |
-| Conta Supabase, projeto `cesta-basica` | Banco de dados | supabase.com |
+| `0001_schema.sql` | Tabelas: família, região, mercado, produto, oferta, item de interesse, compra, item comprado, alerta, push. RLS: cada família vê só os seus dados; produtos, mercados e ofertas são públicos para leitura | Sim |
+| `0002_coleta.sql` | Chave única de produto, preço "de", condição, link, cadastro dos 8 mercados, uma oferta por produto/mercado/dia/fonte | Sim |
+| `0003_curva_preco.sql` | Visões de histórico: preço diário (menor/média/maior), preço por mercado por dia, referência de 60/90 dias | Sim |
+| `0004_alerta_por_termo.sql` | Alerta por palavras (`termo`), função `garantir_familia()` | Sim |
+| `0005_excluir_conta.sql` | Função `excluir_conta()` para a pessoa apagar a própria conta | **Pendente** |
+
+Volume: cerca de 16 mil ofertas por dia com a lista ampliada. O plano gratuito (500 MB) deve durar uns 2 meses; acompanhar em Supabase → Settings → Usage.
+
+### 5.5 App web (`web/`, Next.js na Vercel)
+- Endereço: **https://cesta-basica-familia.vercel.app** (pode ser trocado em Vercel → Settings → Domains).
+- Telas públicas: início, criar conta, entrar, termos, privacidade.
+- Área logada (abas): Ofertas, Comparar, Compra, Alertas, Notas; menu da conta com Meus dados e Sair.
+- `app/api/nota/route.ts`: lê a NFC-e no portal da Sefaz-SP (só esse domínio) e grava compra e itens com o token da pessoa (RLS).
+- PWA: instalável na tela inicial, ícones do carrinho, nome curto "fast-promo".
+- Visual: logo do carrinho cheio no topo, como marca-d'água no fundo e nos ícones; etiqueta amarela de preço; modo claro e escuro.
+
+### 5.6 Repositório (GitHub, privado)
+`lrfeitosa-gif/cesta-basica-familia`. Cada envio ao ramo `main` publica o app na Vercel automaticamente.
+
+---
+
+## 6. Requisitos técnicos
+
+### 6.1 Serviços e contas
+| Serviço | Uso | Plano |
+|---|---|---|
+| GitHub (`lrfeitosa-gif`) | Código e agenda de coletas (Actions) | Gratuito |
+| Supabase (`cesta-basica`) | Banco Postgres, login, regras de acesso | Gratuito (500 MB) |
+| Vercel | Hospedagem do app | Gratuito (Hobby) |
+| Anthropic (console.anthropic.com) | API do Claude para encartes | Pago por uso (crédito pré-pago) |
+
+### 6.2 Tecnologias e versões
+| Parte | Tecnologia | Versão |
+|---|---|---|
+| Coleta | Python | 3.12 |
+| | anthropic (SDK) / modelo | 2.3.0 / `claude-opus-5-5` |
+| | httpx, pydantic, beautifulsoup4, supabase-py | 0.27.2, 2.9.2, 4.12.3, 2.9.1 |
+| | pytest | 8.3.3 |
+| App | Node.js | 22.12 |
+| | Next.js, React, TypeScript | 14.2.15, 18.3.1, 5.6.3 |
+| | @supabase/supabase-js | 2.45.4 |
+| | @yudiel/react-qr-scanner, cheerio | 2.0.8, 1.0.0 |
+| Banco | PostgreSQL (Supabase) | gerenciado |
+
+### 6.3 Configurações importantes
+- **Supabase → Authentication → Sign In / Providers → Email:** "Confirm email" desligado no piloto (o e-mail gratuito do Supabase manda só 2 a 3 por hora).
+- **Supabase → Authentication → URL Configuration:** Site URL e Redirect URLs com o endereço da Vercel.
+- **Login com Google:** desligado. Para ativar, configurar o provedor no Supabase e criar `NEXT_PUBLIC_LOGIN_GOOGLE=1` na Vercel.
+
+### 6.4 Computador de desenvolvimento (Windows)
+- Python 3.12 em `%LOCALAPPDATA%\Programs\Python\Python312`, ambiente em `worker\.venv`.
+- Node.js portátil em `%LOCALAPPDATA%\nodejs-portable`; GitHub CLI portátil em `%LOCALAPPDATA%\gh-cli`; Git em `C:\Program Files\Git`.
+
+---
+
+## 7. Chaves e contas — o que guardar
+
+Nunca coloque chaves no código, no chat ou em e-mail.
+
+| Chave | Para que serve | Onde está |
+|---|---|---|
 | Senha do banco (criada com o projeto) | Acesso direto ao Postgres | Guardada por você |
 | `SUPABASE_URL` | Endereço do banco | Variável do Windows + secret do GitHub |
 | `SUPABASE_SERVICE_KEY` (service_role) | Gravação pelo robô. **Acesso total: nunca no app** | Variável do Windows + secret do GitHub |
-| Chave anon / publishable do Supabase | Uso no app (respeita o RLS) | Painel do Supabase → API Keys |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Uso no app (respeita o RLS) | Variáveis da Vercel |
 | `ANTHROPIC_API_KEY` | Extrator de encartes | Variável do Windows + secret do GitHub |
-| Conta Anthropic (console.anthropic.com) | Crédito e consumo da API | console.anthropic.com |
 
-Para trocar uma chave: gere a nova no painel do serviço, atualize a variável do Windows (`[Environment]::SetEnvironmentVariable("NOME", "valor", "User")`) e o secret no GitHub (Settings → Secrets and variables → Actions).
+Para trocar uma chave: gere a nova no painel do serviço, atualize a variável do Windows (`[Environment]::SetEnvironmentVariable("NOME", "valor", "User")`), o secret do GitHub (Settings → Secrets and variables → Actions) e, se for do app, a variável da Vercel (Settings → Environment Variables), depois publique de novo.
 
-## 5. Custos
+---
 
-- GitHub Actions: grátis no volume atual.
-- Supabase: plano gratuito (500 MB). ~6 mil ofertas por dia cabem com folga por vários meses; acompanhar em Settings → Usage.
-- API do Claude: cerca de 8 chamadas por dia (encartes). Acompanhar em console.anthropic.com → Usage.
+## 8. Privacidade
 
-## 6. Como rodar no computador
+- A conta guarda só o e-mail. Sem CPF, nome, endereço ou pagamento.
+- Das notas: loja, data, total e itens. CPF e pagamento da nota nunca são gravados.
+- Itens da Compra e marcas escolhidas ficam só no aparelho.
+- Meus dados: exportação em .json e exclusão da conta (depois da migração 0005).
+- Termos e política são rascunhos do piloto; revisar com um profissional antes de abrir ao público.
+
+---
+
+## 9. Como rodar no computador
 
 ```
 cd worker
-.\.venv\Scripts\python.exe -m pytest -q tests                 # testes do motor
-.\.venv\Scripts\python.exe rodar_coleta.py covabra roldao      # coleta de alguns mercados
+.\.venv\Scripts\python.exe -m pytest -q tests                              # testes do motor
+.\.venv\Scripts\python.exe rodar_coleta.py covabra roldao                   # coleta de alguns mercados
+.\.venv\Scripts\python.exe -m coleta.extrator encarte.jpg --mercado Assaí --saida prints.json
 .\.venv\Scripts\python.exe rodar_coleta.py --arquivo prints.json --mercado Assaí
-.\.venv\Scripts\python.exe resumo_banco.py                     # quantas ofertas por mercado
+.\.venv\Scripts\python.exe resumo_banco.py                                  # ofertas por mercado
 ```
+As variáveis `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` e `ANTHROPIC_API_KEY` precisam estar definidas.
 
-## 7. Pendências conhecidas
+---
 
-- Normalizar produtos: o mesmo item sem código de barras pode aparecer com nomes diferentes (principalmente nos encartes).
-- Ligar o motor de alertas ao banco quando houver histórico.
-- Confirmar o preço regional de Indaiatuba no Covabra, Pague Menos e Savegnago.
-- Testar a leitura de NFC-e com notas reais de Indaiatuba.
+## 10. Pendências e próximos passos
+
+**Configuração**
+- Rodar a migração `0005_excluir_conta.sql` no Supabase.
+
+**Produto**
+- Notificação no celular (push) para os alertas, depois da coleta.
+- Testar a leitura de NFC-e com notas reais de Indaiatuba e usar as notas para comparar preço do site × loja física.
+- Envio dos prints do Assaí e do Pão de Açúcar pelo próprio app.
+- Login com Google e e-mail próprio (Resend + domínio) antes de abrir ao público.
+
+**Dados**
+- Normalizar o catálogo: juntar o mesmo produto escrito de formas diferentes (principalmente nos encartes).
+- Ligar o motor de regras ao histórico (média de 60 dias) quando houver algumas semanas de dados.
+- Rotina de limpeza do histórico antes de chegar ao limite do Supabase gratuito.
