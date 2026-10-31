@@ -65,7 +65,11 @@ export function useOfertas() {
 }
 
 async function buscar(): Promise<Ofertas> {
-  const ult = await supabase.from('oferta').select('valido_de').order('valido_de', { ascending: false }).limit(1).single();
+  // Último dia (até hoje, em Brasília) com coleta dos sites. Prints de encarte são gravados também para dias
+  // futuros e, sozinhos, não podem virar "o dia mais recente"; no dia escolhido eles também estão presentes.
+  const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const ult = await supabase.from('oferta').select('valido_de').eq('fonte', 'ecommerce').lte('valido_de', hoje)
+    .order('valido_de', { ascending: false }).limit(1).single();
   if (ult.error) throw ult.error;
   const dia = ult.data.valido_de as string;
   const linhas: Linha[] = [];
