@@ -2,13 +2,23 @@ name: Coleta diária de ofertas
 
 on:
   schedule:
-    - cron: "0 10 * * *"   # 07:00 em Brasília (o GitHub usa UTC)
-  workflow_dispatch:        # botão "Run workflow" para rodar na hora
+    # horários em UTC (Brasília = UTC-3)
+    - cron: "0 10 * * *"            # 07:00 todo dia: coleta completa (sites + encartes)
+    - cron: "0 16 * * *"            # 13:00 todo dia: só sites (preço muda durante o dia)
+    - cron: "0 13,20,23 28-31 * *"  # fim do mês, 10h, 17h e 20h: só sites (ofertas de virada de mês)
+    - cron: "0 13,20,23 1-2 * *"    # começo do mês, 10h, 17h e 20h: só sites
+  workflow_dispatch:                # botão "Run workflow" para atualizar na hora
+    inputs:
+      mercados:
+        description: "Quais mercados (vazio = todos; 'sites' = só os sites, sem custo de API)"
+        required: false
+        default: "sites"
 
 jobs:
   coleta:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    concurrency: coleta            # nunca duas coletas ao mesmo tempo
     defaults:
       run:
         working-directory: worker
@@ -20,12 +30,25 @@ jobs:
           cache: pip
           cache-dependency-path: worker/requirements.txt
       - run: pip install -r requirements.txt
+      - name: Escolher mercados
+        id: alvo
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            escolha="${{ inputs.mercados }}"
+          elif [ "${{ github.event.schedule }}" = "0 10 * * *" ]; then
+            escolha=""
+          else
+            escolha="sites"
+          fi
+          [ "$escolha" = "sites" ] && escolha="atacadao covabra paguemenos savegnago"
+          echo "lista=$escolha" >> "$GITHUB_OUTPUT"
+          echo "Mercados: ${escolha:-todos}"
       - name: Coletar e gravar no Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python rodar_coleta.py
+        run: python rodar_coleta.py ${{ steps.alvo.outputs.lista }}
       - name: Resumo do banco
         if: always()
         env:

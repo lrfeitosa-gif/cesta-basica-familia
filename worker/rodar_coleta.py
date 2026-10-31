@@ -15,7 +15,7 @@ import json
 import os
 import sys
 import unicodedata
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from supabase import create_client
 
@@ -57,7 +57,8 @@ def normalizar(o: dict) -> dict | None:
                     "categoria": _norm(o.get("categoria")) or "outros"},
         "oferta": {"preco": o["preco"], "preco_de": o.get("precoDe"), "condicao": o.get("condicao"),
                    "valido_ate": o.get("validoAte"), "fonte": "ecommerce" if o.get("fonte") == "ecommerce" else "tabloide",
-                   "url": o.get("url"), "descricao_original": nome},
+                   "url": o.get("url"), "descricao_original": nome,
+                   "coletado_em": datetime.now(timezone.utc).isoformat()},  # nova coleta no dia atualiza o horário
     }
 
 
