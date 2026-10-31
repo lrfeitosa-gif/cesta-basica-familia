@@ -60,6 +60,7 @@ async function buscar(): Promise<Ofertas> {
       busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade}`),
     });
   }
+  padronizarMarcas(lista);
   const info = new Map<string, InfoMercado>();
   for (const l of linhas) {
     if (!l.mercado) continue;
@@ -71,6 +72,33 @@ async function buscar(): Promise<Ofertas> {
   const infos = [...info.values()].sort((a, b) => a.mercado.localeCompare(b.mercado));
   const atualizado = infos.reduce((m, i) => (i.atualizado > m ? i.atualizado : m), '');
   return { dia, atualizado, mercados: infos.map((i) => i.mercado), info: infos, lista };
+}
+
+// Chave da marca: ignora maiúsculas, acentos e pontuação ("LIZA", "Liza", "3 Corações" = "3 coracoes").
+export const chaveMarca = (m: string) => norm(m).replace(/[^a-z0-9]+/g, ' ').trim();
+
+const titulo = (m: string) => m.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
+
+// Uma grafia por marca em todas as telas: a mais usada que não seja toda em maiúsculas.
+function padronizarMarcas(lista: Oferta[]) {
+  const contagem = new Map<string, Map<string, number>>();
+  for (const o of lista) {
+    const k = chaveMarca(o.marca);
+    if (!k) continue;
+    const m = contagem.get(k) ?? new Map<string, number>();
+    m.set(o.marca.trim(), (m.get(o.marca.trim()) ?? 0) + 1);
+    contagem.set(k, m);
+  }
+  const exibir = new Map<string, string>();
+  for (const [k, grafias] of contagem) {
+    const ordem = [...grafias.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+    const mista = ordem.find((g) => g !== g.toUpperCase() || g.length <= 3);
+    exibir.set(k, mista ?? titulo(ordem[0]));
+  }
+  for (const o of lista) {
+    const k = chaveMarca(o.marca);
+    if (k) o.marca = exibir.get(k)!;
+  }
 }
 
 // Filtro composto: todas as palavras precisam aparecer; "-palavra" exclui.

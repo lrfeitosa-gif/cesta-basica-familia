@@ -113,7 +113,7 @@ nav.abas {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px));
 }
-nav.abas > div { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); }
+nav.abas > div { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); }
 nav.abas a {
   display: grid; justify-items: center; gap: 2px; padding: 10px 2px 8px; font-size: .74rem; font-weight: 700;
   color: var(--muted); text-decoration: none; border-top: 3px solid transparent;
@@ -198,3 +198,8 @@ nav.abas svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stro
 .ranking details { grid-column: 1 / -1; font-size: .8rem; }
 .ranking details summary { cursor: pointer; color: var(--accent); font-weight: 700; }
 .ranking details ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; color: var(--muted); }
+
+/* Alertas cadastrados */
+.alerta-card { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.alerta-card.alerta-on { border-color: var(--good); box-shadow: inset 4px 0 0 var(--good); }
+.alerta-card .lista { border-radius: 10px; }

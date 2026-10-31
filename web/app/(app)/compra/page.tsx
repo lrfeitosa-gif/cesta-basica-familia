@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { brl, carregarOfertas, norm, type Oferta, type Ofertas } from '@/lib/ofertas';
+import { brl, carregarOfertas, chaveMarca, type Oferta, type Ofertas } from '@/lib/ofertas';
 import { Carregando } from '../linha-oferta';
 
 type ItemCesta = { id: string; rotulo: string; inc: string[]; q: number; u: string; exc: RegExp };
@@ -47,17 +47,28 @@ export default function MinhaCompra() {
     }
     return r;
   }, [dados]);
-  const marcasDe = (id: string) => [...new Set(candidatos[id].map((o) => o.marca.trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  // marcas do item, sem repetir grafias e mostrando quantos mercados têm cada uma
+  const marcasDe = (id: string) => {
+    const m = new Map<string, { nome: string; mercados: Set<string> }>();
+    for (const o of candidatos[id]) {
+      const k = chaveMarca(o.marca);
+      if (!k) continue;
+      const v = m.get(k) ?? { nome: o.marca, mercados: new Set<string>() };
+      v.mercados.add(o.mercado);
+      m.set(k, v);
+    }
+    return [...m.entries()].map(([chave, v]) => ({ chave, nome: v.nome, mercados: v.mercados.size }))
+      .sort((a, b) => b.mercados - a.mercados || a.nome.localeCompare(b.nome, 'pt-BR'));
+  };
 
   // menor preço de cada item em cada mercado, respeitando a marca fixada
   const porItem = useMemo(() => {
     const r: Record<string, Record<string, Oferta>> = {};
     for (const c of CESTA) {
       r[c.id] = {};
-      const marca = norm(marcas[c.id]);
+      const marca = chaveMarca(marcas[c.id] ?? '');
       for (const o of candidatos[c.id]) {
-        if (marca && norm(o.marca) !== marca) continue;
+        if (marca && chaveMarca(o.marca) !== marca) continue;
         if (!r[c.id][o.mercado] || o.preco < r[c.id][o.mercado].preco) r[c.id][o.mercado] = o;
       }
     }
@@ -154,14 +165,21 @@ export default function MinhaCompra() {
               <div className="meta">
                 {menor
                   ? <span>a partir de <b>{brl(menor.preco)}</b> ({menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
-                  : <span className="cond">{marcas[c.id] ? `sem ${marcas[c.id]} hoje` : 'sem preço hoje'}</span>}
+                  : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 <span>{Object.keys(porItem[c.id]).length} mercados</span>
-                {ativo && marcasDe(c.id).length > 1 && (
-                  <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={marcas[c.id] ?? ''}
-                    onChange={(e) => fixarMarca(c.id, e.target.value)}>
-                    <option value="">Qualquer marca</option>
-                    {marcasDe(c.id).map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                {ativo && (marcasDe(c.id).length > 1 || marcas[c.id]) && (
+                  <span className="row" style={{ gap: 6, flexBasis: '100%' }}>
+                    <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={chaveMarca(marcas[c.id] ?? '')}
+                      onChange={(e) => fixarMarca(c.id, e.target.value)}>
+                      <option value="">Comparar qualquer marca</option>
+                      {marcasDe(c.id).map((m) => (
+                        <option key={m.chave} value={m.chave}>Só {m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
+                      ))}
+                    </select>
+                    {marcas[c.id] && (
+                      <button type="button" className="chip" onClick={() => fixarMarca(c.id, '')}>× qualquer marca</button>
+                    )}
+                  </span>
                 )}
               </div>
             </div>

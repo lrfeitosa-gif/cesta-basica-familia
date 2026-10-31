@@ -30,10 +30,29 @@ MAX_ITENS = 2500     # a VTEX não pagina além disso (coleções)
 MAX_POR_TERMO = 100  # busca textual é aproximada: depois dos primeiros resultados só vem ruído
 PAUSA_S = 1.0        # educado com o servidor
 
+# O que uma família compra no mês. Cada termo traz até MAX_POR_TERMO produtos por mercado.
 TERMOS_CESTA = [
-    "arroz", "feijão", "açúcar", "café", "óleo", "leite", "macarrão", "farinha",
-    "sal", "margarina", "manteiga", "ovos", "carne", "frango", "batata", "tomate",
-    "cebola", "banana", "pão", "papel higiênico", "sabão", "detergente", "creme dental",
+    # mercearia
+    "arroz", "feijão", "açúcar", "café", "óleo", "azeite", "macarrão", "farinha", "sal", "molho de tomate",
+    "extrato de tomate", "milho", "ervilha", "atum", "sardinha", "biscoito", "bolacha", "achocolatado",
+    "cereal", "aveia", "fubá", "farofa", "maionese", "ketchup", "vinagre", "tempero", "gelatina",
+    # laticínios e frios
+    "leite", "leite condensado", "creme de leite", "iogurte", "queijo", "requeijão", "manteiga", "margarina",
+    "presunto", "mortadela", "salsicha", "linguiça",
+    # carnes, ovos, padaria
+    "carne", "frango", "peixe", "bacon", "hambúrguer", "ovos", "pão", "bolo",
+    # hortifruti
+    "batata", "tomate", "cebola", "alho", "banana", "maçã", "laranja", "limão", "cenoura", "alface",
+    # bebidas
+    "água mineral", "refrigerante", "suco", "cerveja", "heineken", "energético", "vinho",
+    # limpeza
+    "sabão", "lava roupas", "amaciante", "detergente", "água sanitária", "desinfetante", "esponja",
+    "papel toalha", "saco de lixo", "multiuso", "limpador",
+    # higiene
+    "papel higiênico", "creme dental", "escova dental", "sabonete", "shampoo", "condicionador",
+    "desodorante", "absorvente", "fralda", "lenço umedecido",
+    # pet
+    "ração",
 ]
 
 _EMB = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|lt|un)\b", re.I)
