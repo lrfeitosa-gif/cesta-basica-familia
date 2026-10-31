@@ -7,8 +7,8 @@ import { Carregando, ErroCarga } from '../linha-oferta';
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
 // "cebola kg": hortifruti vendido por unidade num mercado e por quilo em outro; compara pelo preço do quilo.
 const PADRAO_KG = /(^|\s)kg(\s|$)/i;
-// Tamanho escrito pela pessoa ("azeite 500ml"); sem ele, o item compara pelo preço do litro/quilo.
-const TEM_TAMANHO = /\d+(?:[.,]\d+)?\s*(kg|g|ml|l|lt|litros?)(\s|$)/i;
+// Tamanho escrito pela pessoa ("azeite 500ml", "ovos 30un"); sem ele, o item compara pelo preço do litro/quilo/unidade.
+const TEM_TAMANHO = /\d+(?:[.,]\d+)?\s*(kg|g|ml|l|lt|litros?|un)(\s|$)/i;
 // Produtos diferentes que começam com a mesma palavra: ficam de fora, a menos que a pessoa escreva a variante.
 const VARIANTES: [RegExp, RegExp][] = [
   [/^azeite(\s|$)/, /dende/],
