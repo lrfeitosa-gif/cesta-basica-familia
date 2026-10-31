@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react';
 const PASSOS = [
   {
     titulo: 'Preço de oportunidade',
-    texto: 'Todo dia às 7h buscamos os preços de 8 mercados de Indaiatuba. Mostramos quando um item está abaixo do normal: é a hora de comprar ou estocar.',
+    texto: 'Todo dia às 7h buscamos os preços de 8 mercados de Indaiatuba. Notificamos quando o preço de um item está bem mais em conta: é a hora de comprar ou estocar.',
   },
   {
     titulo: 'Compare do jeito certo',
-    texto: 'Comparamos pelo preço por kg ou litro, com a marca de cada oferta. Assim uma embalagem menor ou uma marca mais simples não engana.',
+    texto: 'Fazemos a comparação de preço considerando o valor do produto por kg ou litro. Com isso, a comparação é justa.',
   },
   {
     titulo: 'Sua cesta, seu mercado',
-    texto: 'Monte sua compra e veja qual mercado sai mais barato. Envie suas notas fiscais quando quiser: o app aprende o que você compra e lembra o que já tem em casa.',
+    texto: 'Monte sua compra e veja qual mercado sai mais barato. Envie suas notas fiscais quando quiser: o app aprende o que você compra.',
   },
 ];
 const CHAVE = 'boas-vindas-vista';
