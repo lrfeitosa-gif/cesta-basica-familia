@@ -184,12 +184,17 @@ export default function MinhaCompra() {
   }
   const ranking = dados.mercados.map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
+    const estimados: { c: ItemCesta; valor: number }[] = [];
     for (const c of itens) {
       const o = porItem[c.id][m];
       if (o) { total += v(c, o) * sel[c.id]; escolhas.push({ c, o }); }
-      else { falta.push(c.rotulo); estimado += (media[c.id] ?? 0) * sel[c.id]; }
+      else {
+        falta.push(c.rotulo);
+        estimado += (media[c.id] ?? 0) * sel[c.id];
+        estimados.push({ c, valor: (media[c.id] ?? 0) * sel[c.id] });
+      }
     }
-    return { m, total, estimado, falta, escolhas, valor: total + estimado };
+    return { m, total, estimado, falta, escolhas, estimados, valor: total + estimado };
   }).filter((r) => r.falta.length < itens.length)
     // Primeiro quem tem preço para a maioria dos itens (no máximo 30% estimado), do menor para o maior valor;
     // mercados com poucos itens com preço (ex.: só o encarte) vêm depois, porque o total deles é quase só estimativa.
@@ -328,9 +333,21 @@ export default function MinhaCompra() {
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
                       <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
-                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}</li>
+                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}
+                        {' '}<span className="subtotal">= {brl(v(c, o) * sel[c.id])}</span></li>
+                    ))}
+                    {r.estimados.map(({ c, valor }) => (
+                      <li key={c.id} className="estimado">
+                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: sem preço neste mercado, média dos outros{' '}
+                        <span className="subtotal">≈ {brl(valor)}</span>
+                      </li>
                     ))}
                   </ul>
+                  <div className="soma">
+                    Itens com preço: <b>{brl(r.total)}</b>
+                    {r.estimado > 0 && <> + estimados: <b>≈ {brl(r.estimado)}</b></>}
+                    {' '}= <b>{fmt(r)}</b>
+                  </div>
                 </details>
               )}
             </div>
