@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { brl, emb, filtrar, useOfertas } from '@/lib/ofertas';
+import { brl, emb, filtrarFoco, useOfertas } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 
 const ATALHOS = ['café pilão', 'café -cápsula -solúvel', 'arroz 5kg -integral', 'feijão carioca 1kg', 'leite integral 1l'];
@@ -9,7 +9,7 @@ export default function Comparar() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const [q, setQ] = useState('');
 
-  const achados = useMemo(() => dados ? filtrar(dados.lista, q).sort((a, b) => a.porUn - b.porUn).slice(0, 80) : [], [dados, q]);
+  const achados = useMemo(() => dados ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn).slice(0, 80) : [], [dados, q]);
   const melhor = achados[0];
 
   return (

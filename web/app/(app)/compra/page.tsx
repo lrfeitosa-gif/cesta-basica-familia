@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { brl, chaveMarca, filtrar, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
@@ -15,7 +15,10 @@ const HORTIFRUTI = new Set(('abacate abacaxi abobora abobrinha acelga agriao alf
   + 'inhame jilo kiwi laranja limao maca mamao mandioca mandioquinha manga maracuja melancia melao mexerica morango '
   + 'nabo pepino pera pessego pimentao ponkan quiabo rabanete repolho rucula salsa tangerina tomate uva vagem').split(' '));
 const primeiraPalavra = (t: string) => norm(t).trim().split(/\s+/)[0] ?? '';
-type Extra = { id: string; termo: string };
+const pareceHortiFixo = (t: string) => PADRAO_KG.test(t) || HORTIFRUTI.has(primeiraPalavra(t.replace(PADRAO_KG, ' ')));
+type Extra = { id: string; termo: string; horti?: boolean };   // horti: escolhido pela pessoa (caixa "é hortifruti")
+// No modo hortifruti, só a fruta/verdura in natura: fora os processados.
+const PROCESSADO = /triturad|picad|frit|desidrat|pasta|conserva|em po|chips|passa|polpa|congelad|molho|tempero|doce de|geleia|suco|creme|farinha|palha/;
 
 // Cesta básica de referência. Próxima etapa: montar a partir da lista de interesse da família.
 const CESTA: ItemCesta[] = [
@@ -40,6 +43,8 @@ export default function MinhaCompra() {
   const [marcas, setMarcas] = useState<Record<string, string>>({});   // item -> marca fixada ('' = qualquer)
   const [extras, setExtras] = useState<Extra[]>([]);
   const [novo, setNovo] = useState('');
+  const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
+  const [avisoNovo, setAvisoNovo] = useState('');
 
   useEffect(() => {
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s && Object.keys(s).length) setSel(s); } catch {}
@@ -53,20 +58,27 @@ export default function MinhaCompra() {
   };
 
   const salvarExtras = (l: Extra[]) => { setExtras(l); try { localStorage.setItem('cesta-extra', JSON.stringify(l)); } catch {} };
+  const pareceHorti = (t: string) => PADRAO_KG.test(t) || HORTIFRUTI.has(primeiraPalavra(t.replace(PADRAO_KG, ' ')));
+  const novoEhHorti = novoHorti ?? pareceHorti(novo);
   const adicionar = (e: FormEvent) => {
     e.preventDefault();
-    const termo = novo.trim();
+    const termo = novo.trim().replace(/\s+/g, ' ');
     if (!termo) return;
+    const chave = norm(termo.replace(PADRAO_KG, ' ')).trim();
+    const repetido = [...CESTA.map((c) => c.rotulo), ...extras.map((x) => x.termo)]
+      .find((t) => norm(t.replace(PADRAO_KG, ' ')).trim() === chave);
+    if (repetido) return setAvisoNovo(`"${repetido}" já está na sua compra. Ajuste a quantidade no item.`);
     const id = `x-${Date.now()}`;
-    salvarExtras([...extras, { id, termo }]);
+    salvarExtras([...extras, { id, termo, horti: novoEhHorti }]);
     mudar({ ...sel, [id]: 1 });
-    setNovo('');
+    setNovo(''); setNovoHorti(null); setAvisoNovo('');
   };
+  const trocarHorti = (id: string, horti: boolean) => salvarExtras(extras.map((x) => (x.id === id ? { ...x, horti } : x)));
   const remover = (id: string) => {
     salvarExtras(extras.filter((x) => x.id !== id));
     const n = { ...sel }; delete n[id]; mudar(n);
   };
-  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: x.termo, termo: x.termo, porKg: PADRAO_KG.test(x.termo) }))], [extras]);
+  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: x.termo, termo: x.termo, porKg: x.horti ?? pareceHortiFixo(x.termo) }))], [extras]);
 
   // todas as ofertas que servem para cada item (qualquer marca). Item de hortifruti (com "kg" no nome ou quando
   // a maior parte do que a busca encontra é fruta, legume ou verdura) compara pelo preço do quilo, sem marca.
@@ -77,13 +89,13 @@ export default function MinhaCompra() {
     for (const c of todos) {
       if (c.termo) {
         const termo = c.termo.replace(PADRAO_KG, ' ');
-        if (c.porKg || HORTIFRUTI.has(primeiraPalavra(termo))) {
-          // só a fruta/verdura in natura: categoria hortifruti, vendida por peso, com o nome começando pela palavra
+        if (c.porKg) {
+          // só a fruta/verdura in natura: categoria hortifruti, vendida por peso, nome começando pela palavra, sem processados
           const inicio = primeiraPalavra(termo);
           kgs.add(c.id);
-          r[c.id] = filtrar(lista, termo).filter((o) => ehHorti(o) && norm(o.nome).startsWith(inicio));
+          r[c.id] = filtrar(lista, termo).filter((o) => ehHorti(o) && norm(o.nome).startsWith(inicio) && !PROCESSADO.test(norm(o.nome)));
         } else {
-          r[c.id] = filtrar(lista, termo);
+          r[c.id] = filtrarFoco(lista, termo);
         }
         continue;
       }
@@ -92,7 +104,7 @@ export default function MinhaCompra() {
     }
     return { candidatos: r, kgs };
   }, [dados, todos]);
-  const novoPrevia = useMemo(() => (dados && novo.trim() ? filtrar(dados.lista, novo).length : null), [dados, novo]);
+  const novoPrevia = useMemo(() => (dados && novo.trim() ? filtrarFoco(dados.lista, novo).length : null), [dados, novo]);
   // marcas do item, sem repetir grafias e mostrando quantos mercados têm cada uma
   const marcasDe = (id: string) => {
     const m = new Map<string, { nome: string; mercados: Set<string> }>();
@@ -174,14 +186,19 @@ export default function MinhaCompra() {
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
-            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350ml, sabão em pó omo 1,6kg"
-              value={novo} onChange={(e) => setNovo(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350ml, alho, sabão em pó omo 1,6kg"
+              value={novo} onChange={(e) => { setNovo(e.target.value); setAvisoNovo(''); }} style={{ flex: 1, minWidth: 0 }} />
             <button className="btn btn-primary" disabled={!novo.trim()}>Adicionar</button>
           </div>
+          <label className="row" style={{ gap: 8, fontWeight: 600 }}>
+            <input type="checkbox" className="check" checked={novoEhHorti} onChange={(e) => setNovoHorti(e.target.checked)} />
+            É fruta, legume ou verdura (compara pelo preço do quilo, sem marca)
+          </label>
           <span className="help">
-            {novoPrevia === null ? 'Inclua o tamanho (350ml, 1kg). Para frutas e verduras, termine com "kg" (ex.: cebola kg) para comparar pelo preço do quilo.'
+            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (350ml, 1kg). A caixa de hortifruti é marcada sozinha quando reconhecemos o nome.'
               : novoPrevia ? `${novoPrevia} preços encontrados hoje.` : 'Nenhum preço hoje com essas palavras. Tente menos palavras.'}
           </span>
+          {avisoNovo && <div className="alert alert-error" role="alert">{avisoNovo}</div>}
         </div>
       </form>
       <div className="lista cesta">
@@ -210,7 +227,12 @@ export default function MinhaCompra() {
                   ? <span>a partir de <b>{brl(valor(kgs.has(c.id), menor))}{kgs.has(c.id) ? '/kg' : ''}</b> ({kgs.has(c.id) ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 <span>{Object.keys(porItem[c.id]).length} mercados</span>
-                {kgs.has(c.id) && <span className="fonte fonte-site">por kg</span>}
+                {c.termo && (
+                  <label className="row" style={{ gap: 6 }}>
+                    <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
+                    hortifruti (por kg)
+                  </label>
+                )}
                 {ativo && !kgs.has(c.id) && (marcasDe(c.id).length > 1 || marcas[c.id]) && (
                   <span className="row" style={{ gap: 6, flexBasis: '100%' }}>
                     <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={chaveMarca(marcas[c.id] ?? '')}

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
-import { brl, filtrar, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, filtrarFoco, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 
 type Alerta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
@@ -10,7 +10,7 @@ const DESCONTO_MIN = 0.15;   // mesmo ponto de partida do motor de regras: 15% a
 
 // Situação de cada alerta com os preços de hoje. O aviso no celular (push) vem na próxima etapa.
 function avaliar(a: Alerta, lista: Oferta[]) {
-  let achados = filtrar(lista, a.termo);
+  let achados = filtrarFoco(lista, a.termo);
   if (a.marca) achados = achados.filter((o) => marcaCasa(o.marca, a.marca!));
   achados.sort((x, y) => x.preco - y.preco);
   const melhor = achados[0];
@@ -38,7 +38,7 @@ export default function Alertas() {
   };
   useEffect(() => { if (sessao) carregar(); }, [sessao]);
 
-  const previa = useMemo(() => (dados && termo.trim() ? filtrar(dados.lista, termo).length : null), [dados, termo]);
+  const previa = useMemo(() => (dados && termo.trim() ? filtrarFoco(dados.lista, termo).length : null), [dados, termo]);
 
   const criar = async (e: FormEvent) => {
     e.preventDefault();

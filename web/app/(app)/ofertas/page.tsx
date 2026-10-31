@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { brl, dataBr, emb, filtrar, GRUPOS, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, dataBr, emb, filtrarFoco, GRUPOS, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import Fontes from '../fontes';
@@ -30,7 +30,7 @@ export default function Oportunidades() {
     .sort((a, b) => b.desc - a.desc), [dados]);
 
   // com busca: todos os preços que combinam, do menor preço por kg/litro ao maior; sem busca: maiores descontos
-  const busca = useMemo(() => (dados && q.trim() ? filtrar(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : null), [dados, q]);
+  const busca = useMemo(() => (dados && q.trim() ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : null), [dados, q]);
   // com categoria escolhida: todos os preços dela (descontos primeiro, depois o menor preço por kg/litro)
   const comDesc = (o: Oferta) => ({ o, desc: o.de > o.preco ? 1 - o.preco / o.de : 0 });
   const porCategoria = useMemo(() => (dados && cat !== 'Todas'

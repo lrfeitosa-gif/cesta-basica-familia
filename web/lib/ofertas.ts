@@ -168,6 +168,17 @@ export const marcaCasa = (marcaOferta: string, digitada: string) => {
   return !d || chaveMarca(marcaOferta).includes(d);
 };
 
+// Busca com foco no produto: se existem itens cujo nome COMEÇA com a primeira palavra ("azeite" → "Azeite de oliva"),
+// fica só com eles; assim "Cup Noodles sabor azeite" não entra. Se nenhum começa ("heineken" → "Cerveja Heineken"),
+// mantém todos os que contêm as palavras.
+export function filtrarFoco(lista: Oferta[], consulta: string): Oferta[] {
+  const achados = filtrar(lista, consulta);
+  const primeira = norm(consulta).split(/\s+/).find((t) => t && !t.startsWith('-'));
+  if (!primeira) return achados;
+  const foco = achados.filter((o) => norm(o.nome).startsWith(primeira));
+  return foco.length ? foco : achados;
+}
+
 // Filtro composto: todas as palavras precisam aparecer; "-palavra" exclui.
 export function filtrar(lista: Oferta[], consulta: string): Oferta[] {
   const partes = norm(consulta).replace(/(\d+)\s+(kg|g|ml|l)\b/g, '$1$2').split(/\s+/).filter(Boolean);
