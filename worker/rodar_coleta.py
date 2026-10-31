@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
 from supabase import create_client
@@ -30,6 +31,7 @@ COLETORES = {
 }
 REDES = {"svicente": svicente.MERCADO, "goodbom": goodbom.MERCADO}
 UNIDADES = {"g", "kg", "ml", "l", "un"}
+PARALELOS = 6   # mercados coletados ao mesmo tempo
 
 
 def conectar():
@@ -120,16 +122,21 @@ def main(argv: list[str] | None = None) -> None:
         n = gravar(db, a.mercado, ofertas, dias)
         print(f"{a.mercado}: {n} ofertas gravadas ({dias[0]} a {dias[-1]})")
         return
-    falhas = 0
-    for nome in a.mercados or COLETORES:
+    # Mercados em paralelo: cada um é outro site, então as pausas de cortesia de um não atrasam os outros.
+    # Cada tarefa usa a própria conexão com o banco.
+    def rodar(nome: str) -> bool:
         rede = REDES.get(nome) or (vtex.LOJAS.get(nome) or (None,))[0] or encartes.SITES[nome]["mercado"]
         try:
-            n = gravar(db, rede, COLETORES[nome]())
-            print(f"{rede}: {n} ofertas gravadas")
+            n = gravar(conectar(), rede, COLETORES[nome]())
+            print(f"{rede}: {n} ofertas gravadas", flush=True)
+            return True
         except Exception as erro:  # um mercado com problema não derruba os outros
-            falhas += 1
-            print(f"{rede}: FALHOU – {erro}", file=sys.stderr)
-    sys.exit(1 if falhas else 0)
+            print(f"{rede}: FALHOU – {erro}", file=sys.stderr, flush=True)
+            return False
+
+    with ThreadPoolExecutor(max_workers=PARALELOS) as pool:
+        resultados = list(pool.map(rodar, a.mercados or list(COLETORES)))
+    sys.exit(0 if all(resultados) else 1)
 
 
 if __name__ == "__main__":
