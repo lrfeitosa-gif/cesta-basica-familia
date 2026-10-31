@@ -6,9 +6,11 @@ const MERCADOS: { mercado: string; motivo: string }[] = [
   { mercado: 'Assaí', motivo: 'O site bloqueia leitura automática. Entra pelos encartes enviados.' },
   { mercado: 'Atacadão', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Covabra', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
+  { mercado: 'Goodbom', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Pague Menos', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Roldão', motivo: 'Nenhum encarte válido encontrado no site hoje.' },
   { mercado: 'Savegnago', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
+  { mercado: 'São Vicente', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Sumerbol', motivo: 'Nenhum encarte válido encontrado no site hoje.' },
 ];
 

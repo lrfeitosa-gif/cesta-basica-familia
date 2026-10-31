@@ -19,13 +19,16 @@ from datetime import date, datetime, timedelta, timezone
 
 from supabase import create_client
 
-from coleta import encartes, vtex
+from coleta import encartes, goodbom, svicente, vtex
 from coleta.vtex import embalagem
 
 COLETORES = {
     **{loja: (lambda loja=loja: vtex.coletar(loja)) for loja in vtex.LOJAS},
     **{site: (lambda site=site: encartes.coletar(site)) for site in encartes.SITES},
+    "svicente": svicente.coletar,
+    "goodbom": goodbom.coletar,
 }
+REDES = {"svicente": svicente.MERCADO, "goodbom": goodbom.MERCADO}
 UNIDADES = {"g", "kg", "ml", "l", "un"}
 
 
@@ -119,7 +122,7 @@ def main(argv: list[str] | None = None) -> None:
         return
     falhas = 0
     for nome in a.mercados or COLETORES:
-        rede = (vtex.LOJAS.get(nome) or (None,))[0] or encartes.SITES[nome]["mercado"]
+        rede = REDES.get(nome) or (vtex.LOJAS.get(nome) or (None,))[0] or encartes.SITES[nome]["mercado"]
         try:
             n = gravar(db, rede, COLETORES[nome]())
             print(f"{rede}: {n} ofertas gravadas")

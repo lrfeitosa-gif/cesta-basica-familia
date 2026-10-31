@@ -42,6 +42,8 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | Covabra | Site | API pública VTEX | |
 | Pague Menos | Site | API pública VTEX | Muda preços ao longo do dia, principalmente na virada do mês |
 | Savegnago | Site | API pública VTEX | |
+| São Vicente | Site | Busca pública do site (Salesforce Commerce Cloud), bloco `search-card-grid` | Sem robots.txt; até 60 produtos por termo |
+| Goodbom | Site, loja de Indaiatuba | Páginas de departamento (Mercafacil/Next.js) | robots.txt proíbe só /busca; preço do site, oferta e Clube Goodbom |
 | Roldão | Encarte | Imagens no site → extrator | Encarte "ITU-" é de outra cidade e é ignorado |
 | Sumerbol | Encarte | PDF no site → extrator | |
 | Assaí | Encarte | Prints enviados → extrator | Site bloqueia leitura automática |

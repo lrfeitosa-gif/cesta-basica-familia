@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 const PASSOS = [
   {
     titulo: 'Preço de oportunidade',
-    texto: 'Todo dia às 7h buscamos os preços de 7 mercados de Indaiatuba. Notificamos quando o preço de um item está bem mais em conta: é a hora de comprar ou estocar.',
+    texto: 'Todo dia às 7h buscamos os preços de 9 mercados de Indaiatuba. Notificamos quando o preço de um item está bem mais em conta: é a hora de comprar ou estocar.',
   },
   {
     titulo: 'Compare do jeito certo',

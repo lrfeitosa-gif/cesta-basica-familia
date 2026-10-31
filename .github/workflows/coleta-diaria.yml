@@ -40,7 +40,7 @@ jobs:
           else
             escolha="sites"
           fi
-          [ "$escolha" = "sites" ] && escolha="atacadao covabra paguemenos savegnago"
+          [ "$escolha" = "sites" ] && escolha="atacadao covabra paguemenos savegnago svicente goodbom"
           echo "lista=$escolha" >> "$GITHUB_OUTPUT"
           echo "Mercados: ${escolha:-todos}"
       - name: Coletar e gravar no Supabase

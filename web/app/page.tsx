@@ -23,7 +23,7 @@ export default function Inicio() {
           nos mercados de Indaiatuba.
         </p>
         <ul className="muted" style={{ paddingLeft: 18, margin: 0, display: 'grid', gap: 4 }}>
-          <li>Preços de 7 mercados, atualizados todo dia às 7h</li>
+          <li>Preços de 9 mercados, atualizados todo dia às 7h</li>
           <li>Comparação por kg ou litro, sem confusão de embalagem</li>
           <li>Sem CPF, sem endereço exato</li>
         </ul>
