@@ -162,3 +162,39 @@ nav.abas svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stro
 .qtd button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.1rem; cursor: pointer; }
 .qtd span { min-width: 18px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Fonte do preço: site do mercado x encarte */
+.fonte { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; }
+.fonte-site { background: var(--accent-soft); color: var(--accent); }
+.fonte-encarte { background: color-mix(in srgb, var(--tag) 45%, var(--surface)); color: var(--tag-ink); }
+.fonte-sem { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); color: var(--warn); }
+@media (prefers-color-scheme: dark) { .fonte-encarte { color: var(--tag); background: color-mix(in srgb, var(--tag) 16%, var(--surface)); } }
+.fontes { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.fontes summary { display: flex; justify-content: space-between; gap: 8px; cursor: pointer; font-weight: 700; font-size: .9rem; list-style: none; }
+.fontes summary::-webkit-details-marker { display: none; }
+.fontes summary .muted::after { content: " ▾"; }
+.fontes[open] summary .muted::after { content: " ▴"; }
+.fontes-lista { display: grid; gap: 10px; margin-top: 12px; }
+.fontes-lista > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.fontes-lista .muted { flex-basis: 100%; }
+
+/* Boas-vindas em 3 passos */
+.boas-vindas {
+  position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--ink) 55%, transparent);
+  display: grid; place-items: end center;
+  padding: env(safe-area-inset-top, 0px) max(0px, env(safe-area-inset-right, 0px)) 0 max(0px, env(safe-area-inset-left, 0px));
+}
+.boas-vindas-caixa {
+  width: 100%; max-width: 520px; min-height: 60dvh; background: var(--bg); border-radius: 20px 20px 0 0;
+  padding: 20px max(20px, env(safe-area-inset-left, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 14px; position: relative;
+}
+.boas-vindas-caixa .etiqueta { align-self: flex-start; font-size: 1.6rem; padding: 4px 16px; margin-top: 8px; }
+.boas-vindas-caixa .pular { position: absolute; top: 8px; right: 16px; }
+.boas-vindas-caixa .progress { margin-right: 80px; margin-top: 10px; }
+
+/* Marca escolhida por item na Minha compra */
+.marca-sel { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 100%; }
+.ranking details { grid-column: 1 / -1; font-size: .8rem; }
+.ranking details summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+.ranking details ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; color: var(--muted); }

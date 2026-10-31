@@ -12,6 +12,9 @@ export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode
       </div>
       <div className="meta">
         <span className="mkt">{o.mercado}</span>
+        <span className={`fonte fonte-${o.fonte}`} title={o.fonte === 'site' ? 'Preço do site do mercado' : 'Preço de promoção do encarte'}>
+          {o.fonte === 'site' ? 'site' : 'encarte'}
+        </span>
         <span className="unit">{brl(o.porUn)}/{o.ub}</span>
         {extra}
         {o.cond && <span className="cond">{o.cond}</span>}

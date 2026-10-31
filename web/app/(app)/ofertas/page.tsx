@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { carregarOfertas, dataBr, type Ofertas } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando } from '../linha-oferta';
+import Fontes from '../fontes';
+import BoasVindas from '../boas-vindas';
 
 const RUIDO = /racao|cao |gato|pet|whisky|gin |vodka|vinho|cerveja|energetico/;
 
@@ -29,10 +31,12 @@ export default function Oportunidades() {
 
   return (
     <>
+      <BoasVindas />
       <header className="topo">
         <div className="brand">Cesta <span>Indaiatuba</span></div>
         {dados && <div className="muted">{dados.lista.length.toLocaleString('pt-BR')} preços de {dados.mercados.length} mercados · {dataBr(dados.dia)}</div>}
       </header>
+      {dados && <Fontes dados={dados} />}
 
       {semNotas && (
         <Link href="/notas" className="convite">

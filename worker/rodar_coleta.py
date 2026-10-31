@@ -15,7 +15,7 @@ import json
 import os
 import sys
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 
 from supabase import create_client
 
@@ -61,7 +61,15 @@ def normalizar(o: dict) -> dict | None:
     }
 
 
-def gravar(db, mercado: str, ofertas: list[dict]) -> int:
+def dias_de_validade(ofertas: list[dict], maximo: int = 14) -> list[str]:
+    """Hoje até o fim da validade do encarte (prints não são recoletados a cada dia)."""
+    hoje = date.today()
+    fins = [date.fromisoformat(o["validoAte"]) for o in ofertas if o.get("validoAte")]
+    fim = min(max(fins, default=hoje), hoje + timedelta(days=maximo))
+    return [(hoje + timedelta(days=d)).isoformat() for d in range((fim - hoje).days + 1)]
+
+
+def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None) -> int:
     loja = db.table("mercado").select("id").eq("rede", mercado).limit(1).execute().data
     if not loja:
         raise RuntimeError(f"mercado '{mercado}' não cadastrado (rode a migração 0002)")
@@ -73,15 +81,17 @@ def gravar(db, mercado: str, ofertas: list[dict]) -> int:
         k = n["produto"]["chave"]
         if k not in por_chave or n["oferta"]["preco"] < por_chave[k]["oferta"]["preco"]:
             por_chave[k] = n
-    hoje = date.today().isoformat()
+    dias = dias or [date.today().isoformat()]
     total = 0
     lista = list(por_chave.values())
     for i in range(0, len(lista), 200):
         lote = lista[i:i + 200]
         produtos = db.table("produto").upsert([n["produto"] for n in lote], on_conflict="chave").execute().data
         ids = {p["chave"]: p["id"] for p in produtos}
-        linhas = [{**n["oferta"], "produto_id": ids[n["produto"]["chave"]], "mercado_id": mercado_id, "valido_de": hoje}
-                  for n in lote]
+        # oferta de encarte vencida (validade antes do dia) não entra naquele dia
+        linhas = [{**n["oferta"], "produto_id": ids[n["produto"]["chave"]], "mercado_id": mercado_id, "valido_de": dia}
+                  for n in lote for dia in dias
+                  if not n["oferta"]["valido_ate"] or n["oferta"]["valido_ate"] >= dia]
         db.table("oferta").upsert(linhas, on_conflict="produto_id,mercado_id,valido_de,fonte").execute()
         total += len(linhas)
     return total
@@ -98,8 +108,13 @@ def main(argv: list[str] | None = None) -> None:
 
     db = conectar()
     if a.arquivo:
-        n = gravar(db, a.mercado, json.load(open(a.arquivo, encoding="utf-8-sig")))  # -sig: aceita JSON salvo pelo PowerShell
-        print(f"{a.mercado}: {n} ofertas gravadas")
+        ofertas = json.load(open(a.arquivo, encoding="utf-8-sig"))  # -sig: aceita JSON salvo pelo PowerShell
+        dias = dias_de_validade(ofertas)
+        if not dias:
+            print(f"{a.mercado}: encarte já vencido, nada gravado")
+            return
+        n = gravar(db, a.mercado, ofertas, dias)
+        print(f"{a.mercado}: {n} ofertas gravadas ({dias[0]} a {dias[-1]})")
         return
     falhas = 0
     for nome in a.mercados or COLETORES:

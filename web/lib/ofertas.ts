@@ -3,19 +3,24 @@ import { supabase } from './supabase';
 
 export type Oferta = {
   nome: string; marca: string; q: number; u: string; categoria: string; ean: string;
-  mercado: string; preco: number; de: number; cond: string;
+  mercado: string; preco: number; de: number; cond: string; fonte: Fonte;
   porUn: number; ub: string; busca: string;
 };
-export type Ofertas = { dia: string; mercados: string[]; lista: Oferta[] };
+export type Fonte = 'site' | 'encarte';
+export type InfoMercado = { mercado: string; fonte: Fonte; precos: number; atualizado: string };
+export type Ofertas = { dia: string; atualizado: string; mercados: string[]; info: InfoMercado[]; lista: Oferta[] };
+
+export const horaBr = (iso: string) =>
+  new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export const norm = (s: string | null | undefined) =>
-  (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 export const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 export const emb = (o: Oferta) => `${String(o.q).replace('.', ',')} ${o.u}`;
 export const dataBr = (iso: string) => iso.split('-').reverse().join('/');
 
 type Linha = {
-  preco: number; preco_de: number | null; condicao: string | null;
+  preco: number; preco_de: number | null; condicao: string | null; fonte: string; coletado_em: string;
   mercado: { rede: string } | null;
   produto: { nome: string; marca: string | null; quantidade: number; unidade: string; categoria: string; ean: string | null } | null;
 };
@@ -35,7 +40,7 @@ async function buscar(): Promise<Ofertas> {
   const linhas: Linha[] = [];
   for (let i = 0; ; i += 1000) {
     const { data, error } = await supabase.from('oferta')
-      .select('preco,preco_de,condicao,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)')
+      .select('preco,preco_de,condicao,fonte,coletado_em,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)')
       .eq('valido_de', dia).range(i, i + 999);
     if (error) throw error;
     linhas.push(...(data as unknown as Linha[]));
@@ -50,11 +55,22 @@ async function buscar(): Promise<Ofertas> {
     lista.push({
       nome: p.nome, marca: p.marca || '', q: p.quantidade, u: p.unidade, categoria: p.categoria, ean: p.ean || '',
       mercado: l.mercado.rede, preco: l.preco, de: l.preco_de || 0, cond: l.condicao || '',
+      fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte',
       porUn: l.preco / base, ub,
       busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade}`),
     });
   }
-  return { dia, mercados: [...new Set(lista.map((o) => o.mercado))].sort(), lista };
+  const info = new Map<string, InfoMercado>();
+  for (const l of linhas) {
+    if (!l.mercado) continue;
+    const i = info.get(l.mercado.rede) ?? { mercado: l.mercado.rede, fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte', precos: 0, atualizado: l.coletado_em };
+    i.precos += 1;
+    if (l.coletado_em > i.atualizado) i.atualizado = l.coletado_em;
+    info.set(l.mercado.rede, i);
+  }
+  const infos = [...info.values()].sort((a, b) => a.mercado.localeCompare(b.mercado));
+  const atualizado = infos.reduce((m, i) => (i.atualizado > m ? i.atualizado : m), '');
+  return { dia, atualizado, mercados: infos.map((i) => i.mercado), info: infos, lista };
 }
 
 // Filtro composto: todas as palavras precisam aparecer; "-palavra" exclui.

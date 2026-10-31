@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { brl, carregarOfertas, type Oferta, type Ofertas } from '@/lib/ofertas';
+import { brl, carregarOfertas, norm, type Oferta, type Ofertas } from '@/lib/ofertas';
 import { Carregando } from '../linha-oferta';
 
 type ItemCesta = { id: string; rotulo: string; inc: string[]; q: number; u: string; exc: RegExp };
@@ -25,25 +25,44 @@ const PADRAO: Record<string, number> = { arroz: 1, feijao: 2, cafe: 1, oleo: 2, 
 export default function MinhaCompra() {
   const [dados, setDados] = useState<Ofertas | null>(null);
   const [sel, setSel] = useState<Record<string, number>>(PADRAO);
+  const [marcas, setMarcas] = useState<Record<string, string>>({});   // item -> marca fixada ('' = qualquer)
 
   useEffect(() => {
     carregarOfertas().then(setDados).catch(() => {});
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s && Object.keys(s).length) setSel(s); } catch {}
+    try { setMarcas(JSON.parse(localStorage.getItem('cesta-marca') || '{}')); } catch {}
   }, []);
   const mudar = (novo: Record<string, number>) => { setSel(novo); try { localStorage.setItem('cesta-sel', JSON.stringify(novo)); } catch {} };
+  const fixarMarca = (id: string, marca: string) => {
+    const n = { ...marcas }; if (marca) n[id] = marca; else delete n[id];
+    setMarcas(n); try { localStorage.setItem('cesta-marca', JSON.stringify(n)); } catch {}
+  };
 
-  // menor preço de cada item em cada mercado
+  // todas as ofertas que servem para cada item (qualquer marca)
+  const candidatos = useMemo(() => {
+    const r: Record<string, Oferta[]> = {};
+    for (const c of CESTA) {
+      r[c.id] = (dados?.lista ?? []).filter((o) =>
+        o.u === c.u && Math.abs(o.q - c.q) < 0.001 && c.inc.every((t) => o.busca.includes(t)) && !c.exc.test(o.busca));
+    }
+    return r;
+  }, [dados]);
+  const marcasDe = (id: string) => [...new Set(candidatos[id].map((o) => o.marca.trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  // menor preço de cada item em cada mercado, respeitando a marca fixada
   const porItem = useMemo(() => {
     const r: Record<string, Record<string, Oferta>> = {};
     for (const c of CESTA) {
       r[c.id] = {};
-      for (const o of dados?.lista ?? []) {
-        if (o.u !== c.u || Math.abs(o.q - c.q) > 0.001 || !c.inc.every((t) => o.busca.includes(t)) || c.exc.test(o.busca)) continue;
+      const marca = norm(marcas[c.id]);
+      for (const o of candidatos[c.id]) {
+        if (marca && norm(o.marca) !== marca) continue;
         if (!r[c.id][o.mercado] || o.preco < r[c.id][o.mercado].preco) r[c.id][o.mercado] = o;
       }
     }
     return r;
-  }, [dados]);
+  }, [candidatos, marcas]);
 
   if (!dados) return <><h1>Minha compra</h1><Carregando /></>;
 
@@ -55,13 +74,13 @@ export default function MinhaCompra() {
     if (ps.length) media[c.id] = ps.reduce((s, p) => s + p, 0) / ps.length;
   }
   const ranking = dados.mercados.map((m) => {
-    let total = 0; let estimado = 0; const falta: string[] = [];
+    let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
     for (const c of itens) {
       const o = porItem[c.id][m];
-      if (o) total += o.preco * sel[c.id];
+      if (o) { total += o.preco * sel[c.id]; escolhas.push({ c, o }); }
       else { falta.push(c.rotulo); estimado += (media[c.id] ?? 0) * sel[c.id]; }
     }
-    return { m, total, estimado, falta };
+    return { m, total, estimado, falta, escolhas };
   }).filter((r) => r.falta.length < itens.length)
     .sort((a, b) => a.falta.length - b.falta.length || a.total - b.total);
   const completos = ranking.filter((r) => !r.falta.length);
@@ -101,6 +120,16 @@ export default function MinhaCompra() {
                   Estimado pela média dos outros mercados.
                 </span>
               )}
+              {r.escolhas.length > 0 && (
+                <details>
+                  <summary>Ver marcas e preços</summary>
+                  <ul>
+                    {r.escolhas.map(({ c, o }) => (
+                      <li key={c.id}>{sel[c.id]}× {c.rotulo}: <b>{o.marca || 'marca não informada'}</b> {brl(o.preco)}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
           ))}
         </div>
@@ -123,8 +152,17 @@ export default function MinhaCompra() {
                 </>}
               </div>
               <div className="meta">
-                {menor ? <span>a partir de <b>{brl(menor.preco)}</b> no <span className="mkt">{menor.mercado}</span></span> : <span className="cond">sem preço hoje</span>}
+                {menor
+                  ? <span>a partir de <b>{brl(menor.preco)}</b> ({menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
+                  : <span className="cond">{marcas[c.id] ? `sem ${marcas[c.id]} hoje` : 'sem preço hoje'}</span>}
                 <span>{Object.keys(porItem[c.id]).length} mercados</span>
+                {ativo && marcasDe(c.id).length > 1 && (
+                  <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={marcas[c.id] ?? ''}
+                    onChange={(e) => fixarMarca(c.id, e.target.value)}>
+                    <option value="">Qualquer marca</option>
+                    {marcasDe(c.id).map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                )}
               </div>
             </div>
           );
