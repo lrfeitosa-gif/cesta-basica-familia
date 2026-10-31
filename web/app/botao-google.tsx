@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { supabase, mensagemErro } from '@/lib/supabase';
 
 // Requer o provedor Google ativado em Supabase → Authentication → Providers.
+// Só aparece com NEXT_PUBLIC_LOGIN_GOOGLE=1 na Vercel, depois dessa configuração.
+export const googleAtivo = process.env.NEXT_PUBLIC_LOGIN_GOOGLE === '1';
+
 export default function BotaoGoogle({ voltar = '/onboarding' }: { voltar?: string }) {
   const [erro, setErro] = useState('');
   const entrar = async () => {

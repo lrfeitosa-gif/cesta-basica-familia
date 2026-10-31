@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
-import BotaoGoogle from '@/app/botao-google';
+import BotaoGoogle, { googleAtivo } from '@/app/botao-google';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -17,11 +17,12 @@ export default function Cadastro() {
 
   const criar = async (e: FormEvent) => {
     e.preventDefault();
-    if (senha.length < 8) return setErro('A senha precisa ter pelo menos 8 caracteres.');
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErro('Digite um e-mail válido, como nome@gmail.com.');
+    if (senha.length < 8) return setErro('Crie uma senha com pelo menos 8 caracteres.');
     if (!aceite) return setErro('Para criar a conta, aceite os termos de uso e a política de privacidade.');
     setErro(''); setEnviando(true);
     const { data, error } = await supabase.auth.signUp({
-      email, password: senha, options: { emailRedirectTo: `${location.origin}/onboarding` },
+      email: email.trim(), password: senha, options: { emailRedirectTo: `${location.origin}/onboarding` },
     });
     setEnviando(false);
     if (error) return setErro(mensagemErro(error.message));
@@ -49,8 +50,10 @@ export default function Cadastro() {
         <h1>Criar conta</h1>
         <p className="lead">Só pedimos e-mail. Nada de CPF, nome completo ou endereço.</p>
       </div>
-      <BotaoGoogle voltar="/onboarding" />
-      <div className="divider">ou com e-mail</div>
+      {googleAtivo && <>
+        <BotaoGoogle voltar="/onboarding" />
+        <div className="divider">ou com e-mail</div>
+      </>}
       <form className="stack" onSubmit={criar} noValidate>
         <div className="field">
           <label htmlFor="email">E-mail</label>
@@ -72,7 +75,7 @@ export default function Cadastro() {
           </span>
         </label>
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
-        <button className="btn btn-primary btn-block" disabled={enviando || !email || !senha}>
+        <button className="btn btn-primary btn-block" disabled={enviando}>
           {enviando ? 'Criando conta…' : 'Criar conta'}
         </button>
       </form>

@@ -3,7 +3,7 @@ import { Suspense, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
-import BotaoGoogle from '@/app/botao-google';
+import BotaoGoogle, { googleAtivo } from '@/app/botao-google';
 
 function Formulario() {
   const router = useRouter();
@@ -16,8 +16,9 @@ function Formulario() {
 
   const entrar = async (e: FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !senha) return setErro('Preencha o e-mail e a senha.');
     setErro(''); setEnviando(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
     setEnviando(false);
     if (error) return setErro(mensagemErro(error.message));
     router.replace(voltar);
@@ -38,8 +39,10 @@ function Formulario() {
         <h1>Entrar</h1>
         <p className="lead">Use o e-mail da sua conta.</p>
       </div>
-      <BotaoGoogle voltar={voltar} />
-      <div className="divider">ou com e-mail</div>
+      {googleAtivo && <>
+        <BotaoGoogle voltar={voltar} />
+        <div className="divider">ou com e-mail</div>
+      </>}
       <form className="stack" onSubmit={entrar} noValidate>
         <div className="field">
           <label htmlFor="email">E-mail</label>
@@ -53,7 +56,7 @@ function Formulario() {
         </div>
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
         {aviso && <div className="alert alert-ok" role="status">{aviso}</div>}
-        <button className="btn btn-primary btn-block" disabled={enviando || !email || !senha}>
+        <button className="btn btn-primary btn-block" disabled={enviando}>
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>
         <button type="button" className="btn btn-link" onClick={esqueci}>Esqueci a senha</button>
