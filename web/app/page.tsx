@@ -1,4 +1,5 @@
 'use client';
+import Logo, { Carrinho } from '@/app/logo';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,7 +14,8 @@ export default function Inicio() {
 
   return (
     <>
-      <div className="brand">Cesta <span>Indaiatuba</span></div>
+      <Logo />
+      <Carrinho size={180} className="hero-carrinho" />
       <div className="stack" style={{ marginTop: 'auto' }}>
         <h1>Compre no preço de oportunidade</h1>
         <p className="lead">

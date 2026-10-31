@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 
 export type Oferta = {
@@ -31,6 +32,18 @@ let cache: Promise<Ofertas> | null = null;
 export function carregarOfertas(): Promise<Ofertas> {
   if (!cache) cache = buscar().catch((e) => { cache = null; throw e; });
   return cache;
+}
+
+// Preços do dia para as telas, com estado de erro e "tentar de novo".
+export function useOfertas() {
+  const [dados, setDados] = useState<Ofertas | null>(null);
+  const [erro, setErro] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
+  useEffect(() => {
+    setErro(false);
+    carregarOfertas().then(setDados).catch(() => setErro(true));
+  }, [tentativa]);
+  return { dados, erro, tentarDeNovo: () => setTentativa((t) => t + 1) };
 }
 
 async function buscar(): Promise<Ofertas> {

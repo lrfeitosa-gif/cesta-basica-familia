@@ -203,3 +203,44 @@ nav.abas svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stro
 .alerta-card { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 .alerta-card.alerta-on { border-color: var(--good); box-shadow: inset 4px 0 0 var(--good); }
 .alerta-card .lista { border-radius: 10px; }
+
+/* Marca fast-promotions-mk: carrinho cheio + nome */
+.logo { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); }
+.logo-nome { font-family: var(--display); font-weight: 800; font-size: 1.45rem; line-height: 1; color: var(--ink); letter-spacing: .005em; }
+.logo-nome span { background: var(--tag); color: var(--tag-ink); border-radius: 3px 3px 3px 9px; padding: 0 5px 1px; margin-left: 2px; }
+.logo-link { text-decoration: none; align-self: flex-start; border-radius: 8px; }
+.hero-carrinho { color: var(--accent); align-self: center; }
+
+/* Carrinho grande e apagado no fundo; o conteúdo fica por cima */
+.fundo-carrinho {
+  position: fixed; z-index: 0; pointer-events: none; color: var(--accent); opacity: .055;
+  right: max(-90px, calc(50vw - 420px)); bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+.fundo-carrinho svg { width: min(420px, 95vw); height: auto; }
+.app { position: relative; z-index: 1; }
+@media (prefers-color-scheme: dark) { .fundo-carrinho { opacity: .08; } }
+
+/* Barra do topo da área logada */
+.barra-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.menu-conta { position: relative; }
+.menu-conta summary {
+  list-style: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+}
+.menu-conta summary::-webkit-details-marker { display: none; }
+.menu-conta summary svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.menu-conta-caixa {
+  position: absolute; right: 0; top: 48px; z-index: 10; width: min(260px, 80vw); display: grid; gap: 10px; padding: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.menu-conta-caixa .muted { overflow-wrap: anywhere; }
+.menu-conta-caixa a { color: var(--ink); font-weight: 600; text-decoration: none; padding: 4px 0; }
+
+/* Esqueleto de carregamento */
+.carregando .esq { display: block; height: 14px; border-radius: 6px; background: var(--line); }
+.carregando .esq-preco { width: 76px; height: 30px; justify-self: end; }
+@media (prefers-reduced-motion: no-preference) {
+  .carregando .esq { animation: pulsar 1.2s ease-in-out infinite alternate; }
+  @keyframes pulsar { from { opacity: .45; } to { opacity: 1; } }
+}
+h2 { margin-top: 4px; }

@@ -23,6 +23,26 @@ export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode
   );
 }
 
+// Esqueleto de linhas enquanto os preços chegam: a tela já mostra a forma do conteúdo.
 export function Carregando() {
-  return <div className="empty" role="status">Carregando os preços de hoje…</div>;
+  return (
+    <div className="lista carregando" role="status" aria-label="Carregando os preços de hoje">
+      {[0, 1, 2, 3].map((i) => (
+        <div className="item" key={i}>
+          <span className="esq" style={{ width: `${70 - i * 8}%` }} />
+          <span className="esq esq-preco" />
+          <span className="esq" style={{ width: '40%', gridColumn: '1 / -1' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ErroCarga({ tentarDeNovo }: { tentarDeNovo: () => void }) {
+  return (
+    <div className="alert alert-error stack" role="alert">
+      <span>Não foi possível carregar os preços. Confira a internet e tente de novo.</span>
+      <button type="button" className="btn btn-secondary" onClick={tentarDeNovo}>Tentar de novo</button>
+    </div>
+  );
 }

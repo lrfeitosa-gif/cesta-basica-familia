@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
-import { brl, carregarOfertas, chaveMarca, filtrar, type Oferta, type Ofertas } from '@/lib/ofertas';
-import LinhaOferta, { Carregando } from '../linha-oferta';
+import { brl, chaveMarca, filtrar, useOfertas, type Oferta } from '@/lib/ofertas';
+import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 
 type Alerta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
 const DESCONTO_MIN = 0.15;   // mesmo ponto de partida do motor de regras: 15% abaixo do preço normal
@@ -23,7 +23,7 @@ function avaliar(a: Alerta, lista: Oferta[]) {
 
 export default function Alertas() {
   const sessao = useSessao();
-  const [dados, setDados] = useState<Ofertas | null>(null);
+  const { dados, erro: erroCarga, tentarDeNovo } = useOfertas();
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [termo, setTermo] = useState('');
   const [marca, setMarca] = useState('');
@@ -36,7 +36,6 @@ export default function Alertas() {
       .not('termo', 'is', null).order('criado_em', { ascending: false });
     setAlertas((data as Alerta[]) ?? []);
   };
-  useEffect(() => { carregarOfertas().then(setDados).catch(() => {}); }, []);
   useEffect(() => { if (sessao) carregar(); }, [sessao]);
 
   const previa = useMemo(() => (dados && termo.trim() ? filtrar(dados.lista, termo).length : null), [dados, termo]);
@@ -96,7 +95,7 @@ export default function Alertas() {
         <button className="btn btn-primary" disabled={salvando}>{salvando ? 'Salvando…' : 'Criar alerta'}</button>
       </form>
 
-      {!dados ? <Carregando /> : alertas.length === 0 ? (
+      {erroCarga ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : alertas.length === 0 ? (
         <div className="empty">Nenhum alerta ainda. Crie o primeiro acima, por exemplo &quot;arroz 5kg -integral&quot; com preço-alvo de R$ 20,00.</div>
       ) : (
         <>

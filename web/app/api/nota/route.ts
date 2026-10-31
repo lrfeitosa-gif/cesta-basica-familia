@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   let nota;
   try {
-    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 CestaIndaiatuba/0.1' }, cache: 'no-store' });
+    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 FastPromotionsMK/0.1' }, cache: 'no-store' });
     if (!resp.ok) throw new Error(String(resp.status));
     nota = parseHtml(await resp.text(), chave);
   } catch {

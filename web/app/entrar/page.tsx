@@ -1,4 +1,5 @@
 'use client';
+import Logo from '@/app/logo';
 import { Suspense, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -34,7 +35,7 @@ function Formulario() {
 
   return (
     <>
-      <Link href="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>Cesta <span>Indaiatuba</span></Link>
+      <Link href="/" className="logo-link" aria-label="Início"><Logo /></Link>
       <div>
         <h1>Entrar</h1>
         <p className="lead">Use o e-mail da sua conta.</p>

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { brl, carregarOfertas, chaveMarca, type Oferta, type Ofertas } from '@/lib/ofertas';
-import { Carregando } from '../linha-oferta';
+import { brl, chaveMarca, useOfertas, type Oferta } from '@/lib/ofertas';
+import { Carregando, ErroCarga } from '../linha-oferta';
 
 type ItemCesta = { id: string; rotulo: string; inc: string[]; q: number; u: string; exc: RegExp };
 
@@ -23,12 +23,11 @@ const ENCARTE = new Set(['Roldão', 'Sumerbol', 'Assaí', 'Pão de Açúcar']);
 const PADRAO: Record<string, number> = { arroz: 1, feijao: 2, cafe: 1, oleo: 2, leite: 6, macarrao: 2 };
 
 export default function MinhaCompra() {
-  const [dados, setDados] = useState<Ofertas | null>(null);
+  const { dados, erro, tentarDeNovo } = useOfertas();
   const [sel, setSel] = useState<Record<string, number>>(PADRAO);
   const [marcas, setMarcas] = useState<Record<string, string>>({});   // item -> marca fixada ('' = qualquer)
 
   useEffect(() => {
-    carregarOfertas().then(setDados).catch(() => {});
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s && Object.keys(s).length) setSel(s); } catch {}
     try { setMarcas(JSON.parse(localStorage.getItem('cesta-marca') || '{}')); } catch {}
   }, []);
@@ -75,6 +74,7 @@ export default function MinhaCompra() {
     return r;
   }, [candidatos, marcas]);
 
+  if (erro) return <><h1>Minha compra</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
   if (!dados) return <><h1>Minha compra</h1><Carregando /></>;
 
   const itens = CESTA.filter((c) => sel[c.id]);
@@ -118,34 +118,7 @@ export default function MinhaCompra() {
         </div>
       ) : <div className="empty">Nenhum mercado tem todos os itens hoje. Veja abaixo o que falta em cada um.</div>}
 
-      {itens.length > 0 && (
-        <div className="ranking">
-          {ranking.map((r) => (
-            <div key={r.m}>
-              <b>{r.m}</b>
-              <span className="total">{r.falta.length ? `≈ ${brl(r.total + r.estimado)}` : brl(r.total)}</span>
-              {r.falta.length > 0 && (
-                <span className="falta">
-                  Sem preço hoje: {r.falta.join(', ')}.{' '}
-                  {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
-                  Estimado pela média dos outros mercados.
-                </span>
-              )}
-              {r.escolhas.length > 0 && (
-                <details>
-                  <summary>Ver marcas e preços</summary>
-                  <ul>
-                    {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}× {c.rotulo}: <b>{o.marca || 'marca não informada'}</b> {brl(o.preco)}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
+      <h2>Itens da compra</h2>
       <div className="lista cesta">
         {CESTA.map((c) => {
           const ativo = !!sel[c.id];
@@ -186,6 +159,35 @@ export default function MinhaCompra() {
           );
         })}
       </div>
+
+      {itens.length > 0 && <h2>Total em cada mercado</h2>}
+      {itens.length > 0 && (
+        <div className="ranking">
+          {ranking.map((r) => (
+            <div key={r.m}>
+              <b>{r.m}</b>
+              <span className="total">{r.falta.length ? `≈ ${brl(r.total + r.estimado)}` : brl(r.total)}</span>
+              {r.falta.length > 0 && (
+                <span className="falta">
+                  Sem preço hoje: {r.falta.join(', ')}.{' '}
+                  {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
+                  Estimado pela média dos outros mercados.
+                </span>
+              )}
+              {r.escolhas.length > 0 && (
+                <details>
+                  <summary>Ver marcas e preços</summary>
+                  <ul>
+                    {r.escolhas.map(({ c, o }) => (
+                      <li key={c.id}>{sel[c.id]}× {c.rotulo}: <b>{o.marca || 'marca não informada'}</b> {brl(o.preco)}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       <p className="muted">
         Roldão, Sumerbol, Assaí e Pão de Açúcar entram só com os itens em promoção nos encartes. Quando falta preço,
         o total usa a média dos outros mercados e aparece com ≈. Os mercados com todos os itens vêm primeiro.

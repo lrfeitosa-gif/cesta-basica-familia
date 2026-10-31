@@ -1,6 +1,6 @@
-# Cesta Básica Família — Parte I: Integração e coleta de preços
+# fast-promotions-mk — Parte I: Integração e coleta de preços
 
-Situação em 29/10/2026. Este documento resume o que foi construído até aqui, onde cada peça fica e o que precisa ser guardado.
+Situação em 29/10/2026. O app se chamava "Cesta Básica Família" e foi renomeado para fast-promotions-mk em 30/10/2026. Este documento resume o que foi construído até aqui, onde cada peça fica e o que precisa ser guardado.
 
 ## 1. Visão geral
 

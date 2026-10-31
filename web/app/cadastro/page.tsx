@@ -1,4 +1,5 @@
 'use client';
+import Logo from '@/app/logo';
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -33,7 +34,7 @@ export default function Cadastro() {
   if (confirmar) {
     return (
       <>
-        <div className="brand">Cesta <span>Indaiatuba</span></div>
+        <Logo />
         <div className="stack">
           <h1>Confirme seu e-mail</h1>
           <p className="lead">Enviamos um link para <b>{email}</b>. Abra o e-mail e toque no link para continuar o cadastro.</p>
@@ -45,7 +46,7 @@ export default function Cadastro() {
 
   return (
     <>
-      <Link href="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>Cesta <span>Indaiatuba</span></Link>
+      <Link href="/" className="logo-link" aria-label="Início"><Logo /></Link>
       <div>
         <h1>Criar conta</h1>
         <p className="lead">Só pedimos e-mail. Nada de CPF, nome completo ou endereço.</p>

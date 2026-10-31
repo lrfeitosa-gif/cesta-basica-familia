@@ -1,13 +1,15 @@
 {
-  "name": "Cesta Básica Família",
-  "short_name": "Cesta",
-  "start_url": "/",
+  "name": "fast-promotions-mk",
+  "short_name": "fast-promo",
+  "description": "Notifica quando o preço do que sua família consome está bem mais em conta.",
+  "start_url": "/ofertas",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2e7d32",
+  "background_color": "#f3f5f8",
+  "theme_color": "#1d4ed8",
   "lang": "pt-BR",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -1,14 +1,13 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { brl, carregarOfertas, emb, filtrar, type Ofertas } from '@/lib/ofertas';
-import LinhaOferta, { Carregando } from '../linha-oferta';
+import { brl, emb, filtrar, useOfertas } from '@/lib/ofertas';
+import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 
 const ATALHOS = ['café pilão', 'café -cápsula -solúvel', 'arroz 5kg -integral', 'feijão carioca 1kg', 'leite integral 1l'];
 
 export default function Comparar() {
-  const [dados, setDados] = useState<Ofertas | null>(null);
+  const { dados, erro, tentarDeNovo } = useOfertas();
   const [q, setQ] = useState('');
-  useEffect(() => { carregarOfertas().then(setDados).catch(() => {}); }, []);
 
   const achados = useMemo(() => dados ? filtrar(dados.lista, q).sort((a, b) => a.porUn - b.porUn).slice(0, 80) : [], [dados, q]);
   const melhor = achados[0];
@@ -27,7 +26,7 @@ export default function Comparar() {
         <input id="q" className="input" type="search" autoComplete="off" placeholder="Ex.: café pilão 500g  ·  café -cápsula"
           value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      {!dados ? <Carregando /> : !q.trim() ? (
+      {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : !q.trim() ? (
         <div className="empty">Combine palavras (café pilão 500g) e use o sinal de menos para excluir (café -cápsula).</div>
       ) : !achados.length ? (
         <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
