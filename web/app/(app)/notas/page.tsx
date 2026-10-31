@@ -54,7 +54,12 @@ function Notas() {
 
   return (
     <>
-      {onboarding && <div className="progress" aria-label="Passo 2 de 2"><span data-on="true" /><span data-on="true" /></div>}
+      {onboarding && (
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="progress" aria-label="Passo 2 de 2" style={{ flex: 1 }}><span data-on="true" /><span data-on="true" /></div>
+          <Link href="/ofertas" className="btn btn-link">Fazer depois</Link>
+        </div>
+      )}
       <div>
         <h1>{onboarding ? 'Suas últimas notas' : 'Notas fiscais'}</h1>
         <p className="lead">
@@ -119,11 +124,12 @@ function Notas() {
 
       {onboarding && (
         <div className="stack" style={{ marginTop: 'auto' }}>
-          <Link href="/lista" className={`btn btn-block ${faltam ? 'btn-secondary' : 'btn-primary'}`}>
-            {faltam ? 'Pular por enquanto' : 'Continuar'}
+          <Link href="/ofertas" className={`btn btn-block ${faltam ? 'btn-secondary' : 'btn-primary'}`}>
+            {faltam ? 'Fazer depois e ver os preços' : 'Continuar para os preços'}
           </Link>
         </div>
       )}
+      {!onboarding && compras.length > 0 && <Link href="/lista" className="btn btn-secondary btn-block">Ver itens das minhas notas</Link>}
     </>
   );
 }

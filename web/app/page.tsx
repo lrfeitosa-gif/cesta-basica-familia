@@ -1,6 +1,16 @@
+'use client';
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function Inicio() {
+  const router = useRouter();
+  // quem já está logado vai direto para os preços
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => { if (data.session) router.replace('/ofertas'); });
+  }, [router]);
+
   return (
     <>
       <div className="brand">Cesta <span>Indaiatuba</span></div>

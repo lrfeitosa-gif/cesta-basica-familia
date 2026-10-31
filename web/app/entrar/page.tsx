@@ -7,7 +7,7 @@ import BotaoGoogle, { googleAtivo } from '@/app/botao-google';
 
 function Formulario() {
   const router = useRouter();
-  const voltar = useSearchParams().get('voltar') || '/notas';
+  const voltar = useSearchParams().get('voltar') || '/ofertas';
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');

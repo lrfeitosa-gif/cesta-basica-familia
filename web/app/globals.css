@@ -105,3 +105,60 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 0
 .nota-lista > div + div { border-top: 1px solid var(--line); }
 .scanner { border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 1; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Área logada: abas fixas embaixo e listas de preço (mesmo desenho da prévia) */
+.app:has(nav.abas) { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+nav.abas {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px));
+}
+nav.abas > div { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); }
+nav.abas a {
+  display: grid; justify-items: center; gap: 2px; padding: 10px 2px 8px; font-size: .74rem; font-weight: 700;
+  color: var(--muted); text-decoration: none; border-top: 3px solid transparent;
+}
+nav.abas a[aria-current="page"] { color: var(--accent); border-top-color: var(--accent); }
+nav.abas svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.topo { display: grid; gap: 2px; }
+.convite {
+  display: grid; gap: 2px; padding: 14px; border-radius: 14px; text-decoration: none; color: var(--ink);
+  background: var(--tag); color: var(--tag-ink);
+}
+.convite span { font-size: .85rem; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.chip {
+  flex: none; font: inherit; font-size: .82rem; font-weight: 600; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.lista { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.lista .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 12px 14px; align-items: center; }
+.lista .item + .item { border-top: 1px solid var(--line); }
+.lista .nome { font-weight: 700; min-width: 0; }
+.lista .nome small { font-weight: 400; color: var(--muted); }
+.lista .meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--muted); font-size: .8rem; }
+.mkt { font-weight: 700; color: var(--accent); }
+.cond { color: var(--warn); }
+.off { font-family: var(--display); font-weight: 700; font-size: .95rem; color: var(--good); }
+.unit { font-variant-numeric: tabular-nums; }
+.etiqueta-preco {
+  justify-self: end; text-align: right; background: var(--tag); color: var(--tag-ink);
+  border-radius: 4px 4px 4px 14px; padding: 2px 10px 3px; min-width: 76px;
+}
+.etiqueta-preco b { display: block; font-family: var(--display); font-weight: 800; font-size: 1.35rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.etiqueta-preco s { font-size: .72rem; opacity: .75; }
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; padding: 18px; color: var(--muted); }
+.destaque { background: var(--accent-soft); border-radius: 14px; padding: 14px; display: grid; gap: 4px; }
+.destaque .grande { font-family: var(--display); font-weight: 800; font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.ranking { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.ranking > div { background: var(--surface); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 14px; }
+.ranking .total { font-family: var(--display); font-weight: 700; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.ranking .falta { grid-column: 1 / -1; font-size: .78rem; color: var(--warn); }
+.lista.cesta .item { grid-template-columns: auto minmax(0, 1fr) auto; }
+.lista.cesta .meta { grid-column: 2 / -1; }
+.check { width: 22px; height: 22px; accent-color: var(--accent); }
+.qtd { display: flex; align-items: center; gap: 6px; }
+.qtd button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.1rem; cursor: pointer; }
+.qtd span { min-width: 18px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
