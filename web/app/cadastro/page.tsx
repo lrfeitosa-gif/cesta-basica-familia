@@ -23,11 +23,11 @@ export default function Cadastro() {
     if (!aceite) return setErro('Para criar a conta, aceite os termos de uso e a política de privacidade.');
     setErro(''); setEnviando(true);
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim(), password: senha, options: { emailRedirectTo: `${location.origin}/onboarding` },
+      email: email.trim(), password: senha, options: { emailRedirectTo: `${location.origin}/ofertas` },
     });
     setEnviando(false);
     if (error) return setErro(mensagemErro(error.message));
-    if (data.session) router.replace('/onboarding');   // confirmação de e-mail desligada no Supabase
+    if (data.session) router.replace('/ofertas');   // confirmação de e-mail desligada no Supabase
     else setConfirmar(true);                          // ligada: espera o clique no link
   };
 
@@ -52,7 +52,7 @@ export default function Cadastro() {
         <p className="lead">Só pedimos e-mail. Nada de CPF, nome completo ou endereço.</p>
       </div>
       {googleAtivo && <>
-        <BotaoGoogle voltar="/onboarding" />
+        <BotaoGoogle voltar="/ofertas" />
         <div className="divider">ou com e-mail</div>
       </>}
       <form className="stack" onSubmit={criar} noValidate>

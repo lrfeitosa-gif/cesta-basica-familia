@@ -6,7 +6,7 @@ import { supabase, mensagemErro } from '@/lib/supabase';
 // Só aparece com NEXT_PUBLIC_LOGIN_GOOGLE=1 na Vercel, depois dessa configuração.
 export const googleAtivo = process.env.NEXT_PUBLIC_LOGIN_GOOGLE === '1';
 
-export default function BotaoGoogle({ voltar = '/onboarding' }: { voltar?: string }) {
+export default function BotaoGoogle({ voltar = '/ofertas' }: { voltar?: string }) {
   const [erro, setErro] = useState('');
   const entrar = async () => {
     const { error } = await supabase.auth.signInWithOAuth({

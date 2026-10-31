@@ -39,7 +39,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: 'Não encontramos itens nesta nota. Ela pode ainda não estar disponível na Sefaz; tente mais tarde.' }, { status: 422 });
   }
 
-  const mercado = nota.cnpj ? (await db.from('mercado').select('id,rede').eq('cnpj', nota.cnpj).maybeSingle()).data : null;
+  await db.rpc('garantir_familia');   // a etapa de família saiu do cadastro; a linha é criada aqui
+  const mercado = nota.cnpj ?(await db.from('mercado').select('id,rede').eq('cnpj', nota.cnpj).maybeSingle()).data : null;
   const { data: compra, error: ec } = await db.from('compra').insert({
     familia_id: u.user.id, mercado_id: mercado?.id ?? null, data: nota.data, total: nota.total, origem: 'nota', chave_nfce: chave,
   }).select('id').single();

@@ -31,7 +31,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
           </summary>
           <div className="menu-conta-caixa">
             <span className="muted">{sessao.user.email}</span>
-            <Link href="/onboarding">Dados da família</Link>
+            <Link href="/conta">Meus dados</Link>
             <Link href="/privacidade">Privacidade</Link>
             <button type="button" className="btn btn-secondary" onClick={sair}>Sair</button>
           </div>
