@@ -53,6 +53,12 @@ TERMOS_CESTA = [
     "desodorante", "absorvente", "fralda", "lenço umedecido",
     # pet
     "ração",
+    # Termos específicos dos itens da cesta: na busca genérica ("leite", "arroz") os básicos podem ficar
+    # depois do 100º resultado (ex.: leite longa vida no Savegnago aparecia na posição 182).
+    "leite longa vida", "leite integral", "leite desnatado", "leite semidesnatado",
+    "arroz tipo 1", "arroz branco", "feijão carioca", "feijão preto", "café torrado", "café 500g",
+    "óleo de soja", "açúcar refinado", "açúcar cristal", "macarrão espaguete", "farinha de trigo",
+    "molho de tomate", "detergente líquido", "papel higiênico folha dupla", "creme dental", "sabão em pó",
 ]
 
 _EMB = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|lt|un)\b", re.I)
