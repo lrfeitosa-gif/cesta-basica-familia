@@ -95,7 +95,8 @@ export default function MinhaCompra() {
   }).filter((r) => r.falta.length < itens.length)
     .sort((a, b) => a.falta.length - b.falta.length || a.total - b.total);
   const completos = ranking.filter((r) => !r.falta.length);
-  const top = completos[0], pior = completos[completos.length - 1];
+  // compara com o segundo mais barato (a alternativa real) e mostra também o mais caro
+  const top = completos[0], segundo = completos[1], pior = completos[completos.length - 1];
   let ideal = 0; let idealOk = true;
   for (const c of itens) {
     const menor = Object.values(porItem[c.id]).sort((a, b) => a.preco - b.preco)[0];
@@ -113,7 +114,10 @@ export default function MinhaCompra() {
         <div className="destaque">
           <span className="muted">Melhor mercado único para esta compra</span>
           <span className="grande">{brl(top.total)}</span>
-          <span><b>{top.m}</b>{completos.length > 1 && ` · ${brl(pior.total - top.total)} a menos que o ${pior.m}`}</span>
+          <span><b>{top.m}</b>{segundo && ` · ${brl(segundo.total - top.total)} a menos que o 2º mais barato (${segundo.m})`}</span>
+          {pior && pior !== segundo && pior !== top && (
+            <span className="muted">Até {brl(pior.total - top.total)} a menos que o mais caro ({pior.m})</span>
+          )}
           {idealOk && <span className="muted">Comprando cada item no mais barato: {brl(ideal)}</span>}
         </div>
       ) : <div className="empty">Nenhum mercado tem todos os itens hoje. Veja abaixo o que falta em cada um.</div>}

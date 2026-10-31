@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { dataBr, useOfertas } from '@/lib/ofertas';
+import { brl, dataBr, emb, filtrar, useOfertas } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import Fontes from '../fontes';
@@ -15,6 +15,7 @@ export default function Oportunidades() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const [mercado, setMercado] = useState('Todos');
   const [limite, setLimite] = useState(POR_PAGINA);
+  const [q, setQ] = useState('');
   const [semNotas, setSemNotas] = useState(false);
 
   useEffect(() => {
@@ -27,9 +28,13 @@ export default function Oportunidades() {
     .filter((x) => x.desc >= 0.08 && x.desc <= 0.7)
     .sort((a, b) => b.desc - a.desc), [dados]);
 
-  const mercados = ['Todos', ...(dados?.mercados ?? []).filter((m) => opp.some((x) => x.o.mercado === m))];
-  const filtradas = opp.filter((x) => mercado === 'Todos' || x.o.mercado === mercado);
+  // com busca: todos os preços que combinam, do menor preço por kg/litro ao maior; sem busca: maiores descontos
+  const busca = useMemo(() => (dados && q.trim() ? filtrar(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : null), [dados, q]);
+  const base = busca ? busca.map((o) => ({ o, desc: o.de > o.preco ? 1 - o.preco / o.de : 0 })) : opp;
+  const mercados = ['Todos', ...(dados?.mercados ?? []).filter((m) => base.some((x) => x.o.mercado === m))];
+  const filtradas = base.filter((x) => mercado === 'Todos' || x.o.mercado === mercado);
   const lista = filtradas.slice(0, limite);
+  const melhor = busca ? filtradas[0]?.o : undefined;
 
   return (
     <>
@@ -41,9 +46,16 @@ export default function Oportunidades() {
           {dados && <> · {dados.lista.length.toLocaleString('pt-BR')} preços de {dados.mercados.length} mercados em {dataBr(dados.dia)}</>}.
         </p>
       </div>
-      {dados && <Fontes dados={dados} />}
+      <div className="busca-topo">
+        <label htmlFor="busca" className="visually-hidden">Buscar produto</label>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input id="busca" className="input" type="search" autoComplete="off" enterKeyHint="search"
+          placeholder="Buscar e comparar: café pilão, arroz 5kg -integral"
+          value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); }} />
+      </div>
+      {dados && !q && <Fontes dados={dados} />}
 
-      {semNotas && (
+      {semNotas && !q && (
         <Link href="/notas" className="convite">
           <b>Envie suas notas fiscais</b>
           <span>Com 3 notas o app aprende o que você compra e passa a avisar dos seus produtos.</span>
@@ -60,8 +72,20 @@ export default function Oportunidades() {
                 onClick={() => { setMercado(m); setLimite(POR_PAGINA); }}>{m}</button>
             ))}
           </div>
+          {busca && !filtradas.length && (
+            <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
+          )}
+          {melhor && (
+            <div className="destaque">
+              <span className="muted">Mais barato por {melhor.ub} · {filtradas.length} preços encontrados</span>
+              <span className="grande">{brl(melhor.porUn)}/{melhor.ub}</span>
+              <span>{melhor.nome} {emb(melhor)} no <b>{melhor.mercado}</b> por {brl(melhor.preco)}</span>
+            </div>
+          )}
           <div className="lista">
-            {lista.map(({ o, desc }, i) => <LinhaOferta key={i} o={o} extra={<span className="off">−{Math.round(desc * 100)}%</span>} />)}
+            {lista.map(({ o, desc }, i) => (
+              <LinhaOferta key={i} o={o} extra={desc >= 0.01 ? <span className="off">−{Math.round(desc * 100)}%</span> : undefined} />
+            ))}
           </div>
           {filtradas.length > limite && (
             <button type="button" className="btn btn-secondary btn-block" onClick={() => setLimite(limite + POR_PAGINA)}>

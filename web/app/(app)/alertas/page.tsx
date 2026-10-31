@@ -51,7 +51,12 @@ export default function Alertas() {
       familia_id: sessao!.user.id, termo: termo.trim(), marca: marca.trim() || null, preco_alvo: preco, origem: 'manual',
     });
     setSalvando(false);
-    if (error) return setErro('Não foi possível salvar o alerta. Tente de novo.');
+    if (error) {
+      const semAjuste = /termo|column|does not exist/i.test(error.message);
+      return setErro(semAjuste
+        ? 'Os alertas ainda não foram ativados no banco de dados (falta o ajuste 0004 no Supabase).'
+        : 'Não foi possível salvar o alerta. Tente de novo.');
+    }
     setTermo(''); setMarca(''); setAlvo('');
     carregar();
   };
