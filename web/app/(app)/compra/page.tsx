@@ -1,9 +1,11 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
-import { brl, chaveMarca, useOfertas, type Oferta } from '@/lib/ofertas';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { brl, chaveMarca, filtrar, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
 
-type ItemCesta = { id: string; rotulo: string; inc: string[]; q: number; u: string; exc: RegExp };
+// Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
+type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string };
+type Extra = { id: string; termo: string };
 
 // Cesta básica de referência. Próxima etapa: montar a partir da lista de interesse da família.
 const CESTA: ItemCesta[] = [
@@ -26,10 +28,13 @@ export default function MinhaCompra() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const [sel, setSel] = useState<Record<string, number>>(PADRAO);
   const [marcas, setMarcas] = useState<Record<string, string>>({});   // item -> marca fixada ('' = qualquer)
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const [novo, setNovo] = useState('');
 
   useEffect(() => {
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s && Object.keys(s).length) setSel(s); } catch {}
     try { setMarcas(JSON.parse(localStorage.getItem('cesta-marca') || '{}')); } catch {}
+    try { setExtras(JSON.parse(localStorage.getItem('cesta-extra') || '[]')); } catch {}
   }, []);
   const mudar = (novo: Record<string, number>) => { setSel(novo); try { localStorage.setItem('cesta-sel', JSON.stringify(novo)); } catch {} };
   const fixarMarca = (id: string, marca: string) => {
@@ -37,15 +42,33 @@ export default function MinhaCompra() {
     setMarcas(n); try { localStorage.setItem('cesta-marca', JSON.stringify(n)); } catch {}
   };
 
+  const salvarExtras = (l: Extra[]) => { setExtras(l); try { localStorage.setItem('cesta-extra', JSON.stringify(l)); } catch {} };
+  const adicionar = (e: FormEvent) => {
+    e.preventDefault();
+    const termo = novo.trim();
+    if (!termo) return;
+    const id = `x-${Date.now()}`;
+    salvarExtras([...extras, { id, termo }]);
+    mudar({ ...sel, [id]: 1 });
+    setNovo('');
+  };
+  const remover = (id: string) => {
+    salvarExtras(extras.filter((x) => x.id !== id));
+    const n = { ...sel }; delete n[id]; mudar(n);
+  };
+  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: x.termo, termo: x.termo }))], [extras]);
+
   // todas as ofertas que servem para cada item (qualquer marca)
   const candidatos = useMemo(() => {
     const r: Record<string, Oferta[]> = {};
-    for (const c of CESTA) {
-      r[c.id] = (dados?.lista ?? []).filter((o) =>
-        o.u === c.u && Math.abs(o.q - c.q) < 0.001 && c.inc.every((t) => o.busca.includes(t)) && !c.exc.test(o.busca));
+    const lista = dados?.lista ?? [];
+    for (const c of todos) {
+      r[c.id] = c.termo ? filtrar(lista, c.termo) : lista.filter((o) =>
+        o.u === c.u && Math.abs(o.q - c.q!) < 0.001 && c.inc!.every((t) => o.busca.includes(t)) && !c.exc!.test(o.busca));
     }
     return r;
-  }, [dados]);
+  }, [dados, todos]);
+  const novoPrevia = useMemo(() => (dados && novo.trim() ? filtrar(dados.lista, novo).length : null), [dados, novo]);
   // marcas do item, sem repetir grafias e mostrando quantos mercados têm cada uma
   const marcasDe = (id: string) => {
     const m = new Map<string, { nome: string; mercados: Set<string> }>();
@@ -63,7 +86,7 @@ export default function MinhaCompra() {
   // menor preço de cada item em cada mercado, respeitando a marca fixada
   const porItem = useMemo(() => {
     const r: Record<string, Record<string, Oferta>> = {};
-    for (const c of CESTA) {
+    for (const c of todos) {
       r[c.id] = {};
       const marca = chaveMarca(marcas[c.id] ?? '');
       for (const o of candidatos[c.id]) {
@@ -72,12 +95,12 @@ export default function MinhaCompra() {
       }
     }
     return r;
-  }, [candidatos, marcas]);
+  }, [candidatos, marcas, todos]);
 
   if (erro) return <><h1>Minha compra</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
   if (!dados) return <><h1>Minha compra</h1><Carregando /></>;
 
-  const itens = CESTA.filter((c) => sel[c.id]);
+  const itens = todos.filter((c) => sel[c.id]);
   // média do item entre os mercados que têm preço: estimativa para quem não tem
   const media: Record<string, number> = {};
   for (const c of itens) {
@@ -123,15 +146,34 @@ export default function MinhaCompra() {
       ) : <div className="empty">Nenhum mercado tem todos os itens hoje. Veja abaixo o que falta em cada um.</div>}
 
       <h2>Itens da compra</h2>
+      <form className="card stack" onSubmit={adicionar}>
+        <div className="field">
+          <label htmlFor="novo-item">Adicionar item</label>
+          <div className="row" style={{ flexWrap: 'nowrap' }}>
+            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350ml, sabão em pó omo 1,6kg"
+              value={novo} onChange={(e) => setNovo(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+            <button className="btn btn-primary" disabled={!novo.trim()}>Adicionar</button>
+          </div>
+          <span className="help">
+            {novoPrevia === null ? 'Inclua o tamanho (350ml, 1kg) para comparar o mesmo produto entre os mercados.'
+              : novoPrevia ? `${novoPrevia} preços encontrados hoje.` : 'Nenhum preço hoje com essas palavras. Tente menos palavras.'}
+          </span>
+        </div>
+      </form>
       <div className="lista cesta">
-        {CESTA.map((c) => {
+        {todos.map((c) => {
           const ativo = !!sel[c.id];
           const menor = Object.values(porItem[c.id]).sort((a, b) => a.preco - b.preco)[0];
           return (
             <div className="item" key={c.id}>
               <input type="checkbox" className="check" id={`ck-${c.id}`} checked={ativo}
                 onChange={(e) => { const n = { ...sel }; if (e.target.checked) n[c.id] = 1; else delete n[c.id]; mudar(n); }} />
-              <label className="nome" htmlFor={`ck-${c.id}`}>{c.rotulo}</label>
+              <label className="nome" htmlFor={`ck-${c.id}`}>
+                {c.rotulo}
+                {c.termo && (
+                  <button type="button" className="btn-remover" onClick={() => remover(c.id)} aria-label={`Remover ${c.rotulo}`}>remover</button>
+                )}
+              </label>
               <div className="qtd">
                 {ativo && <>
                   <button type="button" aria-label={`Menos ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: Math.max(1, sel[c.id] - 1) })}>−</button>
