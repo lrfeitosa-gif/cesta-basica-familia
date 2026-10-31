@@ -1,10 +1,13 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { brl, chaveMarca, filtrar, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, chaveMarca, filtrar, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
-type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string };
+type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
+// "cebola kg": hortifruti vendido por unidade num mercado e por quilo em outro; compara pelo preço do quilo.
+const PADRAO_KG = /(^|\s)kg(\s|$)/i;
+const valor = (c: ItemCesta, o: Oferta) => (c.porKg ? o.porUn : o.preco);
 type Extra = { id: string; termo: string };
 
 // Cesta básica de referência. Próxima etapa: montar a partir da lista de interesse da família.
@@ -56,14 +59,16 @@ export default function MinhaCompra() {
     salvarExtras(extras.filter((x) => x.id !== id));
     const n = { ...sel }; delete n[id]; mudar(n);
   };
-  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: x.termo, termo: x.termo }))], [extras]);
+  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: x.termo, termo: x.termo, porKg: PADRAO_KG.test(x.termo) }))], [extras]);
 
   // todas as ofertas que servem para cada item (qualquer marca)
   const candidatos = useMemo(() => {
     const r: Record<string, Oferta[]> = {};
     const lista = dados?.lista ?? [];
     for (const c of todos) {
-      r[c.id] = c.termo ? filtrar(lista, c.termo) : lista.filter((o) =>
+      r[c.id] = c.porKg
+        ? filtrar(lista, c.termo!.replace(PADRAO_KG, ' ')).filter((o) => (o.u === 'g' || o.u === 'kg') && grupo(o.categoria) === 'Hortifruti')
+        : c.termo ? filtrar(lista, c.termo) : lista.filter((o) =>
         o.u === c.u && Math.abs(o.q - c.q!) < 0.001 && c.inc!.every((t) => o.busca.includes(t)) && !c.exc!.test(o.busca));
     }
     return r;
@@ -91,7 +96,7 @@ export default function MinhaCompra() {
       const marca = chaveMarca(marcas[c.id] ?? '');
       for (const o of candidatos[c.id]) {
         if (marca && chaveMarca(o.marca) !== marca) continue;
-        if (!r[c.id][o.mercado] || o.preco < r[c.id][o.mercado].preco) r[c.id][o.mercado] = o;
+        if (!r[c.id][o.mercado] || valor(c, o) < valor(c, r[c.id][o.mercado])) r[c.id][o.mercado] = o;
       }
     }
     return r;
@@ -104,14 +109,14 @@ export default function MinhaCompra() {
   // média do item entre os mercados que têm preço: estimativa para quem não tem
   const media: Record<string, number> = {};
   for (const c of itens) {
-    const ps = Object.values(porItem[c.id]).map((o) => o.preco);
+    const ps = Object.values(porItem[c.id]).map((o) => valor(c, o));
     if (ps.length) media[c.id] = ps.reduce((s, p) => s + p, 0) / ps.length;
   }
   const ranking = dados.mercados.map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
     for (const c of itens) {
       const o = porItem[c.id][m];
-      if (o) { total += o.preco * sel[c.id]; escolhas.push({ c, o }); }
+      if (o) { total += valor(c, o) * sel[c.id]; escolhas.push({ c, o }); }
       else { falta.push(c.rotulo); estimado += (media[c.id] ?? 0) * sel[c.id]; }
     }
     return { m, total, estimado, falta, escolhas };
@@ -122,8 +127,8 @@ export default function MinhaCompra() {
   const top = completos[0], segundo = completos[1], pior = completos[completos.length - 1];
   let ideal = 0; let idealOk = true;
   for (const c of itens) {
-    const menor = Object.values(porItem[c.id]).sort((a, b) => a.preco - b.preco)[0];
-    if (menor) ideal += menor.preco * sel[c.id]; else idealOk = false;
+    const menor = Object.values(porItem[c.id]).sort((a, b) => valor(c, a) - valor(c, b))[0];
+    if (menor) ideal += valor(c, menor) * sel[c.id]; else idealOk = false;
   }
 
   return (
@@ -155,7 +160,7 @@ export default function MinhaCompra() {
             <button className="btn btn-primary" disabled={!novo.trim()}>Adicionar</button>
           </div>
           <span className="help">
-            {novoPrevia === null ? 'Inclua o tamanho (350ml, 1kg) para comparar o mesmo produto entre os mercados.'
+            {novoPrevia === null ? 'Inclua o tamanho (350ml, 1kg). Para frutas e verduras, termine com "kg" (ex.: cebola kg) para comparar pelo preço do quilo.'
               : novoPrevia ? `${novoPrevia} preços encontrados hoje.` : 'Nenhum preço hoje com essas palavras. Tente menos palavras.'}
           </span>
         </div>
@@ -163,7 +168,7 @@ export default function MinhaCompra() {
       <div className="lista cesta">
         {todos.map((c) => {
           const ativo = !!sel[c.id];
-          const menor = Object.values(porItem[c.id]).sort((a, b) => a.preco - b.preco)[0];
+          const menor = Object.values(porItem[c.id]).sort((a, b) => valor(c, a) - valor(c, b))[0];
           return (
             <div className="item" key={c.id}>
               <input type="checkbox" className="check" id={`ck-${c.id}`} checked={ativo}
@@ -177,13 +182,13 @@ export default function MinhaCompra() {
               <div className="qtd">
                 {ativo && <>
                   <button type="button" aria-label={`Menos ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: Math.max(1, sel[c.id] - 1) })}>−</button>
-                  <span>{sel[c.id]}</span>
+                  <span>{sel[c.id]}{c.porKg ? ' kg' : ''}</span>
                   <button type="button" aria-label={`Mais ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: sel[c.id] + 1 })}>+</button>
                 </>}
               </div>
               <div className="meta">
                 {menor
-                  ? <span>a partir de <b>{brl(menor.preco)}</b> ({menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
+                  ? <span>a partir de <b>{brl(valor(c, menor))}{c.porKg ? '/kg' : ''}</b> ({c.porKg ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 <span>{Object.keys(porItem[c.id]).length} mercados</span>
                 {ativo && (marcasDe(c.id).length > 1 || marcas[c.id]) && (
@@ -225,7 +230,7 @@ export default function MinhaCompra() {
                   <summary>Ver marcas e preços</summary>
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}× {c.rotulo}: <b>{o.marca || 'marca não informada'}</b> {brl(o.preco)}</li>
+                      <li key={c.id}>{sel[c.id]}{c.porKg ? ' kg' : '×'} {c.rotulo}: <b>{c.porKg ? o.nome : o.marca || 'marca não informada'}</b> {brl(valor(c, o))}{c.porKg ? '/kg' : ''}</li>
                     ))}
                   </ul>
                 </details>
