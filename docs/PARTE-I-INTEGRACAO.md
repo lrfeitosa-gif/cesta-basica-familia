@@ -94,7 +94,8 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | `0002_coleta.sql` | Chave única de produto, preço "de", condição, link, cadastro dos mercados (Pão de Açúcar removido em 31/10: o site bloqueia leitura automática e não publica encarte), uma oferta por produto/mercado/dia/fonte | Sim |
 | `0003_curva_preco.sql` | Visões de histórico: preço diário (menor/média/maior), preço por mercado por dia, referência de 60/90 dias | Sim |
 | `0004_alerta_por_termo.sql` | Alerta por palavras (`termo`), função `garantir_familia()` | Sim |
-| `0005_excluir_conta.sql` | Função `excluir_conta()` para a pessoa apagar a própria conta | **Pendente** |
+| `0005_excluir_conta.sql` | Função `excluir_conta()` para a pessoa apagar a própria conta | Sim |
+| `0006_esgotado_e_sugestao.sql` | Avisos de "Acabou na loja" (valem só para a oferta do dia) e indicações de mercado novo | Sim |
 
 Volume: cerca de 16 mil ofertas por dia com a lista ampliada. O plano gratuito (500 MB) deve durar uns 2 meses; acompanhar em Supabase → Settings → Usage.
 
@@ -166,7 +167,7 @@ Para trocar uma chave: gere a nova no painel do serviço, atualize a variável d
 - A conta guarda só o e-mail. Sem CPF, nome, endereço ou pagamento.
 - Das notas: loja, data, total e itens. CPF e pagamento da nota nunca são gravados.
 - Itens da Compra e marcas escolhidas ficam só no aparelho.
-- Meus dados: exportação em .json e exclusão da conta (depois da migração 0005).
+- Meus dados: exportação em .json e exclusão da conta.
 - Termos e política são rascunhos do piloto; revisar com um profissional antes de abrir ao público.
 
 ---
@@ -186,9 +187,6 @@ As variáveis `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` e `ANTHROPIC_API_KEY` preci
 ---
 
 ## 10. Pendências e próximos passos
-
-**Configuração**
-- Rodar a migração `0005_excluir_conta.sql` no Supabase.
 
 **Produto**
 - Notificação no celular (push) para os alertas, depois da coleta.
