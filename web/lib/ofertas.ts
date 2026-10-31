@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 
 export type Oferta = {
   nome: string; marca: string; q: number; u: string; categoria: string; ean: string;
-  mercado: string; preco: number; de: number; cond: string; fonte: Fonte;
+  mercado: string; preco: number; de: number; cond: string; fonte: Fonte; url: string;
   porUn: number; ub: string; busca: string;
 };
 export type Fonte = 'site' | 'encarte';
@@ -21,7 +21,7 @@ export const emb = (o: Oferta) => `${String(o.q).replace('.', ',')} ${o.u}`;
 export const dataBr = (iso: string) => iso.split('-').reverse().join('/');
 
 type Linha = {
-  preco: number; preco_de: number | null; condicao: string | null; fonte: string; coletado_em: string;
+  preco: number; preco_de: number | null; condicao: string | null; fonte: string; coletado_em: string; url: string | null;
   mercado: { rede: string } | null;
   produto: { nome: string; marca: string | null; quantidade: number; unidade: string; categoria: string; ean: string | null } | null;
 };
@@ -53,7 +53,7 @@ async function buscar(): Promise<Ofertas> {
   const linhas: Linha[] = [];
   for (let i = 0; ; i += 1000) {
     const { data, error } = await supabase.from('oferta')
-      .select('preco,preco_de,condicao,fonte,coletado_em,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)')
+      .select('preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)')
       .eq('valido_de', dia).range(i, i + 999);
     if (error) throw error;
     linhas.push(...(data as unknown as Linha[]));
@@ -68,7 +68,7 @@ async function buscar(): Promise<Ofertas> {
     lista.push({
       nome: p.nome, marca: p.marca || '', q: p.quantidade, u: p.unidade, categoria: p.categoria, ean: p.ean || '',
       mercado: l.mercado.rede, preco: l.preco, de: l.preco_de || 0, cond: l.condicao || '',
-      fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte',
+      fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte', url: l.url || '',
       porUn: l.preco / base, ub,
       busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade}`),
     });
@@ -113,6 +113,12 @@ function padronizarMarcas(lista: Oferta[]) {
     if (k) o.marca = exibir.get(k)!;
   }
 }
+
+// Marca digitada pela pessoa ("heine", "3 coracoes") casa com a marca da oferta por parte do nome.
+export const marcaCasa = (marcaOferta: string, digitada: string) => {
+  const d = chaveMarca(digitada);
+  return !d || chaveMarca(marcaOferta).includes(d);
+};
 
 // Filtro composto: todas as palavras precisam aparecer; "-palavra" exclui.
 export function filtrar(lista: Oferta[], consulta: string): Oferta[] {

@@ -18,6 +18,11 @@ export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode
         <span className="unit">{brl(o.porUn)}/{o.ub}</span>
         {extra}
         {o.cond && <span className="cond">{o.cond}</span>}
+        {o.url && (
+          <a className="link-site" href={o.url} target="_blank" rel="noopener noreferrer">
+            {o.fonte === 'site' ? `Comprar no site do ${o.mercado}` : 'Ver encarte'} ↗
+          </a>
+        )}
       </div>
     </div>
   );
