@@ -269,3 +269,5 @@ h2 { margin-top: 4px; }
 }
 .aviso span { flex: 1; }
 .aviso button { font: inherit; font-weight: 800; color: var(--tag); background: none; border: 0; cursor: pointer; padding: 4px; }
+.ranking .poucos-precos { opacity: .8; }
+.ranking .grupo-ranking { grid-column: 1 / -1; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding-bottom: 4px; }

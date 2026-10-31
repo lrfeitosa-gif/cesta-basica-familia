@@ -191,7 +191,10 @@ export default function MinhaCompra() {
     }
     return { m, total, estimado, falta, escolhas, valor: total + estimado };
   }).filter((r) => r.falta.length < itens.length)
-    .sort((a, b) => a.valor - b.valor);   // do menor para o maior valor mostrado (≈ inclui os itens estimados)
+    // Primeiro quem tem preço para a maioria dos itens (no máximo 30% estimado), do menor para o maior valor;
+    // mercados com poucos itens com preço (ex.: só o encarte) vêm depois, porque o total deles é quase só estimativa.
+    .map((x) => ({ ...x, confiavel: x.falta.length <= Math.floor(itens.length * 0.3) }))
+    .sort((a, b) => Number(b.confiavel) - Number(a.confiavel) || a.valor - b.valor);
   const completos = ranking.filter((r) => !r.falta.length);
   // compara com o segundo mais barato (a alternativa real) e mostra também o mais caro
   const top = ranking[0], segundo = ranking[1], pior = ranking[ranking.length - 1];
@@ -305,8 +308,11 @@ export default function MinhaCompra() {
       {itens.length > 0 && <h2>Total em cada mercado</h2>}
       {itens.length > 0 && (
         <div className="ranking">
-          {ranking.map((r) => (
-            <div key={r.m}>
+          {ranking.map((r, i) => (
+            <div key={r.m} className={r.confiavel ? '' : 'poucos-precos'}>
+              {!r.confiavel && (i === 0 || ranking[i - 1].confiavel) && (
+                <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
+              )}
               <b>{r.m}</b>
               <span className="total">{fmt(r)}</span>
               {r.falta.length > 0 && (
@@ -321,7 +327,7 @@ export default function MinhaCompra() {
                   <summary>Ver marcas e preços</summary>
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{o.nome}</b>{' '}
+                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
                         {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}</li>
                     ))}
                   </ul>
