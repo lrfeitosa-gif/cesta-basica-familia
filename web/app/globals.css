@@ -254,3 +254,4 @@ h2 { margin-top: 4px; }
 .link-site:hover { text-decoration: underline; }
 .btn-perigo { background: var(--danger); color: #fff; }
 .dados-lista { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.chip-cat[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }

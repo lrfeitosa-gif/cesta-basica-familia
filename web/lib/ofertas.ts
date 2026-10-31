@@ -14,6 +14,24 @@ export type Ofertas = { dia: string; atualizado: string; mercados: string[]; inf
 export const horaBr = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+// Grupos de categoria para os filtros. Cada mercado nomeia as categorias de um jeito; aqui viram um só nome.
+export const GRUPOS: [string, RegExp][] = [
+  ['Hortifruti', /horti|fruta|legume|verdura|feira/],
+  ['Açougue', /acougue|carne|aves|frango|peixe|suino|bovino/],
+  ['Laticínios e frios', /latic|frios|queijo|iogurte/],
+  ['Padaria', /padaria|paes|bolo|rotisseria/],
+  ['Bebidas', /bebida|cerveja|refrigerante|suco|agua/],
+  ['Limpeza', /limpeza|lavanderia/],
+  ['Higiene', /higiene|perfumaria|beleza|cuidados|fralda|bebe/],
+  ['Congelados', /congelad/],
+  ['Mercearia', /mercearia|alimento|matinal|cafe da manha|doce|biscoito|massa|grao|enlatad|tempero|suplement|vitamina/],
+  ['Pet', /pet/],
+];
+export function grupo(categoria: string | null | undefined): string {
+  const c = norm(categoria);
+  return GRUPOS.find(([, re]) => re.test(c))?.[0] ?? 'Outros';
+}
+
 export const norm = (s: string | null | undefined) =>
   (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 export const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -70,7 +88,7 @@ async function buscar(): Promise<Ofertas> {
       mercado: l.mercado.rede, preco: l.preco, de: l.preco_de || 0, cond: l.condicao || '',
       fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte', url: l.url || '',
       porUn: l.preco / base, ub,
-      busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade}`),
+      busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade} ${p.categoria} ${grupo(p.categoria)}`),
     });
   }
   padronizarMarcas(lista);
