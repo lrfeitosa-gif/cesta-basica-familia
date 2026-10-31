@@ -18,6 +18,8 @@ const CESTA: ItemCesta[] = [
   { id: 'molho', rotulo: 'Molho de tomate 300 g', inc: ['molho', 'tomate'], q: 300, u: 'g', exc: /pizza|picante/ },
   { id: 'detergente', rotulo: 'Detergente 500 ml', inc: ['detergente'], q: 500, u: 'ml', exc: /maquina|lava-loucas|lava loucas/ },
 ];
+// Mercados coletados só pelos encartes: item fora da promoção não aparece, mas a loja pode ter.
+const ENCARTE = new Set(['Roldão', 'Sumerbol', 'Assaí', 'Pão de Açúcar']);
 const PADRAO: Record<string, number> = { arroz: 1, feijao: 2, cafe: 1, oleo: 2, leite: 6, macarrao: 2 };
 
 export default function MinhaCompra() {
@@ -46,11 +48,22 @@ export default function MinhaCompra() {
   if (!dados) return <><h1>Minha compra</h1><Carregando /></>;
 
   const itens = CESTA.filter((c) => sel[c.id]);
+  // média do item entre os mercados que têm preço: estimativa para quem não tem
+  const media: Record<string, number> = {};
+  for (const c of itens) {
+    const ps = Object.values(porItem[c.id]).map((o) => o.preco);
+    if (ps.length) media[c.id] = ps.reduce((s, p) => s + p, 0) / ps.length;
+  }
   const ranking = dados.mercados.map((m) => {
-    let total = 0; const falta: string[] = [];
-    for (const c of itens) { const o = porItem[c.id][m]; if (o) total += o.preco * sel[c.id]; else falta.push(c.rotulo); }
-    return { m, total, falta };
-  }).filter((r) => r.falta.length < itens.length).sort((a, b) => a.falta.length - b.falta.length || a.total - b.total);
+    let total = 0; let estimado = 0; const falta: string[] = [];
+    for (const c of itens) {
+      const o = porItem[c.id][m];
+      if (o) total += o.preco * sel[c.id];
+      else { falta.push(c.rotulo); estimado += (media[c.id] ?? 0) * sel[c.id]; }
+    }
+    return { m, total, estimado, falta };
+  }).filter((r) => r.falta.length < itens.length)
+    .sort((a, b) => a.falta.length - b.falta.length || a.total - b.total);
   const completos = ranking.filter((r) => !r.falta.length);
   const top = completos[0], pior = completos[completos.length - 1];
   let ideal = 0; let idealOk = true;
@@ -79,8 +92,15 @@ export default function MinhaCompra() {
         <div className="ranking">
           {ranking.map((r) => (
             <div key={r.m}>
-              <b>{r.m}</b><span className="total">{brl(r.total)}</span>
-              {r.falta.length > 0 && <span className="falta">Falta: {r.falta.join(', ')}</span>}
+              <b>{r.m}</b>
+              <span className="total">{r.falta.length ? `≈ ${brl(r.total + r.estimado)}` : brl(r.total)}</span>
+              {r.falta.length > 0 && (
+                <span className="falta">
+                  Sem preço hoje: {r.falta.join(', ')}.{' '}
+                  {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
+                  Estimado pela média dos outros mercados.
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -110,7 +130,10 @@ export default function MinhaCompra() {
           );
         })}
       </div>
-      <p className="muted">Item sem preço num mercado conta como faltando. Assaí e Pão de Açúcar só têm os itens dos encartes enviados.</p>
+      <p className="muted">
+        Roldão, Sumerbol, Assaí e Pão de Açúcar entram só com os itens em promoção nos encartes. Quando falta preço,
+        o total usa a média dos outros mercados e aparece com ≈. Os mercados com todos os itens vêm primeiro.
+      </p>
     </>
   );
 }
