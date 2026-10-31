@@ -61,17 +61,23 @@ TERMOS_CESTA = [
     "molho de tomate", "detergente líquido", "papel higiênico folha dupla", "creme dental", "sabão em pó",
 ]
 
-_EMB = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|lt|un)\b", re.I)
+_EMB = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|lt|litros?|unidades|unidade|unid|und|un|u)\b", re.I)
+_DUZIA = re.compile(r"\b(meia\s+)?d[uú]zia\b", re.I)
 
 
 def embalagem(nome: str) -> tuple[float | None, str | None]:
-    """'Arroz Camil 5kg' -> (5.0, 'kg'). Usa a última medida do nome."""
-    achados = _EMB.findall(nome)
-    if not achados:
-        return None, None
-    qtd, un = achados[-1]
-    un = un.lower().replace("lt", "l")
-    return float(qtd.replace(",", ".")), un
+    """'Arroz Camil 5kg' -> (5.0, 'kg'); 'Ovos ... 13g Protein com 10 Unidades' -> (10.0, 'un');
+    'Banana Prata 1 Unidade 180g' -> (180.0, 'g').
+
+    Usa a última medida do nome (entende "Unidades", "unid", "30u"). "Dúzia" vira 12 unidades.
+    """
+    achados = [(float(q.replace(",", ".")), u.lower()) for q, u in _EMB.findall(nome)]
+    achados = [(q, "l" if u in ("lt", "litro", "litros") else "un" if u.startswith("u") else u) for q, u in achados]
+    if achados:
+        return achados[-1]
+    if (m := _DUZIA.search(nome)):
+        return (6.0 if m.group(1) else 12.0), "un"
+    return None, None
 
 
 def _get(client: httpx.Client, url: str, params: dict, tentativas: int = 3) -> httpx.Response:

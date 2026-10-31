@@ -21,11 +21,11 @@ const tirarVariantes = (termo: string, l: Oferta[]) => {
   const fora = VARIANTES.filter(([p, v]) => p.test(t) && !v.test(t)).map(([, v]) => v);
   return fora.length ? l.filter((o) => !fora.some((v) => v.test(norm(o.nome)))) : l;
 };
-// Tamanho mais comum entre as ofertas (em litros ou quilos): vira a referência do item sem tamanho.
+// Tamanho mais comum entre as ofertas (litros, quilos ou unidades, como bandejas de ovos): vira a referência do item sem tamanho.
 function tamanhoReferencia(l: Oferta[]): { base: number; ub: string } | null {
   const conta = new Map<string, number>();
   for (const o of l) {
-    if (o.ub !== 'l' && o.ub !== 'kg') continue;
+    if (o.ub !== 'l' && o.ub !== 'kg' && o.ub !== 'un') continue;
     const base = o.porUn ? Math.round((o.preco / o.porUn) * 1000) / 1000 : 0;   // embalagem em litros/quilos
     if (!base) continue;
     const k = `${base}|${o.ub}`;
@@ -37,7 +37,7 @@ function tamanhoReferencia(l: Oferta[]): { base: number; ub: string } | null {
   return { base: Number(base), ub };
 }
 const fmtTam = (r: { base: number; ub: string }) =>
-  r.base < 1 ? `${Math.round(r.base * 1000)} ${r.ub === 'l' ? 'ml' : 'g'}` : `${String(r.base).replace('.', ',')} ${r.ub}`;
+  r.ub === 'un' ? `${r.base} un` : r.base < 1 ? `${Math.round(r.base * 1000)} ${r.ub === 'l' ? 'ml' : 'g'}` : `${String(r.base).replace('.', ',')} ${r.ub}`;
 const ehHorti = (o: Oferta) => (o.u === 'g' || o.u === 'kg') && grupo(o.categoria) === 'Hortifruti';
 // Frutas, legumes e verduras: item que começa com um destes nomes compara pelo preço do quilo, sem marca.
 const HORTIFRUTI = new Set(('abacate abacaxi abobora abobrinha acelga agriao alface alho ameixa banana batata berinjela '
