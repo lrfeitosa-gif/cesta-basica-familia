@@ -188,12 +188,14 @@ export default function MinhaCompra() {
       if (o) { total += v(c, o) * sel[c.id]; escolhas.push({ c, o }); }
       else { falta.push(c.rotulo); estimado += (media[c.id] ?? 0) * sel[c.id]; }
     }
-    return { m, total, estimado, falta, escolhas };
+    return { m, total, estimado, falta, escolhas, valor: total + estimado };
   }).filter((r) => r.falta.length < itens.length)
-    .sort((a, b) => a.falta.length - b.falta.length || a.total - b.total);
+    .sort((a, b) => a.valor - b.valor);   // do menor para o maior valor mostrado (≈ inclui os itens estimados)
   const completos = ranking.filter((r) => !r.falta.length);
   // compara com o segundo mais barato (a alternativa real) e mostra também o mais caro
-  const top = completos[0], segundo = completos[1], pior = completos[completos.length - 1];
+  const top = ranking[0], segundo = ranking[1], pior = ranking[ranking.length - 1];
+  const melhorCompleto = top?.falta.length ? completos[0] : undefined;
+  const fmt = (r: { valor: number; falta: string[] }) => `${r.falta.length ? '≈ ' : ''}${brl(r.valor)}`;
   let ideal = 0; let idealOk = true;
   for (const c of itens) {
     const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
@@ -210,14 +212,22 @@ export default function MinhaCompra() {
       {!itens.length ? <div className="empty">Marque ao menos um item abaixo.</div> : top ? (
         <div className="destaque">
           <span className="muted">Melhor mercado único para esta compra</span>
-          <span className="grande">{brl(top.total)}</span>
-          <span><b>{top.m}</b>{segundo && ` · ${brl(segundo.total - top.total)} a menos que o 2º mais barato (${segundo.m})`}</span>
+          <span className="grande">{fmt(top)}</span>
+          <span><b>{top.m}</b>{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
+          {top.falta.length > 0 && (
+            <span className="cond">
+              Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pela média dos outros mercados).
+            </span>
+          )}
+          {melhorCompleto && (
+            <span className="muted">Melhor com todos os itens: <b>{melhorCompleto.m}</b>, {brl(melhorCompleto.valor)}</span>
+          )}
           {pior && pior !== segundo && pior !== top && (
-            <span className="muted">Até {brl(pior.total - top.total)} a menos que o mais caro ({pior.m})</span>
+            <span className="muted">Até {brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m})</span>
           )}
           {idealOk && <span className="muted">Comprando cada item no mais barato: {brl(ideal)}</span>}
         </div>
-      ) : <div className="empty">Nenhum mercado tem todos os itens hoje. Veja abaixo o que falta em cada um.</div>}
+      ) : null}
 
       <h2>Itens da compra</h2>
       <form className="card stack" onSubmit={adicionar}>
@@ -297,7 +307,7 @@ export default function MinhaCompra() {
           {ranking.map((r) => (
             <div key={r.m}>
               <b>{r.m}</b>
-              <span className="total">{r.falta.length ? `≈ ${brl(r.total + r.estimado)}` : brl(r.total)}</span>
+              <span className="total">{fmt(r)}</span>
               {r.falta.length > 0 && (
                 <span className="falta">
                   Sem preço hoje: {r.falta.join(', ')}.{' '}
@@ -322,7 +332,7 @@ export default function MinhaCompra() {
       )}
       <p className="muted">
         Roldão, Sumerbol e Assaí entram só com os itens em promoção nos encartes. Quando falta preço,
-        o total usa a média dos outros mercados e aparece com ≈. Os mercados com todos os itens vêm primeiro.
+        o total usa a média dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
       </p>
     </>
   );
