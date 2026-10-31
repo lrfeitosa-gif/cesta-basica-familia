@@ -7,7 +7,37 @@ import { Carregando, ErroCarga } from '../linha-oferta';
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
 // "cebola kg": hortifruti vendido por unidade num mercado e por quilo em outro; compara pelo preço do quilo.
 const PADRAO_KG = /(^|\s)kg(\s|$)/i;
-const valor = (kg: boolean, o: Oferta) => (kg ? o.porUn : o.preco);
+// Tamanho escrito pela pessoa ("azeite 500ml"); sem ele, o item compara pelo preço do litro/quilo.
+const TEM_TAMANHO = /\d+(?:[.,]\d+)?\s*(kg|g|ml|l|lt|litros?)(\s|$)/i;
+// Produtos diferentes que começam com a mesma palavra: ficam de fora, a menos que a pessoa escreva a variante.
+const VARIANTES: [RegExp, RegExp][] = [
+  [/^azeite(\s|$)/, /dende/],
+  [/^oleo(\s|$)/, /composto|misto/],
+  [/^leite(\s|$)/, /condensado|em po|fermentado|de coco|vegetal/],
+  [/^acucar(\s|$)/, /confeiteiro|mascavo|demerara|organico/],
+];
+const tirarVariantes = (termo: string, l: Oferta[]) => {
+  const t = norm(termo);
+  const fora = VARIANTES.filter(([p, v]) => p.test(t) && !v.test(t)).map(([, v]) => v);
+  return fora.length ? l.filter((o) => !fora.some((v) => v.test(norm(o.nome)))) : l;
+};
+// Tamanho mais comum entre as ofertas (em litros ou quilos): vira a referência do item sem tamanho.
+function tamanhoReferencia(l: Oferta[]): { base: number; ub: string } | null {
+  const conta = new Map<string, number>();
+  for (const o of l) {
+    if (o.ub !== 'l' && o.ub !== 'kg') continue;
+    const base = o.porUn ? Math.round((o.preco / o.porUn) * 1000) / 1000 : 0;   // embalagem em litros/quilos
+    if (!base) continue;
+    const k = `${base}|${o.ub}`;
+    conta.set(k, (conta.get(k) ?? 0) + 1);
+  }
+  const [k] = [...conta.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+  if (!k) return null;
+  const [base, ub] = k.split('|');
+  return { base: Number(base), ub };
+}
+const fmtTam = (r: { base: number; ub: string }) =>
+  r.base < 1 ? `${Math.round(r.base * 1000)} ${r.ub === 'l' ? 'ml' : 'g'}` : `${String(r.base).replace('.', ',')} ${r.ub}`;
 const ehHorti = (o: Oferta) => (o.u === 'g' || o.u === 'kg') && grupo(o.categoria) === 'Hortifruti';
 // Frutas, legumes e verduras: item que começa com um destes nomes compara pelo preço do quilo, sem marca.
 const HORTIFRUTI = new Set(('abacate abacaxi abobora abobrinha acelga agriao alface alho ameixa banana batata berinjela '
@@ -82,9 +112,10 @@ export default function MinhaCompra() {
 
   // todas as ofertas que servem para cada item (qualquer marca). Item de hortifruti (com "kg" no nome ou quando
   // a maior parte do que a busca encontra é fruta, legume ou verdura) compara pelo preço do quilo, sem marca.
-  const { candidatos, kgs } = useMemo(() => {
+  const { candidatos, kgs, refs } = useMemo(() => {
     const r: Record<string, Oferta[]> = {};
     const kgs = new Set<string>();
+    const refs: Record<string, { base: number; ub: string }> = {};
     const lista = dados?.lista ?? [];
     for (const c of todos) {
       if (c.termo) {
@@ -95,15 +126,22 @@ export default function MinhaCompra() {
           kgs.add(c.id);
           r[c.id] = filtrar(lista, termo).filter((o) => ehHorti(o) && norm(o.nome).startsWith(inicio) && !PROCESSADO.test(norm(o.nome)));
         } else {
-          r[c.id] = filtrarFoco(lista, termo);
+          r[c.id] = tirarVariantes(termo, filtrarFoco(lista, termo));
+          if (!TEM_TAMANHO.test(termo)) {
+            // sem tamanho: compara pelo preço do litro/quilo, com o tamanho mais comum como referência
+            const ref = tamanhoReferencia(r[c.id]);
+            if (ref) { refs[c.id] = ref; r[c.id] = r[c.id].filter((o) => o.ub === ref.ub); }
+          }
         }
         continue;
       }
       r[c.id] = lista.filter((o) =>
         o.u === c.u && Math.abs(o.q - c.q!) < 0.001 && c.inc!.every((t) => o.busca.includes(t)) && !c.exc!.test(o.busca));
     }
-    return { candidatos: r, kgs };
+    return { candidatos: r, kgs, refs };
   }, [dados, todos]);
+  // preço usado na comparação: por kg (hortifruti), pelo tamanho de referência (sem tamanho) ou o da etiqueta
+  const v = (c: ItemCesta, o: Oferta) => (kgs.has(c.id) ? o.porUn : refs[c.id] ? o.porUn * refs[c.id].base : o.preco);
   const novoPrevia = useMemo(() => (dados && novo.trim() ? filtrarFoco(dados.lista, novo).length : null), [dados, novo]);
   // marcas do item, sem repetir grafias e mostrando quantos mercados têm cada uma
   const marcasDe = (id: string) => {
@@ -127,11 +165,11 @@ export default function MinhaCompra() {
       const marca = chaveMarca(marcas[c.id] ?? '');
       for (const o of candidatos[c.id]) {
         if (marca && chaveMarca(o.marca) !== marca) continue;
-        if (!r[c.id][o.mercado] || valor(kgs.has(c.id), o) < valor(kgs.has(c.id), r[c.id][o.mercado])) r[c.id][o.mercado] = o;
+        if (!r[c.id][o.mercado] || v(c, o) < v(c, r[c.id][o.mercado])) r[c.id][o.mercado] = o;
       }
     }
     return r;
-  }, [candidatos, kgs, marcas, todos]);
+  }, [candidatos, kgs, refs, marcas, todos]);
 
   if (erro) return <><h1>Minha compra</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
   if (!dados) return <><h1>Minha compra</h1><Carregando /></>;
@@ -140,14 +178,14 @@ export default function MinhaCompra() {
   // média do item entre os mercados que têm preço: estimativa para quem não tem
   const media: Record<string, number> = {};
   for (const c of itens) {
-    const ps = Object.values(porItem[c.id]).map((o) => valor(kgs.has(c.id), o));
+    const ps = Object.values(porItem[c.id]).map((o) => v(c, o));
     if (ps.length) media[c.id] = ps.reduce((s, p) => s + p, 0) / ps.length;
   }
   const ranking = dados.mercados.map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
     for (const c of itens) {
       const o = porItem[c.id][m];
-      if (o) { total += valor(kgs.has(c.id), o) * sel[c.id]; escolhas.push({ c, o }); }
+      if (o) { total += v(c, o) * sel[c.id]; escolhas.push({ c, o }); }
       else { falta.push(c.rotulo); estimado += (media[c.id] ?? 0) * sel[c.id]; }
     }
     return { m, total, estimado, falta, escolhas };
@@ -158,8 +196,8 @@ export default function MinhaCompra() {
   const top = completos[0], segundo = completos[1], pior = completos[completos.length - 1];
   let ideal = 0; let idealOk = true;
   for (const c of itens) {
-    const menor = Object.values(porItem[c.id]).sort((a, b) => valor(kgs.has(c.id), a) - valor(kgs.has(c.id), b))[0];
-    if (menor) ideal += valor(kgs.has(c.id), menor) * sel[c.id]; else idealOk = false;
+    const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
+    if (menor) ideal += v(c, menor) * sel[c.id]; else idealOk = false;
   }
 
   return (
@@ -204,7 +242,7 @@ export default function MinhaCompra() {
       <div className="lista cesta">
         {todos.map((c) => {
           const ativo = !!sel[c.id];
-          const menor = Object.values(porItem[c.id]).sort((a, b) => valor(kgs.has(c.id), a) - valor(kgs.has(c.id), b))[0];
+          const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
           return (
             <div className="item" key={c.id}>
               <input type="checkbox" className="check" id={`ck-${c.id}`} checked={ativo}
@@ -224,7 +262,7 @@ export default function MinhaCompra() {
               </div>
               <div className="meta">
                 {menor
-                  ? <span>a partir de <b>{brl(valor(kgs.has(c.id), menor))}{kgs.has(c.id) ? '/kg' : ''}</b> ({kgs.has(c.id) ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
+                  ? <span>a partir de <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} ({kgs.has(c.id) ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 <span>{Object.keys(porItem[c.id]).length} mercados</span>
                 {c.termo && (
@@ -272,7 +310,8 @@ export default function MinhaCompra() {
                   <summary>Ver marcas e preços</summary>
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{kgs.has(c.id) ? o.nome : o.marca || 'marca não informada'}</b> {brl(valor(kgs.has(c.id), o))}{kgs.has(c.id) ? '/kg' : ''}</li>
+                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{o.nome}</b>{' '}
+                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}</li>
                     ))}
                   </ul>
                 </details>
