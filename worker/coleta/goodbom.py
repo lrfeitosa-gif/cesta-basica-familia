@@ -17,7 +17,7 @@ from datetime import date
 
 import httpx
 
-from coleta.vtex import embalagem
+from coleta.vtex import _get, embalagem
 
 MERCADO = "Goodbom"
 BASE = "https://www.goodbom.com.br"
@@ -96,13 +96,13 @@ def coletar() -> list[dict]:
     vistos, saida = set(), []
     with httpx.Client(timeout=40, follow_redirects=True,
                       headers={"User-Agent": "Mozilla/5.0 (compatible; FastPromotionsMK/0.1; piloto Indaiatuba)"}) as client:
-        for dep in departamentos(client.get(BASE + LOJA + "/categorias").text):
+        for dep in departamentos(_get(client, BASE + LOJA + "/categorias", {}).text):
             total = 1
             for pagina in range(1, MAX_PAGINAS + 1):
                 if pagina > total:
                     break
                 try:
-                    r = client.get(BASE + dep, params={"page": pagina} if pagina > 1 else None)
+                    r = _get(client, BASE + dep, {"page": pagina} if pagina > 1 else {})   # tenta de novo se cair
                 except httpx.TransportError:
                     break
                 if r.status_code != 200:

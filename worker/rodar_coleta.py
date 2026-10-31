@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
@@ -75,8 +76,19 @@ def dias_de_validade(ofertas: list[dict], maximo: int = 14) -> list[str]:
     return [(hoje + timedelta(days=d)).isoformat() for d in range((fim - hoje).days + 1)]
 
 
+def tentar(f, tentativas: int = 4):
+    """Repete operações de rede que caem de vez em quando ("Server disconnected"), com espera crescente."""
+    for i in range(tentativas):
+        try:
+            return f()
+        except Exception:
+            if i == tentativas - 1:
+                raise
+            time.sleep(5 * (i + 1))
+
+
 def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None) -> int:
-    loja = db.table("mercado").select("id").eq("rede", mercado).limit(1).execute().data
+    loja = tentar(lambda: db.table("mercado").select("id").eq("rede", mercado).limit(1).execute().data)
     if not loja:
         raise RuntimeError(f"mercado '{mercado}' não cadastrado (rode a migração 0002)")
     mercado_id = loja[0]["id"]
@@ -92,13 +104,13 @@ def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None)
     lista = list(por_chave.values())
     for i in range(0, len(lista), 200):
         lote = lista[i:i + 200]
-        produtos = db.table("produto").upsert([n["produto"] for n in lote], on_conflict="chave").execute().data
+        produtos = tentar(lambda: db.table("produto").upsert([n["produto"] for n in lote], on_conflict="chave").execute().data)
         ids = {p["chave"]: p["id"] for p in produtos}
         # oferta de encarte vencida (validade antes do dia) não entra naquele dia
         linhas = [{**n["oferta"], "produto_id": ids[n["produto"]["chave"]], "mercado_id": mercado_id, "valido_de": dia}
                   for n in lote for dia in dias
                   if not n["oferta"]["valido_ate"] or n["oferta"]["valido_ate"] >= dia]
-        db.table("oferta").upsert(linhas, on_conflict="produto_id,mercado_id,valido_de,fonte").execute()
+        tentar(lambda: db.table("oferta").upsert(linhas, on_conflict="produto_id,mercado_id,valido_de,fonte").execute())
         total += len(linhas)
     return total
 

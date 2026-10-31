@@ -93,7 +93,10 @@ def _get(client: httpx.Client, url: str, params: dict, tentativas: int = 3) -> h
 
 def regiao(base: str, cep: str, client: httpx.Client) -> str | None:
     """regionId da VTEX para o CEP; None se a loja não regionaliza preços."""
-    resp = client.get(f"{base}/api/checkout/pub/regions", params={"country": "BRA", "postalCode": cep})
+    try:
+        resp = _get(client, f"{base}/api/checkout/pub/regions", {"country": "BRA", "postalCode": cep})
+    except httpx.TransportError:
+        return None
     if resp.status_code != 200 or not resp.json():
         return None
     return resp.json()[0].get("id")

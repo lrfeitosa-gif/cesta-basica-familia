@@ -17,7 +17,7 @@ from datetime import date
 
 import httpx
 
-from coleta.vtex import TERMOS_CESTA, embalagem
+from coleta.vtex import TERMOS_CESTA, _get, embalagem
 
 MERCADO = "São Vicente"
 BASE = "https://www.svicente.com.br"
@@ -72,7 +72,7 @@ def coletar(termos: list[str] | None = None) -> list[dict]:
         for termo in termos or TERMOS_CESTA:
             for pagina in range(PAGINAS_POR_TERMO):
                 try:
-                    r = client.get(BUSCA, params={"q": termo, "start": pagina * POR_PAGINA, "sz": POR_PAGINA})
+                    r = _get(client, BUSCA, {"q": termo, "start": pagina * POR_PAGINA, "sz": POR_PAGINA})
                 except httpx.TransportError:
                     break
                 if r.status_code != 200:
