@@ -45,7 +45,6 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | Roldão | Encarte | Imagens no site → extrator | Encarte "ITU-" é de outra cidade e é ignorado |
 | Sumerbol | Encarte | PDF no site → extrator | |
 | Assaí | Encarte | Prints enviados → extrator | Site bloqueia leitura automática |
-| Pão de Açúcar | Encarte | Prints enviados → extrator | Site bloqueia leitura automática |
 
 **Regras adotadas**
 - Só usamos fontes abertas. Sites que bloqueiam robôs não são contornados.
@@ -92,7 +91,7 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | Migração | Conteúdo | Rodada? |
 |---|---|---|
 | `0001_schema.sql` | Tabelas: família, região, mercado, produto, oferta, item de interesse, compra, item comprado, alerta, push. RLS: cada família vê só os seus dados; produtos, mercados e ofertas são públicos para leitura | Sim |
-| `0002_coleta.sql` | Chave única de produto, preço "de", condição, link, cadastro dos 8 mercados, uma oferta por produto/mercado/dia/fonte | Sim |
+| `0002_coleta.sql` | Chave única de produto, preço "de", condição, link, cadastro dos mercados (Pão de Açúcar removido em 31/10: o site bloqueia leitura automática e não publica encarte), uma oferta por produto/mercado/dia/fonte | Sim |
 | `0003_curva_preco.sql` | Visões de histórico: preço diário (menor/média/maior), preço por mercado por dia, referência de 60/90 dias | Sim |
 | `0004_alerta_por_termo.sql` | Alerta por palavras (`termo`), função `garantir_familia()` | Sim |
 | `0005_excluir_conta.sql` | Função `excluir_conta()` para a pessoa apagar a própria conta | **Pendente** |
@@ -194,7 +193,7 @@ As variáveis `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` e `ANTHROPIC_API_KEY` preci
 **Produto**
 - Notificação no celular (push) para os alertas, depois da coleta.
 - Testar a leitura de NFC-e com notas reais de Indaiatuba e usar as notas para comparar preço do site × loja física.
-- Envio dos prints do Assaí e do Pão de Açúcar pelo próprio app.
+- Envio dos prints do Assaí pelo próprio app.
 - Login com Google e e-mail próprio (Resend + domínio) antes de abrir ao público.
 
 **Dados**

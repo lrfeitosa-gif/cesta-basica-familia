@@ -1,13 +1,20 @@
+import Link from 'next/link';
 import { horaBr, type Ofertas } from '@/lib/ofertas';
 
-const SEM_COLETA = [
+// Todos os mercados acompanhados. Quem não tiver preço no dia aparece como "sem preço hoje", com o motivo.
+const MERCADOS: { mercado: string; motivo: string }[] = [
   { mercado: 'Assaí', motivo: 'O site bloqueia leitura automática. Entra pelos encartes enviados.' },
-  { mercado: 'Pão de Açúcar', motivo: 'O site bloqueia leitura automática. Entra pelos encartes enviados.' },
+  { mercado: 'Atacadão', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
+  { mercado: 'Covabra', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
+  { mercado: 'Pague Menos', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
+  { mercado: 'Roldão', motivo: 'Nenhum encarte válido encontrado no site hoje.' },
+  { mercado: 'Savegnago', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
+  { mercado: 'Sumerbol', motivo: 'Nenhum encarte válido encontrado no site hoje.' },
 ];
 
 // Data da última coleta e de onde vem o preço de cada mercado.
 export default function Fontes({ dados }: { dados: Ofertas }) {
-  const semHoje = SEM_COLETA.filter((s) => !dados.info.some((i) => i.mercado === s.mercado));
+  const semHoje = MERCADOS.filter((s) => !dados.info.some((i) => i.mercado === s.mercado));
   return (
     <details className="fontes">
       <summary>
@@ -34,6 +41,7 @@ export default function Fontes({ dados }: { dados: Ofertas }) {
         <b>Site:</b> preço de prateleira da loja online, todos os produtos, com ou sem promoção.{' '}
         <b>Encarte:</b> só os itens em promoção do folheto da semana. A loja física pode ter outros preços.
       </p>
+      <Link href="/indicar" className="btn btn-link">Falta algum mercado? Indique aqui</Link>
     </details>
   );
 }

@@ -255,3 +255,17 @@ h2 { margin-top: 4px; }
 .btn-perigo { background: var(--danger); color: #fff; }
 .dados-lista { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .chip-cat[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Ações da oferta e aviso no rodapé */
+.acoes-oferta { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; }
+.acoes-oferta .link-site { flex-basis: auto; padding-top: 0; }
+.btn-acabou { font: inherit; font-size: .78rem; font-weight: 600; color: var(--muted); background: none; border: 1px dashed var(--line); border-radius: 8px; padding: 4px 8px; cursor: pointer; margin-left: auto; }
+.btn-acabou:hover { color: var(--danger); border-color: var(--danger); }
+.aviso {
+  position: fixed; z-index: 15; left: 50%; translate: -50% 0; width: min(488px, calc(100vw - 32px));
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
+  background: var(--ink); color: var(--bg); box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 30%, transparent); font-size: .9rem;
+}
+.aviso span { flex: 1; }
+.aviso button { font: inherit; font-weight: 800; color: var(--tag); background: none; border: 0; cursor: pointer; padding: 4px; }

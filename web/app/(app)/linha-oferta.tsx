@@ -1,5 +1,7 @@
+'use client';
 import type { ReactNode } from 'react';
-import { brl, emb, norm, type Oferta } from '@/lib/ofertas';
+import { brl, emb, marcarEsgotado, norm, type Oferta } from '@/lib/ofertas';
+import { mostrarAviso } from './aviso';
 
 export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode }) {
   const comMarca = o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} ` : '';
@@ -18,14 +20,26 @@ export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode
         <span className="unit">{brl(o.porUn)}/{o.ub}</span>
         {extra}
         {o.cond && <span className="cond">{o.cond}</span>}
-        {o.url && (
-          <a className="link-site" href={o.url} target="_blank" rel="noopener noreferrer">
-            {o.fonte === 'site' ? `Comprar no site do ${o.mercado}` : 'Ver encarte'} ↗
-          </a>
-        )}
+        <span className="acoes-oferta">
+          {o.url && (
+            <a className="link-site" href={o.url} target="_blank" rel="noopener noreferrer">
+              {o.fonte === 'site' ? `Comprar no site do ${o.mercado}` : 'Ver encarte'} ↗
+            </a>
+          )}
+          <button type="button" className="btn-acabou" onClick={() => avisarEsgotado(o)}>Acabou na loja</button>
+        </span>
       </div>
     </div>
   );
+}
+
+async function avisarEsgotado(o: Oferta) {
+  const desfazer = await marcarEsgotado(o);
+  if (!desfazer) return mostrarAviso({ texto: 'Não foi possível registrar agora. Tente de novo em instantes.' });
+  mostrarAviso({
+    texto: `${o.nome} no ${o.mercado} saiu das listas de hoje. Volta na próxima coleta.`,
+    acao: { rotulo: 'Desfazer', fazer: desfazer },
+  });
 }
 
 // Esqueleto de linhas enquanto os preços chegam: a tela já mostra a forma do conteúdo.

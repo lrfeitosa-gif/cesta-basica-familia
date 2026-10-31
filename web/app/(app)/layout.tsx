@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
 import Logo from '@/app/logo';
+import Avisos from './aviso';
 
 const ABAS = [
   { href: '/ofertas', rotulo: 'Ofertas', icone: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></> },
@@ -32,12 +33,14 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
           <div className="menu-conta-caixa">
             <span className="muted">{sessao.user.email}</span>
             <Link href="/conta">Meus dados</Link>
+            <Link href="/indicar">Indicar um mercado</Link>
             <Link href="/privacidade">Privacidade</Link>
             <button type="button" className="btn btn-secondary" onClick={sair}>Sair</button>
           </div>
         </details>
       </header>
       {children}
+      <Avisos />
       <nav className="abas" aria-label="Seções">
         <div>
           {ABAS.map((a) => (
