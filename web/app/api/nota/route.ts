@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { chaveDaUrl, parseHtml, validarUrl } from '@/lib/nfce';
 
+// Roda no servidor da Vercel em São Paulo: o portal da Sefaz-SP recusa conexões de fora do Brasil.
+export const preferredRegion = 'gru1';
+export const maxDuration = 30;
+
 // POST { url } com o token da sessão: lê a NFC-e no portal da Sefaz e grava compra + itens da família.
 // Usa a chave anon com o token do usuário, então o RLS garante que só grava na própria família.
 export async function POST(req: Request) {
@@ -29,11 +33,16 @@ export async function POST(req: Request) {
 
   let nota;
   try {
-    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 FastPromotionsMK/0.1' }, cache: 'no-store' });
-    if (!resp.ok) throw new Error(String(resp.status));
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 FastPromotionsMK/0.1', 'Accept-Language': 'pt-BR' },
+      cache: 'no-store', signal: AbortSignal.timeout(20000),
+    });
+    if (!resp.ok) throw new Error(`a Sefaz respondeu com erro ${resp.status}`);
     nota = parseHtml(await resp.text(), chave);
-  } catch {
-    return NextResponse.json({ erro: 'O portal da Sefaz não respondeu. Tente de novo em alguns minutos.' }, { status: 502 });
+  } catch (e) {
+    const motivo = (e as Error).name === 'TimeoutError' ? 'a Sefaz demorou mais de 20 segundos' : (e as Error).message;
+    console.error('nota: falha ao consultar a Sefaz', motivo);
+    return NextResponse.json({ erro: `Não conseguimos consultar a nota na Sefaz (${motivo}). Tente de novo em alguns minutos.` }, { status: 502 });
   }
   if (!nota.itens.length) {
     return NextResponse.json({ erro: 'Não encontramos itens nesta nota. Ela pode ainda não estar disponível na Sefaz; tente mais tarde.' }, { status: 422 });
