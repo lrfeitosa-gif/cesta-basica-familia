@@ -17,7 +17,7 @@ const dataBr = (iso: string) => iso.split('-').reverse().join('/');
 function Notas() {
   const sessao = useSessao();
   const onboarding = useSearchParams().get('onboarding') === '1';
-  const [modo, setModo] = useState<'camera' | 'link'>('camera');
+  const [modo, setModo] = useState<'foto' | 'camera' | 'link'>('foto');
   const [link, setLink] = useState('');
   const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string } | null>(null);
   const [compras, setCompras] = useState<Compra[]>([]);
@@ -49,6 +49,25 @@ function Notas() {
 
   const colar = (e: FormEvent) => { e.preventDefault(); enviar(link.trim()); };
 
+  // Foto do cupom: reduz no próprio celular (lado maior 1600 px, JPEG) e envia para leitura pelo Claude.
+  const enviarFoto = async (arquivo: File | undefined) => {
+    if (!sessao || !arquivo || status?.tipo === 'lendo') return;
+    setStatus({ tipo: 'lendo', texto: 'Lendo a foto da nota… leva uns 20 segundos.' });
+    try {
+      const imagem = await reduzir(arquivo);
+      const r = await fetch('/api/nota-foto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessao.access_token}` },
+        body: JSON.stringify({ imagem, tipo: 'image/jpeg' }),
+      });
+      const j = await r.json().catch(() => ({ erro: 'Não conseguimos ler a foto agora. Tente de novo.' }));
+      if (!r.ok) return setStatus({ tipo: 'erro', texto: j.erro });
+      setStatus({ tipo: 'ok', texto: `${j.loja} de ${dataBr(j.data)}: ${j.itens} itens, ${brl(j.total)}.` });
+      carregar();
+    } catch {
+      setStatus({ tipo: 'erro', texto: 'Não conseguimos abrir a foto. Tente outra imagem.' });
+    }
+  };
+
   if (!sessao) return null;
   const faltam = Math.max(0, META - compras.length);
 
@@ -63,7 +82,7 @@ function Notas() {
       <div>
         <h1>{onboarding ? 'Suas últimas notas' : 'Notas fiscais'}</h1>
         <p className="lead">
-          Leia o QR Code das últimas notas de supermercado. Com elas o app aprende o que sua família compra e quanto paga.
+          Envie as últimas notas de supermercado por foto ou QR Code. Com elas o app aprende o que sua família compra e quanto paga.
         </p>
       </div>
 
@@ -74,12 +93,26 @@ function Notas() {
         </div>
       )}
 
-      <div className="choice" style={{ gridTemplateColumns: '1fr 1fr' }} role="radiogroup" aria-label="Como enviar">
-        <label><input type="radio" name="modo" checked={modo === 'camera'} onChange={() => setModo('camera')} /><span>Câmera</span></label>
+      <div className="choice" role="radiogroup" aria-label="Como enviar">
+        <label><input type="radio" name="modo" checked={modo === 'foto'} onChange={() => setModo('foto')} /><span>Foto da nota</span></label>
+        <label><input type="radio" name="modo" checked={modo === 'camera'} onChange={() => setModo('camera')} /><span>QR Code</span></label>
         <label><input type="radio" name="modo" checked={modo === 'link'} onChange={() => setModo('link')} /><span>Colar link</span></label>
       </div>
 
-      {modo === 'camera' ? (
+      {modo === 'foto' ? (
+        <div className="stack">
+          <label className="btn btn-primary btn-block" htmlFor="foto-nota" aria-disabled={status?.tipo === 'lendo'}>
+            {status?.tipo === 'lendo' ? 'Lendo…' : 'Fotografar ou escolher a nota'}
+          </label>
+          <input id="foto-nota" type="file" accept="image/*" capture="environment" className="visually-hidden"
+            disabled={status?.tipo === 'lendo'}
+            onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
+          <p className="muted">
+            Fotografe o cupom inteiro, reto e bem iluminado. Nota comprida: fotografe a parte dos itens.
+            A foto não é guardada; só itens, preços, loja e data.
+          </p>
+        </div>
+      ) : modo === 'camera' ? (
         <div className="stack">
           <div className="scanner">
             <Scanner onScan={(r) => r[0] && enviar(r[0].rawValue)} formats={['qr_code']} components={{ finder: true }}
@@ -136,4 +169,22 @@ function Notas() {
 
 export default function Pagina() {
   return <Suspense><Notas /></Suspense>;
+}
+
+// Reduz a foto para o lado maior ter no máximo 1600 px e devolve o JPEG em base64 (sem o prefixo data:).
+function reduzir(arquivo: File, lado = 1600): Promise<string> {
+  return new Promise((ok, falha) => {
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      const escala = Math.min(1, lado / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); falha(new Error('imagem')); };
+    img.src = url;
+  });
 }
