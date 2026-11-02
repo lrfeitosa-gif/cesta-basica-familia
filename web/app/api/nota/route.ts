@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { chaveDaUrl, parseHtml, validarUrl } from '@/lib/nfce';
+import { buscarSefaz, chaveDaUrl, parseHtml, validarUrl } from '@/lib/nfce';
+
+export const runtime = 'nodejs';   // precisa do módulo https do Node para falar com a Sefaz
 
 // Roda no servidor da Vercel em São Paulo: o portal da Sefaz-SP recusa conexões de fora do Brasil.
 export const preferredRegion = 'gru1';
@@ -33,14 +35,9 @@ export async function POST(req: Request) {
 
   let nota;
   try {
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 FastPromotionsMK/0.1', 'Accept-Language': 'pt-BR' },
-      cache: 'no-store', signal: AbortSignal.timeout(20000),
-    });
-    if (!resp.ok) throw new Error(`a Sefaz respondeu com erro ${resp.status}`);
-    nota = parseHtml(await resp.text(), chave);
+    nota = parseHtml(await buscarSefaz(url), chave);
   } catch (e) {
-    const motivo = (e as Error).name === 'TimeoutError' ? 'a Sefaz demorou mais de 20 segundos' : (e as Error).message;
+    const motivo = (e as Error).message;
     console.error('nota: falha ao consultar a Sefaz', motivo);
     return NextResponse.json({ erro: `Não conseguimos consultar a nota na Sefaz (${motivo}). Tente de novo em alguns minutos.` }, { status: 502 });
   }
