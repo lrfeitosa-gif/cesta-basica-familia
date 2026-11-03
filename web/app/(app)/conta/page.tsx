@@ -15,15 +15,17 @@ export default function Conta() {
 
   const exportar = async () => {
     setBaixando(true);
-    const [compras, alertas] = await Promise.all([
+    const [compras, alertas, enderecos] = await Promise.all([
       supabase.from('compra').select('data,total,origem,mercado(rede),itens:item_comprado(descricao_nota,quantidade,preco_unitario)').order('data'),
       supabase.from('item_interesse').select('termo,marca,preco_alvo,criado_em').order('criado_em'),
+      supabase.from('regiao_interesse').select('rotulo,lat,lng').order('id'),
     ]);
     const conteudo = {
       exportado_em: new Date().toISOString(),
       conta: { email: sessao?.user.email, criada_em: sessao?.user.created_at },
       notas_fiscais: compras.data ?? [],
       alertas: alertas.data ?? [],
+      enderecos_de_referencia: enderecos.data ?? [],
       observacao: 'Itens da compra "Minha compra" ficam só neste aparelho e não são enviados ao servidor.',
     };
     const url = URL.createObjectURL(new Blob([JSON.stringify(conteudo, null, 2)], { type: 'application/json' }));
@@ -57,6 +59,7 @@ export default function Conta() {
           <li><b>Conta:</b> seu e-mail ({sessao.user.email}).</li>
           <li><b>Notas fiscais enviadas:</b> loja, data, total e os itens com quantidade e preço. CPF e dados de pagamento da nota nunca são gravados.</li>
           <li><b>Alertas:</b> os produtos, marcas e preços-alvo que você cadastrou.</li>
+          <li><b>Endereços de referência:</b> o nome e a região aproximada (~1 km). Sem CEP nem rua.</li>
           <li><b>Neste aparelho apenas:</b> os itens da Minha compra e as marcas escolhidas.</li>
         </ul>
         <button type="button" className="btn btn-secondary" onClick={exportar} disabled={baixando}>

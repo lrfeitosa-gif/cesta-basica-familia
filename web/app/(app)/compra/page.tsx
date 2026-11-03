@@ -2,6 +2,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
+import { useSessao } from '@/lib/sessao';
+import { fmtKm, km, useLocais } from '@/lib/locais';
+import Enderecos from './enderecos';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
@@ -70,6 +73,8 @@ const PADRAO: Record<string, number> = { arroz: 1, feijao: 2, cafe: 1, oleo: 2, 
 
 export default function MinhaCompra() {
   const { dados, erro, tentarDeNovo } = useOfertas();
+  const sessao = useSessao();
+  const locais = useLocais(sessao?.user.id);
   const [sel, setSel] = useState<Record<string, number>>(PADRAO);
   const [marcas, setMarcas] = useState<Record<string, string>>({});   // item -> marca fixada ('' = qualquer)
   const [extras, setExtras] = useState<Extra[]>([]);
@@ -205,6 +210,31 @@ export default function MinhaCompra() {
   const top = ranking[0], segundo = ranking[1], pior = ranking[ranking.length - 1];
   const melhorCompleto = top?.falta.length ? completos[0] : undefined;
   const fmt = (r: { valor: number; falta: string[] }) => `${r.falta.length ? '≈ ' : ''}${brl(r.valor)}`;
+  // Compra dividida em 2 mercados: cada item no mais barato dos dois. Só pares com preço para a maioria dos itens.
+  type Dupla = { a: string; b: string; valor: number; emA: { c: ItemCesta; o: Oferta; valor: number }[]; emB: { c: ItemCesta; o: Oferta; valor: number }[]; estimado: number };
+  let dupla: Dupla | null = null;
+  const nomes = ranking.map((x) => x.m);
+  for (let i = 0; i < nomes.length; i++) for (let j = i + 1; j < nomes.length; j++) {
+    const [a, b] = [nomes[i], nomes[j]];
+    const d: Dupla = { a, b, valor: 0, emA: [], emB: [], estimado: 0 };
+    let faltam = 0;
+    for (const c of itens) {
+      const oa = porItem[c.id][a], ob = porItem[c.id][b];
+      const va = oa ? v(c, oa) * sel[c.id] : Infinity, vb = ob ? v(c, ob) * sel[c.id] : Infinity;
+      if (va === Infinity && vb === Infinity) { faltam++; d.estimado += (media[c.id] ?? 0) * sel[c.id]; continue; }
+      if (va <= vb) d.emA.push({ c, o: oa!, valor: va }); else d.emB.push({ c, o: ob!, valor: vb });
+      d.valor += Math.min(va, vb);
+    }
+    d.valor += d.estimado;
+    if (faltam > Math.floor(itens.length * 0.3) || !d.emA.length || !d.emB.length) continue;
+    if (!dupla || d.valor < dupla.valor) dupla = d;
+  }
+  const economiaDupla = dupla && top ? top.valor - dupla.valor : 0;
+  const distTxt = (m: string) => {
+    const d = locais.distancia(m);
+    return d ? `${fmtKm(d.km)} de ${d.ref.rotulo}` : null;
+  };
+
   let ideal = 0; let idealOk = true;
   for (const c of itens) {
     const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
@@ -237,6 +267,35 @@ export default function MinhaCompra() {
           {idealOk && <span className="muted">Comprando cada item no mais barato: {brl(ideal)}</span>}
         </div>
       ) : null}
+
+      <Enderecos refs={locais.refs} adicionar={locais.adicionar} remover={locais.remover} />
+
+      {dupla && economiaDupla >= 1 && (() => {
+        const totA = dupla.emA.reduce((t, x) => t + x.valor, 0), totB = dupla.emB.reduce((t, x) => t + x.valor, 0);
+        const pct = (x: number) => Math.round((x / (totA + totB)) * 100);
+        const da = locais.distancia(dupla.a), db = locais.distancia(dupla.b);
+        const entre = da && db ? km(da.loja, db.loja) : locais.entre(dupla.a, dupla.b);
+        return (
+          <div className="dupla">
+            <span className="muted">Dividindo a compra em 2 mercados</span>
+            <span className="grande">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
+            <span><b>{brl(economiaDupla)} a menos</b> que comprar tudo no {top!.m}</span>
+            <div className="dupla-lados">
+              {([[dupla.a, dupla.emA, totA, da], [dupla.b, dupla.emB, totB, db]] as const).map(([m, l, tot, d]) => (
+                <div key={m}>
+                  <b>{m}</b>
+                  <span>{l.length} {l.length === 1 ? 'item' : 'itens'} · {brl(tot)} ({pct(tot)}%)</span>
+                  {d && <span className="muted">📍 {fmtKm(d.km)} de {d.ref.rotulo}</span>}
+                  <details><summary>Ver itens</summary>
+                    <ul>{l.map(({ c, o, valor }) => <li key={c.id}>{c.rotulo}: {o.marca ? `${o.marca} · ` : ''}{brl(valor)}</li>)}</ul>
+                  </details>
+                </div>
+              ))}
+            </div>
+            {entre !== null && <span className="muted">Distância entre as duas lojas: {fmtKm(entre)} em linha reta.</span>}
+          </div>
+        );
+      })()}
 
       <h2>Itens da compra</h2>
       <form className="card stack" onSubmit={adicionar}>
@@ -318,7 +377,7 @@ export default function MinhaCompra() {
               {!r.confiavel && (i === 0 || ranking[i - 1].confiavel) && (
                 <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
               )}
-              <b>{r.m}</b>
+              <b>{r.m}{distTxt(r.m) && <span className="dist"> · 📍 {distTxt(r.m)}</span>}</b>
               <span className="total">{fmt(r)}</span>
               {r.falta.length > 0 && (
                 <span className="falta">

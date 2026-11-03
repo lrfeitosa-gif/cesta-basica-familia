@@ -12,6 +12,8 @@ export default function Privacidade() {
         <p><b>Conta:</b> guardamos só o seu e-mail. Não pedimos CPF, nome, endereço nem dados de pagamento.</p>
         <p><b>Notas fiscais que você envia:</b> loja, data, total e os itens com quantidade e preço. CPF, nome e forma de pagamento que aparecem na nota nunca são gravados.</p>
         <p><b>Alertas:</b> os produtos, marcas e preços-alvo que você cadastra.</p>
+        <p><b>Endereços de referência (até 3):</b> só o nome que você der ("Casa", "Trabalho") e a região aproximada,
+          arredondada para cerca de 1 km, usada para mostrar a distância até os mercados. O CEP e a rua não são guardados.</p>
         <p><b>No seu aparelho:</b> os itens da Minha compra e as marcas escolhidas ficam só no celular e não são enviados.</p>
         <p><b>Preços:</b> os preços das notas podem entrar, sem identificação, na média de preços da região que todos veem.</p>
         <p>

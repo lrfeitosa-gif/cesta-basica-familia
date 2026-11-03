@@ -275,3 +275,15 @@ h2 { margin-top: 4px; }
 .ranking li.estimado { color: var(--warn); }
 .ranking .soma { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: .82rem; color: var(--muted); }
 .ranking .soma b { color: var(--ink); }
+
+/* Endereços de referência, distância e compra dividida em 2 mercados */
+.enderecos summary { display: grid; gap: 2px; cursor: pointer; list-style: none; }
+.enderecos summary::-webkit-details-marker { display: none; }
+.ranking .dist { font-weight: 400; font-size: .82rem; color: var(--muted); }
+.dupla { background: color-mix(in srgb, var(--good) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--line)); border-radius: 14px; padding: 14px; display: grid; gap: 6px; }
+.dupla .grande { font-family: var(--display); font-weight: 800; font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.dupla-lados { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.dupla-lados > div { background: var(--surface); border-radius: 10px; padding: 10px; display: grid; gap: 2px; font-size: .88rem; min-width: 0; }
+.dupla-lados details summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: .8rem; }
+.dupla-lados ul { margin: 4px 0 0; padding-left: 16px; font-size: .78rem; color: var(--muted); }
+@media (max-width: 380px) { .dupla-lados { grid-template-columns: 1fr; } }
