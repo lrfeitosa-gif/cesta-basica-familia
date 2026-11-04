@@ -115,6 +115,7 @@ export default function MinhaCompra() {
   // principal (ou um item novo), com a quantidade comprada. Linhas sem oferta parecida nos mercados ficam de fora.
   const [avisoNota, setAvisoNota] = useState('');
   const usarNota = async (notaId?: number) => {
+    if (!dados) return setAvisoNota('Aguarde um instante: os preços de hoje ainda estão carregando.');
     setAvisoNota(notaId ? 'Lendo a nota…' : 'Lendo sua última nota…');
     let q = supabase.from('compra').select('data,itens:item_comprado(descricao_nota,quantidade)');
     if (notaId) q = q.eq('id', notaId);
@@ -235,7 +236,6 @@ export default function MinhaCompra() {
   }, [candidatos, kgs, refs, marcas, todos]);
 
   if (erro) return <><h1>Minha compra</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
-  if (!dados) return <><h1>Minha compra</h1><Carregando /></>;
 
   const itens = todos.filter((c) => sel[c.id]);
   // média do item entre os mercados que têm preço: estimativa para quem não tem
@@ -244,7 +244,7 @@ export default function MinhaCompra() {
     const ps = Object.values(porItem[c.id]).map((o) => v(c, o));
     if (ps.length) media[c.id] = ps.reduce((s, p) => s + p, 0) / ps.length;
   }
-  const ranking = dados.mercados.map((m) => {
+  const ranking = (dados?.mercados ?? []).map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
     const estimados: { c: ItemCesta; valor: number }[] = [];
     for (const c of itens) {
@@ -316,7 +316,8 @@ export default function MinhaCompra() {
         </button>
       ) : !itens.length ? <div className="empty">Marque ao menos um item abaixo.</div> : null)}
 
-      {aba === 'comparar' && <>
+      {aba === 'comparar' && !dados && <Carregando />}
+      {aba === 'comparar' && dados && <>
 
       {!itens.length ? <div className="empty">Sua lista está vazia. Marque itens na aba Lista.</div> : top ? (
         <div className="destaque">
@@ -469,6 +470,7 @@ export default function MinhaCompra() {
               <div className="meta">
                 {menor
                   ? <span>a partir de <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} ({kgs.has(c.id) ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
+                  : !dados ? <span className="muted">carregando preços…</span>
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 <span>{Object.keys(porItem[c.id]).length} mercados</span>
                 {c.termo && (
