@@ -22,6 +22,13 @@ function Notas() {
   const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string; abrir?: string } | null>(null);
   const [compras, setCompras] = useState<Compra[]>([]);
   const [ultimaUrl, setUltimaUrl] = useState('');
+  // itens de cada nota, carregados quando a pessoa abre "Ver itens"
+  const [itensNota, setItensNota] = useState<Record<number, { descricao_nota: string; quantidade: number; preco_unitario: number }[]>>({});
+  const verItens = async (id: number) => {
+    if (itensNota[id]) return;
+    const { data } = await supabase.from('item_comprado').select('descricao_nota,quantidade,preco_unitario').eq('compra_id', id).order('id');
+    setItensNota((m) => ({ ...m, [id]: data ?? [] }));
+  };
 
   const carregar = async () => {
     const { data } = await supabase.from('compra')
@@ -164,6 +171,16 @@ function Notas() {
                 <b>{c.mercado?.rede ?? 'Supermercado'}</b>
                 {c.total != null && <span className="etiqueta">{brl(c.total)}</span>}
                 <span className="muted" style={{ gridColumn: '1 / -1' }}>{dataBr(c.data)} · {c.itens[0]?.count ?? 0} itens</span>
+                <details style={{ gridColumn: '1 / -1' }} onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) verItens(c.id); }}>
+                  <summary className="btn-link">Ver itens</summary>
+                  {itensNota[c.id] ? (
+                    <ul className="nota-itens">
+                      {itensNota[c.id].map((i, k) => (
+                        <li key={k}>{String(i.quantidade).replace('.', ',')}× {i.descricao_nota} · {brl(i.preco_unitario)}</li>
+                      ))}
+                    </ul>
+                  ) : <span className="muted">Carregando…</span>}
+                </details>
                 <Link href={`/compra?nota=${c.id}`} className="btn btn-link" style={{ gridColumn: '1 / -1', justifySelf: 'start', padding: 0 }}>
                   Usar estes itens na Minha compra →
                 </Link>

@@ -82,6 +82,7 @@ export default function MinhaCompra() {
   const [novo, setNovo] = useState('');
   const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
   const [avisoNovo, setAvisoNovo] = useState('');
+  const [aba, setAba] = useState<'lista' | 'comparar'>('lista');
 
   useEffect(() => {
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s && Object.keys(s).length) setSel(s); } catch {}
@@ -118,28 +119,39 @@ export default function MinhaCompra() {
     let q = supabase.from('compra').select('data,itens:item_comprado(descricao_nota,quantidade)');
     if (notaId) q = q.eq('id', notaId);
     const { data } = await q.order('data', { ascending: false }).order('id', { ascending: false }).limit(1);
+    setAba('lista');
     const itensNota = (data?.[0]?.itens ?? []) as { descricao_nota: string; quantidade: number }[];
     if (!itensNota.length) return setAvisoNota('Nenhuma nota enviada ainda. Envie uma na aba Notas.');
     const lista = dados?.lista ?? [];
+    const vocab = new Map<string, number>();
+    for (const o of lista) for (const w of norm(o.nome).split(/[^a-z]+/)) if (w.length >= 3) vocab.set(w, (vocab.get(w) ?? 0) + 1);
+    const expandir = (w: string) => {
+      if (vocab.has(w)) return w;
+      let melhor = w, n = 0;
+      for (const [k, c] of vocab) if (k.startsWith(w) && c > n) { melhor = k; n = c; }
+      return melhor;
+    };
     const novoSel: Record<string, number> = {};
     const novosExtras: Extra[] = [];
     const ignorados: string[] = [];
     itensNota.forEach((it, i) => {
-      // palavra principal: a primeira com 3+ letras ("ARROZ T1 CAMIL 5KG" -> "arroz")
-      const palavra = norm(it.descricao_nota).split(/[^a-z]+/).find((w) => w.length >= 3);
+      // palavras da nota ("DESINF BAK YPE 2L", "TOALHA PAPEL SNOB"): abreviações viram a palavra inteira mais comum
+      // nas ofertas ("desinf" -> "desinfetante"); usa as 2 primeiras se juntas acham ofertas ("toalha papel"), senão 1.
+      const ws = norm(it.descricao_nota).split(/[^a-z]+/).filter((w) => w.length >= 3).slice(0, 2).map(expandir);
+      const palavra = ws.length > 1 && filtrar(lista, ws.join(' ')).length ? ws.join(' ') : ws[0];
       const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
-      const fixo = palavra && CESTA.find((c) => c.inc?.[0] === palavra);
+      const fixo = palavra && CESTA.find((c) => c.inc?.[0] === palavra.split(' ')[0]);
       if (fixo) { novoSel[fixo.id] = (novoSel[fixo.id] ?? 0) + qtd; return; }
       const ja = palavra && novosExtras.find((x) => norm(x.termo) === palavra);
       if (ja) { novoSel[ja.id] += qtd; return; }
       if (!palavra || !filtrar(lista, palavra).length) { ignorados.push(it.descricao_nota); return; }
       const id = `x-${Date.now()}-${i}`;
-      novosExtras.push({ id, termo: palavra, horti: pareceHorti(palavra) });
+      novosExtras.push({ id, termo: palavra[0].toUpperCase() + palavra.slice(1), horti: pareceHorti(palavra) });
       novoSel[id] = qtd;
     });
     salvarExtras(novosExtras);
     mudar(novoSel);
-    setAvisoNota(`Compra montada com ${Object.keys(novoSel).length} itens da nota de ${String(data![0].data).split('-').reverse().join('/')}.`
+    setAvisoNota(`Lista montada com ${Object.keys(novoSel).length} itens da nota de ${String(data![0].data).split('-').reverse().join('/')}.`
       + (ignorados.length ? ` Sem oferta parecida: ${ignorados.slice(0, 5).join(', ')}${ignorados.length > 5 ? '…' : ''}.` : ''));
   };
   // Vindo de "Notas registradas" (/compra?nota=ID): monta a compra com aquela nota assim que os preços carregarem.
@@ -286,10 +298,23 @@ export default function MinhaCompra() {
     <>
       <div>
         <h1>Minha compra</h1>
-        <p className="lead">Marque os itens. O app soma o mais barato de cada mercado e indica onde comprar.</p>
+        <p className="lead">Monte a lista e veja em qual mercado ela sai mais barata.</p>
+      </div>
+      <div className="choice" role="radiogroup" aria-label="Ver">
+        <label><input type="radio" name="aba" checked={aba === 'lista'} onChange={() => setAba('lista')} /><span>Lista ({itens.length})</span></label>
+        <label><input type="radio" name="aba" checked={aba === 'comparar'} onChange={() => setAba('comparar')} /><span>Comparação</span></label>
       </div>
 
-      {!itens.length ? <div className="empty">Marque ao menos um item abaixo.</div> : top ? (
+      {aba === 'lista' && (top ? (
+        <button type="button" className="resumo-compra" onClick={() => { setAba('comparar'); window.scrollTo(0, 0); }}>
+          <span>Mais barato hoje: <b>{top.m}</b> {fmt(top)}</span>
+          <span className="mkt">Ver comparação →</span>
+        </button>
+      ) : !itens.length ? <div className="empty">Marque ao menos um item abaixo.</div> : null)}
+
+      {aba === 'comparar' && <>
+
+      {!itens.length ? <div className="empty">Sua lista está vazia. Marque itens na aba Lista.</div> : top ? (
         <div className="destaque">
           <span className="muted">Melhor mercado único para esta compra</span>
           <span className="grande">{fmt(top)}</span>
@@ -338,11 +363,61 @@ export default function MinhaCompra() {
         );
       })()}
 
-      <h2>Itens da compra</h2>
+      {itens.length > 0 && <h2>Total em cada mercado</h2>}
+      {itens.length > 0 && (
+        <div className="ranking">
+          {ranking.map((r, i) => (
+            <div key={r.m} className={r.confiavel ? '' : 'poucos-precos'}>
+              {!r.confiavel && (i === 0 || ranking[i - 1].confiavel) && (
+                <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
+              )}
+              <b>{r.m}{distTxt(r.m) && <span className="dist"> · 📍 {distTxt(r.m)}</span>}</b>
+              <span className="total">{fmt(r)}</span>
+              {r.falta.length > 0 && (
+                <span className="falta">
+                  Sem preço hoje: {r.falta.join(', ')}.{' '}
+                  {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
+                  Estimado pela média dos outros mercados.
+                </span>
+              )}
+              {r.escolhas.length > 0 && (
+                <details>
+                  <summary>Ver marcas e preços</summary>
+                  <ul>
+                    {r.escolhas.map(({ c, o }) => (
+                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
+                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}
+                        {' '}<span className="subtotal">= {brl(v(c, o) * sel[c.id])}</span></li>
+                    ))}
+                    {r.estimados.map(({ c, valor }) => (
+                      <li key={c.id} className="estimado">
+                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: sem preço neste mercado, média dos outros{' '}
+                        <span className="subtotal">≈ {brl(valor)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="soma">
+                    Itens com preço: <b>{brl(r.total)}</b>
+                    {r.estimado > 0 && <> + estimados: <b>≈ {brl(r.estimado)}</b></>}
+                    {' '}= <b>{fmt(r)}</b>
+                  </div>
+                </details>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="muted">
+        Roldão, Sumerbol e Assaí entram só com os itens em promoção nos encartes. Quando falta preço,
+        o total usa a média dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
+      </p>
+      </>}
+
+      {aba === 'lista' && <>
       {sessao && (
         <div className="card stack">
-          <button type="button" className="btn btn-secondary" onClick={() => usarNota()}>Montar com os itens da minha última nota</button>
-          <span className="muted">Troca os itens e as quantidades acima pelos da nota, para comparar com o que você compra de verdade.</span>
+          <button type="button" className="btn btn-secondary" onClick={() => usarNota()}>Usar os itens da nota mais recente</button>
+          <span className="muted">Troca a lista pelos itens e quantidades da nota. Para usar outra nota, vá em Notas e toque em &quot;Usar estes itens&quot;.</span>
           {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
         </div>
       )}
@@ -417,54 +492,7 @@ export default function MinhaCompra() {
         })}
       </div>
 
-      {itens.length > 0 && <h2>Total em cada mercado</h2>}
-      {itens.length > 0 && (
-        <div className="ranking">
-          {ranking.map((r, i) => (
-            <div key={r.m} className={r.confiavel ? '' : 'poucos-precos'}>
-              {!r.confiavel && (i === 0 || ranking[i - 1].confiavel) && (
-                <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
-              )}
-              <b>{r.m}{distTxt(r.m) && <span className="dist"> · 📍 {distTxt(r.m)}</span>}</b>
-              <span className="total">{fmt(r)}</span>
-              {r.falta.length > 0 && (
-                <span className="falta">
-                  Sem preço hoje: {r.falta.join(', ')}.{' '}
-                  {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
-                  Estimado pela média dos outros mercados.
-                </span>
-              )}
-              {r.escolhas.length > 0 && (
-                <details>
-                  <summary>Ver marcas e preços</summary>
-                  <ul>
-                    {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
-                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}
-                        {' '}<span className="subtotal">= {brl(v(c, o) * sel[c.id])}</span></li>
-                    ))}
-                    {r.estimados.map(({ c, valor }) => (
-                      <li key={c.id} className="estimado">
-                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: sem preço neste mercado, média dos outros{' '}
-                        <span className="subtotal">≈ {brl(valor)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="soma">
-                    Itens com preço: <b>{brl(r.total)}</b>
-                    {r.estimado > 0 && <> + estimados: <b>≈ {brl(r.estimado)}</b></>}
-                    {' '}= <b>{fmt(r)}</b>
-                  </div>
-                </details>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      <p className="muted">
-        Roldão, Sumerbol e Assaí entram só com os itens em promoção nos encartes. Quando falta preço,
-        o total usa a média dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
-      </p>
+      </>}
     </>
   );
 }
