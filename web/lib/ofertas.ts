@@ -94,17 +94,18 @@ async function buscar(): Promise<Ofertas> {
     .order('valido_de', { ascending: false }).limit(1).single();
   if (ult.error) throw ult.error;
   const dia = ult.data.valido_de as string;
+  // Conta as linhas do dia e busca as páginas de 1000 todas ao mesmo tempo (uma a uma levava vários segundos).
+  const sel = 'id,preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)';
+  const [conta, esg] = await Promise.all([
+    supabase.from('oferta').select('id', { count: 'exact', head: true }).eq('valido_de', dia),
+    // ofertas avisadas como esgotadas hoje ficam de fora (tabela da migração 0006; sem ela, ignora)
+    supabase.from('esgotado').select('oferta_id,oferta!inner(valido_de)').eq('oferta.valido_de', dia),
+  ]);
+  if (conta.error) throw conta.error;
+  const paginas = await Promise.all(Array.from({ length: Math.max(1, Math.ceil((conta.count ?? 0) / 1000)) }, (_, k) =>
+    supabase.from('oferta').select(sel).eq('valido_de', dia).order('id').range(k * 1000, k * 1000 + 999)));
   const linhas: Linha[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await supabase.from('oferta')
-      .select('id,preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)')
-      .eq('valido_de', dia).range(i, i + 999);
-    if (error) throw error;
-    linhas.push(...(data as unknown as Linha[]));
-    if (data.length < 1000) break;
-  }
-  // ofertas avisadas como esgotadas hoje ficam de fora (tabela da migração 0006; sem ela, ignora)
-  const esg = await supabase.from('esgotado').select('oferta_id,oferta!inner(valido_de)').eq('oferta.valido_de', dia);
+  for (const { data, error } of paginas) { if (error) throw error; linhas.push(...(data as unknown as Linha[])); }
   const esgotadas = new Set((esg.data ?? []).map((e: { oferta_id: number }) => e.oferta_id));
   const lista: Oferta[] = [];
   for (const l of linhas) {

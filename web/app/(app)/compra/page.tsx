@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
+import { supabase } from '@/lib/supabase';
 import { fmtKm, km, useLocais } from '@/lib/locais';
 import Enderecos from './enderecos';
 
@@ -108,6 +109,37 @@ export default function MinhaCompra() {
     salvarExtras([...extras, { id, termo, horti: novoEhHorti }]);
     mudar({ ...sel, [id]: 1 });
     setNovo(''); setNovoHorti(null); setAvisoNovo('');
+  };
+  // Monta a compra com os itens da última nota enviada: cada linha vira o item da cesta com a mesma palavra
+  // principal (ou um item novo), com a quantidade comprada. Linhas sem oferta parecida nos mercados ficam de fora.
+  const [avisoNota, setAvisoNota] = useState('');
+  const usarNota = async () => {
+    setAvisoNota('Lendo sua última nota…');
+    const { data } = await supabase.from('compra').select('data,itens:item_comprado(descricao_nota,quantidade)')
+      .order('data', { ascending: false }).order('id', { ascending: false }).limit(1);
+    const itensNota = (data?.[0]?.itens ?? []) as { descricao_nota: string; quantidade: number }[];
+    if (!itensNota.length) return setAvisoNota('Nenhuma nota enviada ainda. Envie uma na aba Notas.');
+    const lista = dados?.lista ?? [];
+    const novoSel: Record<string, number> = {};
+    const novosExtras: Extra[] = [];
+    const ignorados: string[] = [];
+    itensNota.forEach((it, i) => {
+      // palavra principal: a primeira com 3+ letras ("ARROZ T1 CAMIL 5KG" -> "arroz")
+      const palavra = norm(it.descricao_nota).split(/[^a-z]+/).find((w) => w.length >= 3);
+      const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
+      const fixo = palavra && CESTA.find((c) => c.inc?.[0] === palavra);
+      if (fixo) { novoSel[fixo.id] = (novoSel[fixo.id] ?? 0) + qtd; return; }
+      const ja = palavra && novosExtras.find((x) => norm(x.termo) === palavra);
+      if (ja) { novoSel[ja.id] += qtd; return; }
+      if (!palavra || !filtrar(lista, palavra).length) { ignorados.push(it.descricao_nota); return; }
+      const id = `x-${Date.now()}-${i}`;
+      novosExtras.push({ id, termo: palavra, horti: pareceHorti(palavra) });
+      novoSel[id] = qtd;
+    });
+    salvarExtras(novosExtras);
+    mudar(novoSel);
+    setAvisoNota(`Compra montada com ${Object.keys(novoSel).length} itens da nota de ${String(data![0].data).split('-').reverse().join('/')}.`
+      + (ignorados.length ? ` Sem oferta parecida: ${ignorados.slice(0, 5).join(', ')}${ignorados.length > 5 ? '…' : ''}.` : ''));
   };
   const trocarHorti = (id: string, horti: boolean) => salvarExtras(extras.map((x) => (x.id === id ? { ...x, horti } : x)));
   const remover = (id: string) => {
@@ -298,6 +330,13 @@ export default function MinhaCompra() {
       })()}
 
       <h2>Itens da compra</h2>
+      {sessao && (
+        <div className="card stack">
+          <button type="button" className="btn btn-secondary" onClick={usarNota}>Montar com os itens da minha última nota</button>
+          <span className="muted">Troca os itens e as quantidades acima pelos da nota, para comparar com o que você compra de verdade.</span>
+          {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
+        </div>
+      )}
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>

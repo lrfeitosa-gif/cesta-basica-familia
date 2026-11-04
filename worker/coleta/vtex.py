@@ -43,6 +43,8 @@ TERMOS_CESTA = [
     "carne", "frango", "peixe", "bacon", "hambúrguer", "ovos", "pão", "bolo",
     # hortifruti
     "batata", "tomate", "cebola", "alho", "banana", "maçã", "laranja", "limão", "cenoura", "alface",
+    "pepino", "abobrinha", "chuchu", "beterraba", "pimentão", "berinjela", "repolho", "couve", "brócolis",
+    "mandioca", "abóbora", "mamão", "abacate", "melancia", "abacaxi", "manga", "uva", "mexerica",
     # bebidas
     "água mineral", "refrigerante", "suco", "cerveja", "heineken", "energético", "vinho",
     # limpeza
@@ -136,6 +138,9 @@ def para_oferta(p: dict, mercado: str, hoje: str) -> dict | None:
     if not oferta.get("AvailableQuantity") or not oferta.get("Price"):
         return None
     qtd, un = embalagem(p["productName"])
+    if sku.get("measurementUnit") == "kg" and (sku.get("unitMultiplier") or 1) != 1:
+        # vendido por peso ("Cebola Roxa 300g" = peso médio da unidade): o Price da VTEX é o do quilo
+        qtd, un = 1.0, "kg"
     return {k: v for k, v in {
         "produto": p["productName"],
         "marca": p.get("brand"),
