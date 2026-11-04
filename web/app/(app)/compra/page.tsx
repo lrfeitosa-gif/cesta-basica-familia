@@ -323,6 +323,7 @@ export default function MinhaCompra() {
           <span className="muted">Melhor mercado único para esta compra</span>
           <span className="grande">{fmt(top)}</span>
           <span><b>{top.m}</b>{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
+          {(() => { const d = locais.distancia(top.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
           {top.falta.length > 0 && (
             <span className="cond">
               Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pela média dos outros mercados).
