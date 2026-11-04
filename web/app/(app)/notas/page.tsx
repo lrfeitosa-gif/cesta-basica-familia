@@ -164,6 +164,9 @@ function Notas() {
                 <b>{c.mercado?.rede ?? 'Supermercado'}</b>
                 {c.total != null && <span className="etiqueta">{brl(c.total)}</span>}
                 <span className="muted" style={{ gridColumn: '1 / -1' }}>{dataBr(c.data)} · {c.itens[0]?.count ?? 0} itens</span>
+                <Link href={`/compra?nota=${c.id}`} className="btn btn-link" style={{ gridColumn: '1 / -1', justifySelf: 'start', padding: 0 }}>
+                  Usar estes itens na Minha compra →
+                </Link>
               </div>
             ))}
           </div>

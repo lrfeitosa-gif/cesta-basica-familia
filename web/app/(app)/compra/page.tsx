@@ -113,10 +113,11 @@ export default function MinhaCompra() {
   // Monta a compra com os itens da última nota enviada: cada linha vira o item da cesta com a mesma palavra
   // principal (ou um item novo), com a quantidade comprada. Linhas sem oferta parecida nos mercados ficam de fora.
   const [avisoNota, setAvisoNota] = useState('');
-  const usarNota = async () => {
-    setAvisoNota('Lendo sua última nota…');
-    const { data } = await supabase.from('compra').select('data,itens:item_comprado(descricao_nota,quantidade)')
-      .order('data', { ascending: false }).order('id', { ascending: false }).limit(1);
+  const usarNota = async (notaId?: number) => {
+    setAvisoNota(notaId ? 'Lendo a nota…' : 'Lendo sua última nota…');
+    let q = supabase.from('compra').select('data,itens:item_comprado(descricao_nota,quantidade)');
+    if (notaId) q = q.eq('id', notaId);
+    const { data } = await q.order('data', { ascending: false }).order('id', { ascending: false }).limit(1);
     const itensNota = (data?.[0]?.itens ?? []) as { descricao_nota: string; quantidade: number }[];
     if (!itensNota.length) return setAvisoNota('Nenhuma nota enviada ainda. Envie uma na aba Notas.');
     const lista = dados?.lista ?? [];
@@ -141,6 +142,14 @@ export default function MinhaCompra() {
     setAvisoNota(`Compra montada com ${Object.keys(novoSel).length} itens da nota de ${String(data![0].data).split('-').reverse().join('/')}.`
       + (ignorados.length ? ` Sem oferta parecida: ${ignorados.slice(0, 5).join(', ')}${ignorados.length > 5 ? '…' : ''}.` : ''));
   };
+  // Vindo de "Notas registradas" (/compra?nota=ID): monta a compra com aquela nota assim que os preços carregarem.
+  useEffect(() => {
+    if (!dados || !sessao) return;
+    const id = Number(new URLSearchParams(window.location.search).get('nota'));
+    if (!id) return;
+    window.history.replaceState(null, '', '/compra');
+    usarNota(id);
+  }, [dados, sessao]);   // eslint-disable-line react-hooks/exhaustive-deps
   const trocarHorti = (id: string, horti: boolean) => salvarExtras(extras.map((x) => (x.id === id ? { ...x, horti } : x)));
   const remover = (id: string) => {
     salvarExtras(extras.filter((x) => x.id !== id));
@@ -332,7 +341,7 @@ export default function MinhaCompra() {
       <h2>Itens da compra</h2>
       {sessao && (
         <div className="card stack">
-          <button type="button" className="btn btn-secondary" onClick={usarNota}>Montar com os itens da minha última nota</button>
+          <button type="button" className="btn btn-secondary" onClick={() => usarNota()}>Montar com os itens da minha última nota</button>
           <span className="muted">Troca os itens e as quantidades acima pelos da nota, para comparar com o que você compra de verdade.</span>
           {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
         </div>
