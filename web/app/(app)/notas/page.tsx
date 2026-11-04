@@ -19,7 +19,7 @@ function Notas() {
   const onboarding = useSearchParams().get('onboarding') === '1';
   const [modo, setModo] = useState<'foto' | 'camera' | 'link'>('foto');
   const [link, setLink] = useState('');
-  const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string } | null>(null);
+  const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string; abrir?: string } | null>(null);
   const [compras, setCompras] = useState<Compra[]>([]);
   const [ultimaUrl, setUltimaUrl] = useState('');
 
@@ -41,6 +41,10 @@ function Notas() {
       body: JSON.stringify({ url }),
     });
     const j = await r.json();
+    // A Sefaz costuma recusar consultas vindas de servidores, mas abre no navegador do celular:
+    // aí a pessoa abre a nota, tira um print e envia em "Foto da nota".
+    if (r.status === 502) return setStatus({ tipo: 'erro', abrir: url,
+      texto: 'A Sefaz não respondeu ao app. Abra a nota no navegador, tire um print da página com os itens e envie em "Foto da nota".' });
     if (!r.ok) return setStatus({ tipo: 'erro', texto: j.erro });
     setStatus({ tipo: 'ok', texto: `${j.loja || 'Nota'} de ${dataBr(j.data)}: ${j.itens} itens, ${brl(j.total)}.` });
     setLink('');
@@ -102,13 +106,20 @@ function Notas() {
       {modo === 'foto' ? (
         <div className="stack">
           <label className="btn btn-primary btn-block" htmlFor="foto-nota" aria-disabled={status?.tipo === 'lendo'}>
-            {status?.tipo === 'lendo' ? 'Lendo…' : 'Fotografar ou escolher a nota'}
+            {status?.tipo === 'lendo' ? 'Lendo…' : 'Fotografar a nota'}
           </label>
           <input id="foto-nota" type="file" accept="image/*" capture="environment" className="visually-hidden"
             disabled={status?.tipo === 'lendo'}
             onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
+          {/* sem "capture": abre a galeria, para enviar o print da página da nota na Sefaz */}
+          <label className="btn btn-secondary btn-block" htmlFor="print-nota" aria-disabled={status?.tipo === 'lendo'}>
+            Escolher foto ou print da galeria
+          </label>
+          <input id="print-nota" type="file" accept="image/*" className="visually-hidden"
+            disabled={status?.tipo === 'lendo'}
+            onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
           <p className="muted">
-            Fotografe o cupom inteiro, reto e bem iluminado. Nota comprida: fotografe a parte dos itens.
+            Fotografe o cupom inteiro, reto e bem iluminado. Nota comprida: fotografe a parte dos itens. Também vale o print da página da nota que abre pelo QR Code no celular.
             A foto não é guardada; só itens, preços, loja e data.
           </p>
         </div>
@@ -135,6 +146,12 @@ function Notas() {
       {status && (
         <div className={`alert ${status.tipo === 'erro' ? 'alert-error' : status.tipo === 'ok' ? 'alert-ok' : ''}`} role="status" aria-live="polite">
           {status.texto}
+          {status.abrir && (
+            <div className="row" style={{ marginTop: 8 }}>
+              <a className="btn btn-secondary" href={status.abrir} target="_blank" rel="noopener noreferrer">Abrir a nota</a>
+              <button type="button" className="btn btn-primary" onClick={() => { setModo('foto'); setStatus(null); }}>Enviar o print</button>
+            </div>
+          )}
         </div>
       )}
 

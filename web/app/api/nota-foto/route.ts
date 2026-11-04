@@ -35,13 +35,14 @@ const SCHEMA = {
   },
 } as const;
 
-const INSTRUCOES = `Você lê cupons fiscais (NFC-e) de supermercados brasileiros fotografados com o celular.
+const INSTRUCOES = `Você lê cupons fiscais (NFC-e) de supermercados brasileiros: foto do cupom de papel ou print da tela
+da consulta da nota no site da Sefaz (aberta pelo QR Code). Os dois valem como cupom.
 Extraia loja, CNPJ do estabelecimento, data, total, chave de acesso e cada item com quantidade e preço unitário.
 - Itens pesados (kg): quantidade em kg e preço por kg.
 - Descontos na linha do item: use o preço unitário já com desconto.
 - Ignore CPF, nome do consumidor e forma de pagamento: não os inclua em nenhum campo.
 - Se algo estiver ilegível, deixe null (ou fora da lista, no caso de itens). Não invente.
-- Se a imagem não for um cupom fiscal, responda e_cupom = false e itens vazios.`;
+- Se a imagem não for um cupom fiscal nem a página de consulta da nota, responda e_cupom = false e itens vazios.`;
 
 type Lida = {
   e_cupom: boolean; loja: string | null; cnpj: string | null; data: string | null; total: number | null;
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: 'Não conseguimos ler a foto agora. Tente de novo em instantes.' }, { status: 502 });
   }
 
-  if (!lida.e_cupom) return NextResponse.json({ erro: 'A foto não parece ser de um cupom fiscal. Fotografe a nota inteira, bem iluminada.' }, { status: 422 });
+  if (!lida.e_cupom) return NextResponse.json({ erro: 'A imagem não parece ser de um cupom fiscal. Envie a foto da nota inteira ou o print da página da nota no site da Sefaz.' }, { status: 422 });
   if (!lida.itens?.length) return NextResponse.json({ erro: 'Não conseguimos ler os itens. Fotografe de perto, com a nota reta e sem sombra.' }, { status: 422 });
 
   const chave = lida.chave?.replace(/\D/g, '');
