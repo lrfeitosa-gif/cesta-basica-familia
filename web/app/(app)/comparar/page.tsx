@@ -2,11 +2,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { brl, emb, filtrarFoco, useOfertas } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
+import { useSessao } from '@/lib/sessao';
+import { useDistTexto } from '@/lib/locais';
 
 const ATALHOS = ['café pilão', 'café -cápsula -solúvel', 'arroz 5kg -integral', 'feijão carioca 1kg', 'leite integral 1l'];
 
 export default function Comparar() {
   const { dados, erro, tentarDeNovo } = useOfertas();
+  const distTxt = useDistTexto(useSessao()?.user.id);
   const [q, setQ] = useState('');
 
   const achados = useMemo(() => dados ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn).slice(0, 80) : [], [dados, q]);
@@ -35,10 +38,10 @@ export default function Comparar() {
           <div className="destaque">
             <span className="muted">Mais barato (pelo preço do {melhor.ub === 'un' ? 'item' : melhor.ub === 'l' ? 'litro' : 'quilo'})</span>
             <span className="grande">{brl(melhor.preco)}</span>
-            <span>{melhor.nome} no <b>{melhor.mercado}</b></span>
+            <span>{melhor.nome} no <b>{melhor.mercado}</b>{distTxt(melhor.mercado) && <span className="dist"> · 📍 {distTxt(melhor.mercado)}</span>}</span>
             <span className="muted">{brl(melhor.porUn)}/{melhor.ub}</span>
           </div>
-          <div className="lista">{achados.map((o, i) => <LinhaOferta key={i} o={o} />)}</div>
+          <div className="lista">{achados.map((o, i) => <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} />)}</div>
         </>
       )}
     </>

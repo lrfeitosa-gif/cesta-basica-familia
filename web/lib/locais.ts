@@ -71,3 +71,12 @@ export function useLocais(familiaId: string | undefined) {
 
   return { lojas, refs, adicionar, remover, distancia, entre };
 }
+
+// Texto curto da distância até a loja mais próxima ("2,6 km de Casa"), para as listas de ofertas.
+export function useDistTexto(familiaId: string | undefined) {
+  const { distancia } = useLocais(familiaId);
+  return (mercado: string) => {
+    const d = distancia(mercado);
+    return d ? `${fmtKm(d.km)} de ${d.ref.rotulo}` : null;
+  };
+}

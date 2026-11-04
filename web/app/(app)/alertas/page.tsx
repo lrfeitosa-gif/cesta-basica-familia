@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
 import { brl, filtrarFoco, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
+import { useDistTexto } from '@/lib/locais';
 
 type Alerta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
 const DESCONTO_MIN = 0.15;   // mesmo ponto de partida do motor de regras: 15% abaixo do preço normal
@@ -24,6 +25,7 @@ function avaliar(a: Alerta, lista: Oferta[]) {
 export default function Alertas() {
   const sessao = useSessao();
   const { dados, erro: erroCarga, tentarDeNovo } = useOfertas();
+  const distTxt = useDistTexto(sessao?.user.id);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [termo, setTermo] = useState('');
   const [marca, setMarca] = useState('');
@@ -119,7 +121,7 @@ export default function Alertas() {
               {motivo ? <div className="alert alert-ok">Oportunidade: {motivo}</div>
                 : melhor ? <div className="muted">Sem oportunidade hoje. Menor preço: {brl(melhor.preco)} no {melhor.mercado}.</div>
                 : <div className="muted">Nenhum preço encontrado hoje com essas palavras.</div>}
-              {melhor && <div className="lista">{achados.slice(0, 3).map((o, i) => <LinhaOferta key={i} o={o} />)}</div>}
+              {melhor && <div className="lista">{achados.slice(0, 3).map((o, i) => <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} />)}</div>}
             </section>
           ))}
         </>

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { brl, dataBr, emb, filtrarFoco, GRUPOS, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
+import { useSessao } from '@/lib/sessao';
+import { useDistTexto } from '@/lib/locais';
 import Fontes from '../fontes';
 import BoasVindas from '../boas-vindas';
 
@@ -13,6 +15,7 @@ const POR_PAGINA = 40;
 
 export default function Oportunidades() {
   const { dados, erro, tentarDeNovo } = useOfertas();
+  const distTxt = useDistTexto(useSessao()?.user.id);
   const [mercado, setMercado] = useState('Todos');
   const [limite, setLimite] = useState(POR_PAGINA);
   const [q, setQ] = useState('');
@@ -94,13 +97,13 @@ export default function Oportunidades() {
             <div className="destaque">
               <span className="muted">Mais barato (pelo preço do {melhor.ub === 'un' ? 'item' : melhor.ub === 'l' ? 'litro' : 'quilo'}) · {filtradas.length} preços encontrados</span>
               <span className="grande">{brl(melhor.preco)}</span>
-              <span>{melhor.nome} no <b>{melhor.mercado}</b></span>
+              <span>{melhor.nome} no <b>{melhor.mercado}</b>{distTxt(melhor.mercado) && <span className="dist"> · 📍 {distTxt(melhor.mercado)}</span>}</span>
               <span className="muted">{brl(melhor.porUn)}/{melhor.ub}</span>
             </div>
           )}
           <div className="lista">
             {lista.map(({ o, desc }, i) => (
-              <LinhaOferta key={i} o={o} extra={desc >= 0.01 ? <span className="off">−{Math.round(desc * 100)}%</span> : undefined} />
+              <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} extra={desc >= 0.01 ? <span className="off">−{Math.round(desc * 100)}%</span> : undefined} />
             ))}
           </div>
           {filtradas.length > limite && (

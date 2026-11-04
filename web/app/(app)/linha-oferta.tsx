@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { brl, emb, marcarEsgotado, norm, type Oferta } from '@/lib/ofertas';
 import { mostrarAviso } from './aviso';
 
-export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode }) {
+export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: ReactNode; dist?: string | null }) {
   const comMarca = o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} ` : '';
   return (
     <div className="item">
@@ -18,6 +18,7 @@ export default function LinhaOferta({ o, extra }: { o: Oferta; extra?: ReactNode
           {o.fonte === 'site' ? 'site' : 'encarte'}
         </span>
         <span className="unit">{brl(o.porUn)}/{o.ub}</span>
+        {dist && <span className="dist">📍 {dist}</span>}
         {extra}
         {o.cond && <span className="cond">{o.cond}</span>}
         <span className="acoes-oferta">
