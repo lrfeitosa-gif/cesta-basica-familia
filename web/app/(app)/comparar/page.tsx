@@ -33,9 +33,10 @@ export default function Comparar() {
       ) : (
         <>
           <div className="destaque">
-            <span className="muted">Mais barato por {melhor.ub}</span>
-            <span className="grande">{brl(melhor.porUn)}/{melhor.ub}</span>
-            <span>{melhor.nome} {emb(melhor)} no <b>{melhor.mercado}</b> por {brl(melhor.preco)}</span>
+            <span className="muted">Mais barato (pelo preço do {melhor.ub === 'un' ? 'item' : melhor.ub === 'l' ? 'litro' : 'quilo'})</span>
+            <span className="grande">{brl(melhor.preco)}</span>
+            <span>{melhor.nome} no <b>{melhor.mercado}</b></span>
+            <span className="muted">{brl(melhor.porUn)}/{melhor.ub}</span>
           </div>
           <div className="lista">{achados.map((o, i) => <LinhaOferta key={i} o={o} />)}</div>
         </>
