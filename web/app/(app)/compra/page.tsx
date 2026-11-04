@@ -85,7 +85,7 @@ export default function MinhaCompra() {
   const [aba, setAba] = useState<'lista' | 'comparar'>('lista');
 
   useEffect(() => {
-    try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s && Object.keys(s).length) setSel(s); } catch {}
+    try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s) setSel(s); } catch {}
     try { setMarcas(JSON.parse(localStorage.getItem('cesta-marca') || '{}')); } catch {}
     try { setExtras(JSON.parse(localStorage.getItem('cesta-extra') || '[]')); } catch {}
   }, []);
@@ -426,6 +426,13 @@ export default function MinhaCompra() {
           <span className="muted">Troca a lista pelos itens e quantidades da nota. Para usar outra nota, vá em Notas e toque em &quot;Usar estes itens&quot;.</span>
           {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
         </div>
+      )}
+      {itens.length > 0 && (
+        <button type="button" className="btn btn-link" style={{ alignSelf: 'flex-start' }} onClick={() => {
+          if (!window.confirm('Limpar a lista? Os itens adicionados saem e os da cesta ficam desmarcados.')) return;
+          salvarExtras([]); mudar({}); setMarcas({}); setAvisoNota('');
+          try { localStorage.setItem('cesta-marca', '{}'); } catch {}
+        }}>Limpar lista</button>
       )}
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
