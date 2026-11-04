@@ -126,9 +126,10 @@ export default function MinhaCompra() {
     const vocab = new Map<string, number>();
     for (const o of lista) for (const w of norm(o.nome).split(/[^a-z]+/)) if (w.length >= 3) vocab.set(w, (vocab.get(w) ?? 0) + 1);
     const expandir = (w: string) => {
-      if (vocab.has(w)) return w;
-      let melhor = w, n = 0;
-      for (const [k, c] of vocab) if (k.startsWith(w) && c > n) { melhor = k; n = c; }
+      // palavra rara ("desinf", "salg", "choc" aparecem em poucos nomes) vira a mais comum que começa com ela
+      let melhor = w, n = vocab.get(w) ?? 0;
+      if (n >= 20) return w;
+      for (const [k, c] of vocab) if (k !== w && k.startsWith(w) && c > n) { melhor = k; n = c; }
       return melhor;
     };
     const novoSel: Record<string, number> = {};
@@ -189,13 +190,16 @@ export default function MinhaCompra() {
           if (!TEM_TAMANHO.test(termo)) {
             // sem tamanho: compara pelo preço do litro/quilo, com o tamanho mais comum como referência
             const ref = tamanhoReferencia(r[c.id]);
-            if (ref) { refs[c.id] = ref; r[c.id] = r[c.id].filter((o) => o.ub === ref.ub); }
+            // por unidade (rolos, ovos, folhas), só pacotes com a mesma quantidade: 1000 folhas de interfolha não
+            // se comparam a 2 rolos pelo preço de cada "unidade"
+            const base = (o: Oferta) => Math.round((o.preco / o.porUn) * 1000) / 1000;
+            if (ref) { refs[c.id] = ref; r[c.id] = r[c.id].filter((o) => o.ub === ref.ub && (ref.ub !== 'un' || base(o) === ref.base)); }
           }
         }
         continue;
       }
       r[c.id] = lista.filter((o) =>
-        o.u === c.u && Math.abs(o.q - c.q!) < 0.001 && c.inc!.every((t) => o.busca.includes(t)) && !c.exc!.test(o.busca));
+        o.u === c.u && Math.abs(o.q - c.q!) < 0.001 && c.inc!.every((t) => norm(o.nome).includes(t)) && !c.exc!.test(o.busca));
     }
     return { candidatos: r, kgs, refs };
   }, [dados, todos]);
