@@ -47,6 +47,7 @@ TERMOS_CESTA = [
     "mandioca", "abóbora", "mamão", "abacate", "melancia", "abacaxi", "manga", "uva", "mexerica",
     # bebidas
     "água mineral", "refrigerante", "suco", "cerveja", "heineken", "energético", "vinho",
+    "vodka", "whisky", "cachaça", "gin", "rum", "licor", "espumante", "água de coco", "chá", "isotônico",
     # limpeza
     "sabão", "lava roupas", "amaciante", "detergente", "água sanitária", "desinfetante", "esponja",
     "papel toalha", "saco de lixo", "multiuso", "limpador",

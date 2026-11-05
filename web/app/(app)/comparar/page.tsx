@@ -12,7 +12,10 @@ export default function Comparar() {
   const distTxt = useDistTexto(useSessao()?.user.id);
   const [q, setQ] = useState('');
 
-  const achados = useMemo(() => dados ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn).slice(0, 80) : [], [dados, q]);
+  const todos = useMemo(() => dados ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : [], [dados, q]);
+  const [limite, setLimite] = useState(40);
+  useEffect(() => setLimite(40), [q]);
+  const achados = todos.slice(0, limite);
   const melhor = achados[0];
 
   return (
@@ -41,7 +44,13 @@ export default function Comparar() {
             <span>{melhor.nome} no <b>{melhor.mercado}</b>{distTxt(melhor.mercado) && <span className="dist"> · 📍 {distTxt(melhor.mercado)}</span>}</span>
             <span className="muted">{brl(melhor.porUn)}/{melhor.ub}</span>
           </div>
+          <p className="muted">{todos.length} {todos.length === 1 ? 'preço encontrado' : 'preços encontrados'} em {new Set(todos.map((o) => o.mercado)).size} mercados.</p>
           <div className="lista">{achados.map((o, i) => <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} />)}</div>
+          {todos.length > limite && (
+            <button type="button" className="btn btn-secondary btn-block" onClick={() => setLimite(limite + 40)}>
+              Mostrar mais ({todos.length - limite} restantes)
+            </button>
+          )}
         </>
       )}
     </>
