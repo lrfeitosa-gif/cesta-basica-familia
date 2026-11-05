@@ -218,8 +218,13 @@ export default function MinhaCompra() {
         }
         continue;
       }
+      // embalagens parecidas (de 70% a 140% do tamanho: molho de 240 g conta para o de 300 g) entram
+      // comparadas pelo preço do quilo/litro, convertido para o tamanho de referência do item
       r[c.id] = lista.filter((o) =>
-        o.u === c.u && Math.abs(o.q - c.q!) < 0.001 && c.inc!.every((t) => norm(o.nome).includes(t)) && !c.exc!.test(o.busca));
+        o.u === c.u && o.q >= c.q! * 0.7 && o.q <= c.q! * 1.4 && c.inc!.every((t) => norm(o.nome).includes(t)) && !c.exc!.test(o.busca));
+      if (r[c.id].some((o) => Math.abs(o.q - c.q!) > 0.001)) {
+        refs[c.id] = { base: c.u === 'g' || c.u === 'ml' ? c.q! / 1000 : c.q!, ub: c.u === 'g' ? 'kg' : c.u === 'ml' ? 'l' : c.u! };
+      }
     }
     return { candidatos: r, kgs, refs };
   }, [dados, todos]);
@@ -410,7 +415,7 @@ export default function MinhaCompra() {
                   <summary>Ver marcas e preços</summary>
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
+                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] && !c.q ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
                         {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}
                         {' '}<span className="subtotal">= {brl(v(c, o) * sel[c.id])}</span></li>
                     ))}
