@@ -2,21 +2,26 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
-import { brl, filtrarFoco, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, filtrarFoco, norm, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useDistTexto } from '@/lib/locais';
 
 type Alerta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
+const VERSOES = [/zero alcool|sem alcool|0,0%|0.0%/, /zero lactose|sem lactose/, /diet/, /light/, /zero/];
 const DESCONTO_MIN = 0.15;   // mesmo ponto de partida do motor de regras: 15% abaixo do preço normal
 
 // Situação de cada alerta com os preços de hoje. O aviso no celular (push) vem na próxima etapa.
 function avaliar(a: Alerta, lista: Oferta[]) {
   let achados = filtrarFoco(lista, a.termo);
   if (a.marca) achados = achados.filter((o) => marcaCasa(o.marca, a.marca!));
+  // versões diferentes do produto (zero álcool, sem lactose, diet…) só entram se a pessoa escreveu
+  const t = norm(`${a.termo} ${a.marca ?? ''}`);
+  achados = achados.filter((o) => VERSOES.every((v) => !v.test(norm(o.nome)) || v.test(t)));
   achados.sort((x, y) => x.preco - y.preco);
   const melhor = achados[0];
+  // com preço-alvo, o alerta dispara só quando chega no alvo; sem alvo, quando está bem abaixo do preço normal
   const motivo = !melhor ? null
-    : a.preco_alvo != null && melhor.preco <= a.preco_alvo ? `abaixo do seu preço-alvo de ${brl(a.preco_alvo)}`
+    : a.preco_alvo != null ? (melhor.preco <= a.preco_alvo ? `abaixo do seu preço-alvo de ${brl(a.preco_alvo)}` : null)
     : melhor.de > melhor.preco && 1 - melhor.preco / melhor.de >= DESCONTO_MIN ? `${Math.round((1 - melhor.preco / melhor.de) * 100)}% abaixo do preço normal`
     : null;
   return { achados, melhor, motivo };
@@ -119,7 +124,7 @@ export default function Alertas() {
                 <button type="button" className="btn btn-link" onClick={() => remover(a.id)} aria-label={`Excluir alerta ${a.termo}`}>Excluir</button>
               </div>
               {motivo ? <div className="alert alert-ok">Oportunidade: {motivo}</div>
-                : melhor ? <div className="muted">Sem oportunidade hoje. Menor preço: {brl(melhor.preco)} no {melhor.mercado}.</div>
+                : melhor ? <div className="muted">Ainda não chegou{a.preco_alvo != null ? ' no alvo' : ''}. Menor preço hoje: {brl(melhor.preco)} no {melhor.mercado}{a.preco_alvo != null && melhor.preco > a.preco_alvo ? ` (${brl(melhor.preco - a.preco_alvo)} acima do alvo)` : ''}.</div>
                 : <div className="muted">Nenhum preço encontrado hoje com essas palavras.</div>}
               {melhor && <div className="lista">{achados.slice(0, 3).map((o, i) => <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} />)}</div>}
             </section>
