@@ -1,11 +1,12 @@
 'use client';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
 import Logo from '@/app/logo';
 import Avisos from './aviso';
+import { registrar } from '@/lib/eventos';
 
 const ABAS = [
   { href: '/ofertas', rotulo: 'Ofertas', icone: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></> },
@@ -20,6 +21,21 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
   const sessao = useSessao();
   const rota = usePathname();
   const router = useRouter();
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => { if (sessao) supabase.rpc('eh_admin').then(({ data }) => setAdmin(!!data)); }, [sessao]);
+  // uso por tela (uma vez por tela em cada visita) e erros de tela, para o painel de administração
+  useEffect(() => {
+    if (!sessao) return;
+    const chave = `ev-tela-${rota}`;
+    try { if (sessionStorage.getItem(chave)) return; sessionStorage.setItem(chave, '1'); } catch {}
+    registrar('tela', rota);
+  }, [sessao, rota]);
+  useEffect(() => {
+    const erro = (e: ErrorEvent) => registrar('erro_app', `${location.pathname}: ${e.message}`);
+    const promessa = (e: PromiseRejectionEvent) => registrar('erro_app', `${location.pathname}: ${String(e.reason).slice(0, 200)}`);
+    window.addEventListener('error', erro); window.addEventListener('unhandledrejection', promessa);
+    return () => { window.removeEventListener('error', erro); window.removeEventListener('unhandledrejection', promessa); };
+  }, []);
   if (!sessao) return null;
   const sair = async () => { await supabase.auth.signOut(); router.replace('/'); };
   return (
@@ -33,6 +49,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
           <div className="menu-conta-caixa">
             <span className="muted">{sessao.user.email}</span>
             <Link href="/conta">Meus dados</Link>
+            {admin && <Link href="/admin">Administração</Link>}
             <Link href="/indicar">Indicar um mercado</Link>
             <Link href="/privacidade">Privacidade</Link>
             <button type="button" className="btn btn-secondary" onClick={sair}>Sair</button>

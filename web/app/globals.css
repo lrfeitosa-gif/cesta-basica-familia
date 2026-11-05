@@ -296,3 +296,20 @@ h2 { margin-top: 4px; }
 }
 .nota-itens { grid-column: 1 / -1; margin: 4px 0 0; padding-left: 18px; font-size: .9rem; }
 .nota-itens li { margin: 2px 0; }
+
+/* Administração */
+.adm-numeros { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.adm-numeros > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.adm-numeros b { font-size: 1.6rem; line-height: 1.1; }
+.adm-numeros span { color: var(--muted); font-size: .8rem; }
+.adm-barras { display: flex; align-items: flex-end; gap: 4px; height: 110px; overflow-x: auto; }
+.adm-barras > div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 22px; }
+.adm-barras span { width: 14px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.adm-barras small { font-size: .65rem; color: var(--muted); margin-top: 2px; }
+.adm-tabela { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.adm-tabela > div { display: grid; grid-template-columns: minmax(180px, 2fr) 110px 110px 150px 70px; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: .85rem; min-width: 660px; }
+.adm-tabela > .cab { border-top: 0; font-weight: 700; color: var(--muted); }
+.adm-tabela span { overflow-wrap: anywhere; }
+.adm-eventos { list-style: none; margin: 0; padding: 0; font-size: .85rem; display: flex; flex-direction: column; gap: 4px; }
+.adm-eventos li { padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.adm-eventos li.erro { border-color: #e7a19a; }

@@ -15,6 +15,7 @@ export function mensagemErro(msg: string): string {
   if (/email not confirmed/i.test(msg)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
   if (/already registered|already been registered/i.test(msg)) return 'Este e-mail já tem conta. Entre com sua senha.';
   if (/password should be at least/i.test(msg)) return 'A senha precisa ter pelo menos 8 caracteres.';
+  if (/database error saving new user/i.test(msg)) return 'Código de convite inválido, esgotado ou o teste está lotado. Confira com quem te convidou.';
   if (/rate limit/i.test(msg)) return 'Muitas tentativas seguidas. Espere um minuto e tente de novo.';
   return 'Não foi possível concluir agora. Tente de novo em instantes.';
 }

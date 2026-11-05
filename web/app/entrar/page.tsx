@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
 import BotaoGoogle, { googleAtivo } from '@/app/botao-google';
+import { dominio, registrar } from '@/lib/eventos';
 
 function Formulario() {
   const router = useRouter();
@@ -21,7 +22,8 @@ function Formulario() {
     setErro(''); setEnviando(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
     setEnviando(false);
-    if (error) return setErro(mensagemErro(error.message));
+    if (error) { registrar('login_erro', `${dominio(email)}: ${error.message}`); return setErro(mensagemErro(error.message)); }
+    registrar('login_ok');
     router.replace(voltar);
   };
 
