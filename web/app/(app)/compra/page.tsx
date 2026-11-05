@@ -51,6 +51,20 @@ const HORTIFRUTI = new Set(('abacate abacaxi abobora abobrinha acelga agriao alf
   + 'nabo pepino pera pessego pimentao ponkan quiabo rabanete repolho rucula salsa tangerina tomate uva vagem').split(' '));
 const primeiraPalavra = (t: string) => norm(t).trim().split(/\s+/)[0] ?? '';
 const pareceHortiFixo = (t: string) => PADRAO_KG.test(t) || HORTIFRUTI.has(primeiraPalavra(t.replace(PADRAO_KG, ' ')));
+// Abreviações comuns nas notas fiscais (NFC-e) -> palavra inteira para a busca.
+const ABREV: Record<string, string> = {
+  choc: 'chocolate', chocol: 'chocolate', achoc: 'achocolatado', desinf: 'desinfetante', deterg: 'detergente',
+  salg: 'salgadinho', refrig: 'refrigerante', refri: 'refrigerante', cerv: 'cerveja', bisc: 'biscoito', biscr: 'biscoito',
+  bol: 'bolacha', iog: 'iogurte', qjo: 'queijo', qj: 'queijo', pres: 'presunto', mort: 'mortadela', marg: 'margarina',
+  requeij: 'requeijao', req: 'requeijao', amac: 'amaciante', macarr: 'macarrao', mac: 'macarrao', extr: 'extrato',
+  lte: 'leite', cond: 'condensado', frgo: 'frango', fgo: 'frango', sab: 'sabao', sabon: 'sabonete', esp: 'esponja',
+  hig: 'higienico', pap: 'papel', ref: 'refrigerante', tom: 'tomate', ceb: 'cebola', bat: 'batata', ban: 'banana',
+  azeit: 'azeite', marac: 'maracuja', moz: 'mussarela', mus: 'mussarela', muss: 'mussarela', mussar: 'mussarela',
+  cr: 'creme', sach: 'sache', limp: 'limpador', past: 'pasta', dent: 'dental', shamp: 'shampoo',
+  linguic: 'linguica', ling: 'linguica', hamb: 'hamburguer', salsic: 'salsicha',
+};
+// Aplica as abreviações palavra a palavra ("Choc barra" -> "chocolate barra").
+const semAbrev = (t: string) => norm(t).split(/\s+/).map((w) => ABREV[w] ?? w).join(' ');
 type Extra = { id: string; termo: string; horti?: boolean };   // horti: escolhido pela pessoa (caixa "é hortifruti")
 // No modo hortifruti, só a fruta/verdura in natura: fora os processados.
 const PROCESSADO = /triturad|picad|frit|desidrat|pasta|conserva|em po|chips|passa|polpa|congelad|molho|tempero|doce de|geleia|suco|creme|farinha|palha/;
@@ -130,6 +144,7 @@ export default function MinhaCompra() {
     const vocab = new Map<string, number>();
     for (const o of lista) for (const w of norm(o.nome).split(/[^a-z]+/)) if (w.length >= 3) vocab.set(w, (vocab.get(w) ?? 0) + 1);
     const expandir = (w: string) => {
+      if (ABREV[w]) return ABREV[w];
       // palavra rara ("desinf", "salg", "choc" aparecem em poucos nomes) vira a mais comum que começa com ela
       let melhor = w, n = vocab.get(w) ?? 0;
       if (n >= 20) return w;
@@ -172,7 +187,8 @@ export default function MinhaCompra() {
     salvarExtras(extras.filter((x) => x.id !== id));
     const n = { ...sel }; delete n[id]; mudar(n);
   };
-  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: x.termo, termo: x.termo, porKg: x.horti ?? pareceHortiFixo(x.termo) }))], [extras]);
+  // itens vindos de notas antigas ainda podem ter abreviações: a busca usa a palavra inteira
+  const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: semAbrev(x.termo) === norm(x.termo) ? x.termo : semAbrev(x.termo).replace(/^./, (c) => c.toUpperCase()), termo: semAbrev(x.termo), porKg: x.horti ?? pareceHortiFixo(x.termo) }))], [extras]);
 
   // todas as ofertas que servem para cada item (qualquer marca). Item de hortifruti (com "kg" no nome ou quando
   // a maior parte do que a busca encontra é fruta, legume ou verdura) compara pelo preço do quilo, sem marca.
