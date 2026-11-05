@@ -35,7 +35,7 @@ export default function Indicar() {
         ? 'As indicações ainda não foram ativadas no banco de dados (falta o ajuste 0006 no Supabase).'
         : 'Não foi possível enviar agora. Tente de novo.');
     }
-    setOk(`Obrigado! Vamos ver se dá para acompanhar o ${nome.trim()}.`);
+    setOk(`Recebemos! Vamos ver se dá para acompanhar o ${nome.trim()}.`);
     setNome(''); setOnde(''); setLink('');
     carregar();
   };

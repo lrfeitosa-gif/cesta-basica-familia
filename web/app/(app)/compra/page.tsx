@@ -82,7 +82,10 @@ export default function MinhaCompra() {
   const [novo, setNovo] = useState('');
   const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
   const [avisoNovo, setAvisoNovo] = useState('');
-  const [aba, setAba] = useState<'lista' | 'comparar'>('lista');
+  const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
+  // a aba escolhida vale durante a visita: voltar de outra tela não perde o lugar
+  const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} };
+  useEffect(() => { try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {} }, []);
 
   useEffect(() => {
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s) setSel(s); } catch {}
@@ -319,7 +322,7 @@ export default function MinhaCompra() {
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
 
-      {!itens.length ? <div className="empty">Sua lista está vazia. Marque itens na aba Lista.</div> : top ? (
+      {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : top ? (
         <div className="destaque">
           <span className="muted">Melhor mercado único para esta compra</span>
           <span className="grande">{fmt(top)}</span>

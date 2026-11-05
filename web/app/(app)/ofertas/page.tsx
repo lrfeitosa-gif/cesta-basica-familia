@@ -70,7 +70,7 @@ export default function Oportunidades() {
       {semNotas && !q && (
         <Link href="/notas" className="convite">
           <b>Envie suas notas fiscais</b>
-          <span>Com 3 notas o app aprende o que você compra e passa a avisar dos seus produtos.</span>
+          <span>Com 3 notas, o app aprende o que você compra e passa a avisar dos seus produtos.</span>
         </Link>
       )}
 

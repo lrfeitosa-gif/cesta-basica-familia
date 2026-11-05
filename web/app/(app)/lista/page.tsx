@@ -34,7 +34,7 @@ export default function Lista() {
     <>
       <div>
         <h1>Sua lista de interesse</h1>
-        <p className="lead">Montada a partir das suas notas. Em breve você poderá escolher marca e preço-alvo de cada item.</p>
+        <p className="lead">Montada a partir das suas notas, do item mais comprado ao menos comprado. Para receber aviso de um preço, crie um alerta.</p>
       </div>
       {itens.length === 0 ? (
         <div className="card stack">

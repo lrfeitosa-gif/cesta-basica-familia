@@ -16,7 +16,7 @@ const kb = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace('.
 const dia = (iso: string) => new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 const diasAtras = (iso: string | null) => (iso ? (Date.now() - new Date(iso).getTime()) / 86400000 : Infinity);
 const ROTULO: Record<string, string> = {
-  login_ok: 'Entrou', login_erro: 'Erro ao entrar', cadastro_inicio: 'Começou cadastro', cadastro_erro: 'Erro no cadastro',
+  login_ok: 'Entrou', login_erro: 'Erro ao entrar', cadastro_inicio: 'Começou o cadastro', cadastro_erro: 'Erro no cadastro',
   cadastro_ok: 'Cadastro enviado', tela: 'Abriu tela', erro_app: 'Erro na tela',
 };
 

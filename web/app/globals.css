@@ -313,3 +313,11 @@ h2 { margin-top: 4px; }
 .adm-eventos { list-style: none; margin: 0; padding: 0; font-size: .85rem; display: flex; flex-direction: column; gap: 4px; }
 .adm-eventos li { padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); overflow-wrap: anywhere; }
 .adm-eventos li.erro { border-color: #e7a19a; }
+
+/* Alvos de toque: links e botões pequenos com área mínima para o dedo (~40px), sem mudar o visual */
+.btn-remover, .btn-acabou, .link-site { min-height: 40px; display: inline-flex; align-items: center; }
+.btn-remover { padding: 0 8px; }
+.btn-link { min-height: 40px; }
+.qtd button { min-width: 40px; min-height: 40px; }
+details > summary { min-height: 36px; display: flex; align-items: center; cursor: pointer; }
+.empty .btn { margin-top: 10px; }

@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 const PASSOS = [
   {
     titulo: 'Preço de oportunidade',
-    texto: 'Todo dia às 7h buscamos os preços de 9 mercados de Indaiatuba. Notificamos quando o preço de um item está bem mais em conta: é a hora de comprar ou estocar.',
+    texto: 'Todo dia, às 7h e às 13h, buscamos os preços de 9 mercados de Indaiatuba. Avisamos quando um item fica bem mais em conta: é a hora de comprar ou estocar.',
   },
   {
     titulo: 'Compare do jeito certo',
-    texto: 'Fazemos a comparação de preço considerando o valor do produto por kg ou litro. Com isso, a comparação é justa.',
+    texto: 'Comparamos pelo preço do quilo ou do litro. Assim, embalagens de tamanhos diferentes ficam lado a lado de forma justa.',
   },
   {
     titulo: 'Sua cesta, seu mercado',

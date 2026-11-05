@@ -3,7 +3,7 @@ import { horaBr, type Ofertas } from '@/lib/ofertas';
 
 // Todos os mercados acompanhados. Quem não tiver preço no dia aparece como "sem preço hoje", com o motivo.
 const MERCADOS: { mercado: string; motivo: string }[] = [
-  { mercado: 'Assaí', motivo: 'O site bloqueia leitura automática. Entra pelos encartes enviados.' },
+  { mercado: 'Assaí', motivo: 'O site bloqueia a leitura automática. Os preços entram pelos encartes enviados.' },
   { mercado: 'Atacadão', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Covabra', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Goodbom', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
