@@ -86,27 +86,28 @@ export async function marcarEsgotado(o: Oferta): Promise<(() => Promise<void>) |
   };
 }
 
-async function buscar(): Promise<Ofertas> {
-  // Último dia (até hoje, em Brasília) com coleta dos sites. Prints de encarte são gravados também para dias
-  // futuros e, sozinhos, não podem virar "o dia mais recente"; no dia escolhido eles também estão presentes.
-  const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-  const ult = await supabase.from('oferta').select('valido_de').eq('fonte', 'ecommerce').lte('valido_de', hoje)
-    .order('valido_de', { ascending: false }).limit(1).single();
-  if (ult.error) throw ult.error;
-  const dia = ult.data.valido_de as string;
-  // Conta as linhas do dia e busca as páginas de 1000 todas ao mesmo tempo (uma a uma levava vários segundos).
-  const sel = 'id,preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)';
-  const [conta, esg] = await Promise.all([
-    supabase.from('oferta').select('id', { count: 'exact', head: true }).eq('valido_de', dia),
-    // ofertas avisadas como esgotadas hoje ficam de fora (tabela da migração 0006; sem ela, ignora)
-    supabase.from('esgotado').select('oferta_id,oferta!inner(valido_de)').eq('oferta.valido_de', dia),
-  ]);
-  if (conta.error) throw conta.error;
-  const paginas = await Promise.all(Array.from({ length: Math.max(1, Math.ceil((conta.count ?? 0) / 1000)) }, (_, k) =>
-    supabase.from('oferta').select(sel).eq('valido_de', dia).order('id').range(k * 1000, k * 1000 + 999)));
-  const linhas: Linha[] = [];
-  for (const { data, error } of paginas) { if (error) throw error; linhas.push(...(data as unknown as Linha[])); }
-  const esgotadas = new Set((esg.data ?? []).map((e: { oferta_id: number }) => e.oferta_id));
+// Prévia rápida para a primeira tela: só as ofertas com preço "de" (descontos) do dia, sem esperar a lista inteira.
+export async function carregarPrevia(): Promise<Oferta[]> {
+  const dia = await diaAtual();
+  const { data, error } = await supabase.from('oferta').select(SEL).eq('valido_de', dia).not('preco_de', 'is', null).limit(400);
+  if (error) throw error;
+  return paraOfertas(data as unknown as Linha[], new Set());
+}
+
+const SEL = 'id,preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)';
+let diaCache: Promise<string> | null = null;
+function diaAtual(): Promise<string> {
+  diaCache ??= (async () => {
+    const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    const ult = await supabase.from('oferta').select('valido_de').eq('fonte', 'ecommerce').lte('valido_de', hoje)
+      .order('valido_de', { ascending: false }).limit(1).single();
+    if (ult.error) { diaCache = null; throw ult.error; }
+    return ult.data.valido_de as string;
+  })();
+  return diaCache;
+}
+
+function paraOfertas(linhas: Linha[], esgotadas: Set<number>): Oferta[] {
   const lista: Oferta[] = [];
   for (const l of linhas) {
     if (esgotadas.has(l.id)) continue;
@@ -122,6 +123,27 @@ async function buscar(): Promise<Ofertas> {
       busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade} ${p.categoria} ${grupo(p.categoria)}`),
     });
   }
+  return lista;
+}
+
+async function buscar(): Promise<Ofertas> {
+  // Último dia (até hoje, em Brasília) com coleta dos sites. Prints de encarte são gravados também para dias
+  // futuros e, sozinhos, não podem virar "o dia mais recente"; no dia escolhido eles também estão presentes.
+  const dia = await diaAtual();
+  // Conta as linhas do dia e busca as páginas de 1000 todas ao mesmo tempo (uma a uma levava vários segundos).
+  const sel = SEL;
+  const [conta, esg] = await Promise.all([
+    supabase.from('oferta').select('id', { count: 'exact', head: true }).eq('valido_de', dia),
+    // ofertas avisadas como esgotadas hoje ficam de fora (tabela da migração 0006; sem ela, ignora)
+    supabase.from('esgotado').select('oferta_id,oferta!inner(valido_de)').eq('oferta.valido_de', dia),
+  ]);
+  if (conta.error) throw conta.error;
+  const paginas = await Promise.all(Array.from({ length: Math.max(1, Math.ceil((conta.count ?? 0) / 1000)) }, (_, k) =>
+    supabase.from('oferta').select(sel).eq('valido_de', dia).order('id').range(k * 1000, k * 1000 + 999)));
+  const linhas: Linha[] = [];
+  for (const { data, error } of paginas) { if (error) throw error; linhas.push(...(data as unknown as Linha[])); }
+  const esgotadas = new Set((esg.data ?? []).map((e: { oferta_id: number }) => e.oferta_id));
+  const lista = paraOfertas(linhas, esgotadas);
   padronizarMarcas(lista);
   const info = new Map<string, InfoMercado>();
   for (const l of linhas) {

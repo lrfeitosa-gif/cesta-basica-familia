@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { brl, dataBr, emb, filtrarFoco, GRUPOS, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, carregarPrevia, dataBr, emb, filtrarFoco, GRUPOS, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
@@ -11,7 +11,7 @@ import BoasVindas from '../boas-vindas';
 
 // Fora das oportunidades: ração e destilados (bebidas do dia a dia, como cerveja, continuam)
 const RUIDO = /racao|caes|gatos|whisky|vodka|gin /;
-const POR_PAGINA = 40;
+const POR_PAGINA = 10;
 
 export default function Oportunidades() {
   const { dados, erro, tentarDeNovo } = useOfertas();
@@ -26,11 +26,15 @@ export default function Oportunidades() {
     supabase.from('compra').select('id', { count: 'exact', head: true }).then(({ count }) => setSemNotas(!count));
   }, []);
 
-  const opp = useMemo(() => (dados?.lista ?? [])
+  // enquanto a lista inteira carrega, mostra já os maiores descontos (consulta pequena e rápida)
+  const [previa, setPrevia] = useState<Oferta[] | null>(null);
+  useEffect(() => { carregarPrevia().then(setPrevia).catch(() => {}); }, []);
+
+  const opp = useMemo(() => (dados?.lista ?? previa ?? [])
     .filter((o) => o.de > o.preco && !RUIDO.test(o.busca))
     .map((o) => ({ o, desc: 1 - o.preco / o.de }))
     .filter((x) => x.desc >= 0.08 && x.desc <= 0.7)
-    .sort((a, b) => b.desc - a.desc), [dados]);
+    .sort((a, b) => b.desc - a.desc), [dados, previa]);
 
   // com busca: todos os preços que combinam, do menor preço por kg/litro ao maior; sem busca: maiores descontos
   const busca = useMemo(() => (dados && q.trim() ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : null), [dados, q]);
@@ -75,7 +79,16 @@ export default function Oportunidades() {
       )}
 
       {erro && <ErroCarga tentarDeNovo={tentarDeNovo} />}
-      {!dados && !erro && <Carregando />}
+      {!dados && !erro && (previa && opp.length ? (
+        <>
+          <div className="lista">
+            {opp.slice(0, POR_PAGINA).map(({ o, desc }) => (
+              <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} extra={<span className="off">−{Math.round(desc * 100)}%</span>} />
+            ))}
+          </div>
+          <p className="muted" role="status">Carregando os demais preços para busca e filtros…</p>
+        </>
+      ) : <Carregando />)}
       {dados && (
         <>
           <div className="chips" role="group" aria-label="Filtrar por categoria">
@@ -108,7 +121,7 @@ export default function Oportunidades() {
           </div>
           {filtradas.length > limite && (
             <button type="button" className="btn btn-secondary btn-block" onClick={() => setLimite(limite + POR_PAGINA)}>
-              Mostrar mais ({filtradas.length - limite} restantes)
+              Carregar mais ({filtradas.length - limite} restantes)
             </button>
           )}
         </>
