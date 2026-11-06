@@ -1,9 +1,10 @@
 -- Teste fechado com convites + painel de administração.
+-- Pode rodar mais de uma vez: o que já existe é mantido, o que falta é criado.
 -- Depois de rodar, torne-se administradora (troque o e-mail se precisar):
 --   insert into administrador (user_id) select id from auth.users where email = 'lrfeitosa@gmail.com';
 
 -- 1. Convites: o cadastro só passa com um código válido e com vagas.
-create table convite (
+create table if not exists convite (
   codigo text primary key,
   descricao text,                       -- para quem é o convite (ex.: "grupo da escola")
   usos_max int not null default 1,
@@ -14,8 +15,8 @@ create table convite (
 alter table convite enable row level security;   -- sem políticas: ninguém lê pela API, só o gatilho e o admin
 
 -- Limite geral do piloto (contas no total). Mude aqui se quiser abrir mais vagas.
-create table config_piloto (id int primary key default 1 check (id = 1), max_contas int not null default 30);
-insert into config_piloto default values;
+create table if not exists config_piloto (id int primary key default 1 check (id = 1), max_contas int not null default 30);
+insert into config_piloto default values on conflict do nothing;
 alter table config_piloto enable row level security;
 
 create or replace function validar_convite() returns trigger
@@ -33,6 +34,7 @@ begin
   if ok = 0 then raise exception 'CONVITE_INVALIDO'; end if;
   return new;
 end $$;
+drop trigger if exists convite_no_cadastro on auth.users;
 create trigger convite_no_cadastro before insert on auth.users
   for each row execute function validar_convite();
 
@@ -48,8 +50,9 @@ grant execute on function convite_valido(text) to anon, authenticated;
 -- Contas que já existem antes dos convites continuam valendo (o gatilho só olha cadastros novos).
 
 -- 2. Administradores.
-create table administrador (user_id uuid primary key references auth.users(id) on delete cascade);
+create table if not exists administrador (user_id uuid primary key references auth.users(id) on delete cascade);
 alter table administrador enable row level security;
+drop policy if exists propria on administrador;
 create policy propria on administrador for select using (user_id = auth.uid());
 create or replace function eh_admin() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -58,17 +61,19 @@ $$;
 
 -- 3. Eventos de uso (para o painel): entradas, erros de login, desistências no cadastro, erros de tela.
 -- Guardamos o e-mail só como domínio (gmail.com) nas tentativas sem conta.
-create table evento (
+create table if not exists evento (
   id bigint generated always as identity primary key,
   user_id uuid references auth.users(id) on delete cascade,
   tipo text not null check (tipo in ('login_ok','login_erro','cadastro_inicio','cadastro_erro','cadastro_ok','tela','erro_app')),
   detalhe text check (length(detalhe) <= 300),
   criado_em timestamptz not null default now()
 );
-create index evento_data on evento (criado_em desc);
+create index if not exists evento_data on evento (criado_em desc);
 alter table evento enable row level security;
+drop policy if exists registrar on evento;
 create policy registrar on evento for insert to anon, authenticated
   with check (user_id is null or user_id = auth.uid());
+drop policy if exists admin_le on evento;
 create policy admin_le on evento for select using (eh_admin());
 
 -- 4. Funções do painel (só para administradores).
@@ -117,4 +122,4 @@ revoke all on function admin_usuarios(), admin_resumo(), admin_criar_convite(tex
 grant execute on function eh_admin(), admin_usuarios(), admin_resumo(), admin_criar_convite(text, text, int) to authenticated;
 
 -- Primeiro convite para o grupo de teste (20 pessoas). Troque o código se quiser.
-insert into convite (codigo, descricao, usos_max) values ('INDAIA20', 'Grupo de teste (20 pessoas)', 20);
+insert into convite (codigo, descricao, usos_max) values ('INDAIA20', 'Grupo de teste (20 pessoas)', 20) on conflict do nothing;
