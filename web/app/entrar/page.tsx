@@ -1,5 +1,5 @@
 'use client';
-import Logo from '@/app/logo';
+import { TelaAcesso, CampoPilula, Seta } from '@/app/tela-acesso';
 import { Suspense, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -36,38 +36,23 @@ function Formulario() {
   };
 
   return (
-    <>
-      <Link href="/" className="logo-link" aria-label="Início"><Logo /></Link>
-      <div>
-        <h1>Entrar</h1>
-        <p className="lead">Use o e-mail da sua conta.</p>
-      </div>
-      {googleAtivo && <>
-        <BotaoGoogle voltar={voltar} />
-        <div className="divider">ou com e-mail</div>
-      </>}
-      <form className="stack" onSubmit={entrar} noValidate>
-        <div className="field">
-          <label htmlFor="email">E-mail</label>
-          <input id="email" className="input" type="email" autoComplete="email" inputMode="email" required
-            value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="senha">Senha</label>
-          <input id="senha" className="input" type="password" autoComplete="current-password" required
-            value={senha} onChange={(e) => setSenha(e.target.value)} />
-        </div>
+    <TelaAcesso titulo="Compre no preço" destaque="de oportunidade" sub="Entre para continuar"
+      rodape={<>Não tem conta? <Link href="/cadastro">Criar conta</Link></>}>
+      <form className="au-form" onSubmit={entrar} noValidate>
+        <CampoPilula icone="email" rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required
+          value={email} onChange={(e) => setEmail(e.target.value)} />
+        <CampoPilula icone="senha" rotulo="Senha" id="senha" type="password" autoComplete="current-password" required
+          value={senha} onChange={(e) => setSenha(e.target.value)} />
+        <button type="button" className="au-link" onClick={esqueci}>Esqueci a senha</button>
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
         {aviso && <div className="alert alert-ok" role="status">{aviso}</div>}
-        <button className="btn btn-primary btn-block" disabled={enviando}>
-          {enviando ? 'Entrando…' : 'Entrar'}
-        </button>
-        <button type="button" className="btn btn-link" onClick={esqueci}>Esqueci a senha</button>
+        <button className="ob-pill au-entrar" disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}<Seta /></button>
       </form>
-      <p className="muted" style={{ marginTop: 'auto' }}>
-        Ainda não tem conta? <Link href="/cadastro">Criar conta</Link>
-      </p>
-    </>
+      {googleAtivo && <>
+        <div className="au-ou">ou</div>
+        <div className="au-google"><BotaoGoogle voltar={voltar} /></div>
+      </>}
+    </TelaAcesso>
   );
 }
 

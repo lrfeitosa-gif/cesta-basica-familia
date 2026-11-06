@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
 import BotaoGoogle, { googleAtivo } from '@/app/botao-google';
 import { dominio, registrar } from '@/lib/eventos';
+import { TelaAcesso, CampoPilula, Seta } from '@/app/tela-acesso';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -58,50 +59,27 @@ export default function Cadastro() {
   }
 
   return (
-    <>
-      <Link href="/" className="logo-link" aria-label="Início"><Logo /></Link>
-      <div>
-        <h1>Criar conta</h1>
-        <p className="lead">Só pedimos e-mail. Nada de CPF, nome completo ou endereço.</p>
-      </div>
-      {googleAtivo && <>
-        <BotaoGoogle voltar="/ofertas" />
-        <div className="divider">ou com e-mail</div>
-      </>}
-      <form className="stack" onSubmit={criar} noValidate>
-        <div className="field">
-          <label htmlFor="convite">Código de convite</label>
-          <input id="convite" className="input" autoComplete="off" autoCapitalize="characters" required
-            aria-describedby="convite-ajuda" value={convite} onChange={(e) => setConvite(e.target.value)} />
-          <span id="convite-ajuda" className="help">O app está em teste fechado. Peça o código a quem te convidou.</span>
-        </div>
-        <div className="field">
-          <label htmlFor="email">E-mail</label>
-          <input id="email" className="input" type="email" autoComplete="email" inputMode="email" required
-            value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="senha">Senha</label>
-          <input id="senha" className="input" type="password" autoComplete="new-password" required minLength={8}
-            aria-invalid={senhaCurta} aria-describedby="senha-ajuda"
-            value={senha} onChange={(e) => setSenha(e.target.value)} />
-          <span id="senha-ajuda" className="help">Mínimo de 8 caracteres.</span>
-        </div>
-        <label className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
-          <input type="checkbox" id="aceite" checked={aceite} onChange={(e) => setAceite(e.target.checked)}
-            style={{ width: 22, height: 22, accentColor: 'var(--accent)', marginTop: 1 }} />
-          <span className="muted" style={{ flex: 1 }}>
-            Li e aceito os <Link href="/termos">termos de uso</Link> e a <Link href="/privacidade">política de privacidade</Link>.
-          </span>
+    <TelaAcesso titulo="Crie sua conta" destaque="e economize" sub="Só pedimos e-mail. Nada de CPF ou endereço."
+      rodape={<>Já tem conta? <Link href="/entrar">Entrar</Link></>}>
+      <form className="au-form" onSubmit={criar} noValidate>
+        <CampoPilula icone="convite" rotulo="Código de convite" id="convite" autoComplete="off" autoCapitalize="characters" required
+          aria-describedby="convite-ajuda" value={convite} onChange={(e) => setConvite(e.target.value)} />
+        <span id="convite-ajuda" className="au-ajuda">Teste fechado: peça o código a quem te convidou.</span>
+        <CampoPilula icone="email" rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required
+          value={email} onChange={(e) => setEmail(e.target.value)} />
+        <CampoPilula icone="senha" rotulo="Senha (mínimo de 8 caracteres)" id="senha" type="password" autoComplete="new-password"
+          required minLength={8} aria-invalid={senhaCurta} value={senha} onChange={(e) => setSenha(e.target.value)} />
+        <label className="au-aceite">
+          <input type="checkbox" id="aceite" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
+          <span>Li e aceito os <Link href="/termos">termos de uso</Link> e a <Link href="/privacidade">política de privacidade</Link>.</span>
         </label>
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
-        <button className="btn btn-primary btn-block" disabled={enviando}>
-          {enviando ? 'Criando conta…' : 'Criar conta'}
-        </button>
+        <button className="ob-pill au-entrar" disabled={enviando}>{enviando ? 'Criando conta…' : 'Criar conta'}<Seta /></button>
       </form>
-      <p className="muted" style={{ marginTop: 'auto' }}>
-        Já tem conta? <Link href="/entrar">Entrar</Link>
-      </p>
-    </>
+      {googleAtivo && <>
+        <div className="au-ou">ou</div>
+        <div className="au-google"><BotaoGoogle voltar="/ofertas" /></div>
+      </>}
+    </TelaAcesso>
   );
 }

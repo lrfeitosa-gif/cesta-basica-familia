@@ -350,3 +350,41 @@ details > summary { min-height: 36px; display: flex; align-items: center; cursor
 /* links com aparência de botão do design system de boas-vindas */
 .ob-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 a.ob-skip { text-decoration: none; }
+
+/* Telas de acesso (entrar / criar conta) no design system de boas-vindas */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.au { overflow-y: auto; place-items: start center; }
+.au-card { align-items: stretch; text-align: left; max-width: 420px; min-height: 0; padding: 28px 24px 24px; gap: 14px; margin: auto 0; }
+.au-titulo { font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 1.65rem; line-height: 1.25; color: var(--ob-ink); margin: 8px 0 0; }
+.au-titulo span { color: var(--ob-skin); }
+.au-traco { width: 48px; height: 5px; border-radius: 4px; background: var(--ob-gold); margin-top: -4px; }
+.au-sub { color: var(--ob-muted); font-weight: 600; margin: 0; }
+.au-mini { display: grid; justify-items: center; text-align: center; gap: 2px; }
+.au-mini-ilustra { width: 140px; animation: ob-entra .45s cubic-bezier(.2,.7,.2,1); }
+.au-mini-ilustra svg { width: 100%; height: auto; display: block; }
+.au-mini b { color: var(--ob-ink); font-size: 1.05rem; }
+.au-mini .ob-dots { margin: 8px 0 0; gap: 2px; }
+.au-mini .ob-dots button { width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+.au-mini .ob-dots button::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ob-ink); }
+.au-mini .ob-dots button[data-on="true"]::before { background: var(--ob-ink); }
+.au-form { display: grid; gap: 12px; }
+.au-campo { display: flex; align-items: center; gap: 12px; background: var(--ob-paper); border-radius: 999px; padding: 6px 12px 6px 6px;
+  box-shadow: 0 10px 24px -16px rgb(20 30 40 / .35); border: 1.5px solid transparent; }
+.au-campo:focus-within { border-color: var(--ob-gold); }
+.au-ico { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--ob-bg); color: var(--ob-dark); display: grid; place-items: center; }
+.au-campo input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-weight: 600; color: #111; padding: 12px 0; outline: none; }
+.au-campo input::placeholder { color: #6b6b6b; }
+.au-olho { flex: none; border: 0; background: none; color: var(--ob-dark); padding: 9px; cursor: pointer; border-radius: 50%; }
+.au-ajuda { color: var(--ob-muted); font-size: .82rem; margin: -4px 16px 0; }
+.au-link { justify-self: end; background: none; border: 0; font: inherit; font-weight: 700; font-size: .9rem; color: var(--ob-ink); cursor: pointer; padding: 8px 4px; text-decoration: underline; text-underline-offset: 3px; }
+.au-entrar { width: 100%; min-height: 56px; display: flex; align-items: center; justify-content: center; position: relative; text-transform: none; font-size: 1.05rem; letter-spacing: 0; }
+.au-entrar svg { position: absolute; right: 24px; }
+.au-entrar:disabled { opacity: .7; cursor: default; }
+.au-ou { display: flex; align-items: center; gap: 14px; color: var(--ob-ink); font-weight: 700; }
+.au-ou::before, .au-ou::after { content: ""; flex: 1; height: 1px; background: var(--ob-line); opacity: .6; }
+.au-google .btn { border-radius: 999px; min-height: 54px; background: var(--ob-paper); color: #111; border: 0; box-shadow: 0 10px 24px -16px rgb(20 30 40 / .35); font-weight: 700; }
+.au-aceite { display: flex; gap: 10px; align-items: flex-start; color: var(--ob-muted); font-size: .88rem; }
+.au-aceite input { width: 22px; height: 22px; accent-color: var(--ob-pill); margin-top: 1px; flex: none; }
+.au-aceite a, .au-rodape a { color: var(--ob-ink); font-weight: 700; }
+.au-rodape { text-align: center; color: var(--ob-muted); font-weight: 600; margin: 4px 0 0; }
+.au .alert { border-radius: 18px; }
