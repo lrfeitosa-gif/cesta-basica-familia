@@ -347,3 +347,6 @@ h2 { margin-top: 4px; }
 .qtd button { min-width: 40px; min-height: 40px; }
 details > summary { min-height: 36px; display: flex; align-items: center; cursor: pointer; }
 .empty .btn { margin-top: 10px; }
+/* links com aparência de botão do design system de boas-vindas */
+.ob-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+a.ob-skip { text-decoration: none; }

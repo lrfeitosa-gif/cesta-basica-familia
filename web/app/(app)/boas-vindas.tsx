@@ -15,7 +15,7 @@ const Circulo = () => (
   </>
 );
 
-const Ilustracoes: ReactNode[] = [
+export const Ilustracoes: ReactNode[] = [
   // 1. Relógio (7h e 13h) + pessoa vendo uma etiqueta de preço baixar
   <svg key="1" viewBox="0 0 240 230" aria-hidden="true">
     <Circulo />
@@ -68,7 +68,7 @@ const Ilustracoes: ReactNode[] = [
   </svg>,
 ];
 
-const PASSOS = [
+export const PASSOS = [
   {
     titulo: 'Preço de oportunidade',
     texto: 'Todo dia, às 7h e às 13h, buscamos os preços de 9 mercados de Indaiatuba e avisamos quando um item fica bem mais em conta.',
@@ -82,7 +82,7 @@ const PASSOS = [
     texto: 'Monte sua compra e veja qual mercado sai mais barato. Envie suas notas quando quiser: o app aprende o que você compra.',
   },
 ];
-const CHAVE = 'boas-vindas-vista';
+export const CHAVE = 'boas-vindas-vista';
 
 // Mostrada uma vez, no primeiro acesso após o cadastro.
 export default function BoasVindas() {
