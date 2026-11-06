@@ -519,3 +519,21 @@ body:has(.barra-topo) { background: var(--background); }
 body:has(.barra-topo)::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat; filter: var(--filtro-img); opacity: .9; }
 @media (prefers-color-scheme: dark) { body:has(.barra-topo)::before { opacity: .18; } }
+
+/* Barra com 6 abas */
+nav.abas > div { grid-template-columns: repeat(6, 1fr); }
+nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-inline: 0; }
+
+/* Evolução */
+.linha-escolha { display: flex; justify-content: space-between; gap: 10px; align-items: center; width: 100%; text-align: left; font: inherit; color: var(--ink);
+  background: none; border: 0; border-bottom: 1px solid var(--line); padding: 12px 14px; cursor: pointer; min-height: 48px; }
+.linha-escolha:last-child { border-bottom: 0; }
+.linha-escolha:hover { background: var(--accent-soft); }
+.evol-grafico svg { width: 100%; height: auto; display: block; }
+.evol-grade { stroke: var(--line); stroke-width: 1; }
+.evol-eixo { fill: var(--muted); font-size: 10px; font-family: var(--body); }
+.evol-legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .82rem; }
+.evol-legenda i, .evol-cor { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.evol-sobe { color: var(--danger); font-weight: 700; }
+.evol-desce { color: var(--good); font-weight: 700; }
+.evol-tabela > div { grid-template-columns: minmax(100px, 1.4fr) 1.2fr 1fr 1fr .8fr; min-width: 0; font-size: .8rem; }

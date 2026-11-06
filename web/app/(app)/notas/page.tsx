@@ -60,7 +60,7 @@ function Notas() {
 
   const colar = (e: FormEvent) => { e.preventDefault(); enviar(link.trim()); };
 
-  // Foto do cupom: reduz no próprio celular (lado maior 1600 px, JPEG) e envia para leitura pelo Claude.
+  // Foto do cupom: reduz no próprio celular (lado maior 1600 px, JPEG) e envia para leitura pelo modelo de visão.
   const enviarFoto = async (arquivo: File | undefined) => {
     if (!sessao || !arquivo || status?.tipo === 'lendo') return;
     setStatus({ tipo: 'lendo', texto: 'Lendo a foto da nota… leva uns 20 segundos.' });

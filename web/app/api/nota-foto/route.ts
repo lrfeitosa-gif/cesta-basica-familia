@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;   // leitura da foto pelo Claude leva de 10 a 40 s
+export const maxDuration = 60;   // leitura da foto pela Groq leva poucos segundos; margem para notas longas
 
-// Foto do cupom fiscal -> itens, preços, loja e data (Claude com visão), gravados como compra da família.
+// Foto do cupom fiscal -> itens, preços, loja e data (modelo de visão qwen/qwen3.8-27b na Groq), gravados como compra da família.
 // A foto não é guardada; CPF e pagamento que aparecem nela são ignorados pelo modelo e nunca gravados.
 
 const SCHEMA = {
@@ -52,8 +51,8 @@ type Lida = {
 export async function POST(req: Request) {
   const token = req.headers.get('authorization')?.replace(/^Bearer /, '');
   if (!token) return NextResponse.json({ erro: 'Entre na sua conta para enviar notas.' }, { status: 401 });
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ erro: 'A leitura por foto ainda não foi ativada (falta a chave ANTHROPIC_API_KEY na Vercel).' }, { status: 503 });
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json({ erro: 'A leitura por foto ainda não foi ativada (falta a chave GROQ_API_KEY na Vercel).' }, { status: 503 });
   }
 
   const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -73,26 +72,38 @@ export async function POST(req: Request) {
 
   let lida: Lida;
   try {
-    const client = new Anthropic();
-    // fallbacks: se o modelo recusar a imagem, a API tenta outro modelo na mesma chamada
-    const resp = await client.beta.messages.create({
-      model: 'claude-opus-5-5',
-      max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system: INSTRUCOES,
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: tipo as 'image/jpeg', data: imagem } },
-          { type: 'text', text: 'Leia este cupom fiscal.' },
+    // Groq (API compatível com OpenAI), modo JSON; o formato esperado vai descrito no prompt.
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: process.env.GROQ_MODELO_VISAO || 'qwen/qwen3.8-27b',
+        temperature: 0.1,
+        max_completion_tokens: 8000,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: `${INSTRUCOES}
+
+Responda só com um objeto JSON neste formato (JSON Schema):
+${JSON.stringify(SCHEMA)}` },
+          { role: 'user', content: [
+            { type: 'text', text: 'Leia este cupom fiscal e devolva o JSON.' },
+            { type: 'image_url', image_url: { url: `data:${tipo};base64,${imagem}` } },
+          ] },
         ],
-      }],
-    } as unknown as Anthropic.Beta.Messages.MessageCreateParamsNonStreaming);
-    if (resp.stop_reason === 'refusal') throw new Error('recusado');
-    const texto = resp.content.find((b) => b.type === 'text');
-    lida = JSON.parse(texto && 'text' in texto ? texto.text : '{}') as Lida;
+      }),
+    });
+    if (!resp.ok) throw new Error(`groq ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+    const corpo = await resp.json() as { choices?: { message?: { content?: string } }[] };
+    const texto = (corpo.choices?.[0]?.message?.content ?? '').replace(/<think>[\s\S]*?<\/think>/g, '');
+    const json = texto.slice(texto.indexOf('{'), texto.lastIndexOf('}') + 1);
+    const bruto = JSON.parse(json || '{}') as Partial<Lida>;
+    lida = {
+      e_cupom: bruto.e_cupom !== false, loja: bruto.loja ?? null, cnpj: bruto.cnpj ?? null, data: bruto.data ?? null,
+      total: typeof bruto.total === 'number' ? bruto.total : null, chave: bruto.chave ?? null,
+      itens: (bruto.itens ?? []).filter((i) => i && i.descricao && Number(i.quantidade) > 0 && Number(i.preco_unitario) > 0)
+        .map((i) => ({ descricao: String(i.descricao), quantidade: Number(i.quantidade), preco_unitario: Number(i.preco_unitario) })),
+    };
   } catch (e) {
     console.error('nota-foto: falha na leitura', (e as Error).message);
     return NextResponse.json({ erro: 'Não conseguimos ler a foto agora. Tente de novo em instantes.' }, { status: 502 });
