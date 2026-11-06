@@ -20,6 +20,8 @@ const VARIANTES: [RegExp, RegExp][] = [
   [/^leite(\s|$)/, /condensado|em po|fermentado|de coco|vegetal/],
   [/^acucar(\s|$)/, /confeiteiro|mascavo|demerara|organico/],
   [/^ovos?(\s|$)/, /codorna|pascoa|chocolate|conserva/],
+  // "chocolate barra" não é barra de cereal/fruta/proteína sabor chocolate
+  [/^(chocolate|barra)(\s|$)/, /cereal|fruta|granola|prote|nutry|sucrilhos|cookie|biscoito|bolo|wafer|achocolatado|bebida/],
 ];
 const tirarVariantes = (termo: string, l: Oferta[]) => {
   const t = norm(termo);
@@ -270,14 +272,17 @@ export default function MinhaCompra() {
   }
   const ranking = (dados?.mercados ?? []).map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
-    const estimados: { c: ItemCesta; valor: number }[] = [];
+    const estimados: { c: ItemCesta; valor: number; outrasMarcas: boolean }[] = [];
     for (const c of itens) {
       const o = porItem[c.id][m];
       if (o) { total += v(c, o) * sel[c.id]; escolhas.push({ c, o }); }
       else {
+        // marca fixada e ausente aqui: estima pela média das outras marcas deste mercado, se houver
+        const outras = marcas[c.id] ? candidatos[c.id].filter((x) => x.mercado === m) : [];
+        const un = outras.length ? outras.reduce((s, x) => s + v(c, x), 0) / outras.length : (media[c.id] ?? 0);
         falta.push(c.rotulo);
-        estimado += (media[c.id] ?? 0) * sel[c.id];
-        estimados.push({ c, valor: (media[c.id] ?? 0) * sel[c.id] });
+        estimado += un * sel[c.id];
+        estimados.push({ c, valor: un * sel[c.id], outrasMarcas: outras.length > 0 });
       }
     }
     return { m, total, estimado, falta, escolhas, estimados, valor: total + estimado };
@@ -383,7 +388,7 @@ export default function MinhaCompra() {
                   <span>{l.length} {l.length === 1 ? 'item' : 'itens'} · {brl(tot)} ({pct(tot)}%)</span>
                   {d && <span className="muted">📍 {fmtKm(d.km)} de {d.ref.rotulo}</span>}
                   <details><summary>Ver itens</summary>
-                    <ul>{l.map(({ c, o, valor }) => <li key={c.id}>{c.rotulo}: {o.marca ? `${o.marca} · ` : ''}{brl(valor)}</li>)}</ul>
+                    <ul>{l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(o.preco)}{sel[c.id] !== 1 ? ` cada = ${brl(valor)}` : ''}</li>)}</ul>
                   </details>
                 </div>
               ))}
@@ -419,9 +424,11 @@ export default function MinhaCompra() {
                         {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}
                         {' '}<span className="subtotal">= {brl(v(c, o) * sel[c.id])}</span></li>
                     ))}
-                    {r.estimados.map(({ c, valor }) => (
+                    {r.estimados.map(({ c, valor, outrasMarcas }) => (
                       <li key={c.id} className="estimado">
-                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: sem preço neste mercado, média dos outros{' '}
+                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: {!marcas[c.id] ? 'sem preço neste mercado, média dos outros'
+                          : outrasMarcas ? 'sem preço para esta marca, média das outras marcas'
+                          : 'sem preço para esta marca, média dos outros mercados'}{' '}
                         <span className="subtotal">≈ {brl(valor)}</span>
                       </li>
                     ))}
