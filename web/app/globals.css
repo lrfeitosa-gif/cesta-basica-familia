@@ -504,3 +504,18 @@ body:has(.barra-topo), body:has(.barra-topo) { background:
     linear-gradient(color-mix(in srgb, var(--background) 85%, transparent), color-mix(in srgb, var(--background) 85%, transparent)),
     url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat fixed, var(--background); }
 }
+
+/* ===== Mistura escolhida: cores, fonte e fundo da opção 1 + cantos arredondados da opção 2 ===== */
+:root { --radius: 18px; --filtro-img: hue-rotate(-62deg) saturate(.45) brightness(1.02); }
+@media (prefers-color-scheme: dark) { :root { --filtro-img: hue-rotate(-30deg) saturate(.6); } }
+.btn, .input, .ob-pill, .au-campo, .au-google .btn, .choice label, .marca-sel { border-radius: 999px; }
+.au-ico { border-radius: 50%; }
+.alert, .au .alert { border-radius: 14px; }
+.ob-card, .au-card { border-radius: 28px; }
+.ob-ilustra img, .au-mini-ilustra img { filter: var(--filtro-img); }
+.au-mini-ilustra img { width: 100%; height: auto; display: block; mix-blend-mode: multiply; }
+/* fundo da área logada recolorido: a imagem vai numa camada fixa com filtro */
+body:has(.barra-topo) { background: var(--background); }
+body:has(.barra-topo)::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat; filter: var(--filtro-img); opacity: .9; }
+@media (prefers-color-scheme: dark) { body:has(.barra-topo)::before { opacity: .18; } }
