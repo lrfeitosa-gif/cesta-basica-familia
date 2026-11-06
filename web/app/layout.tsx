@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: 'fast-promo', statusBarStyle: 'default' },
 };
 
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: '#1d4ed8' };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: "#f2f8fd" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
