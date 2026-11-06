@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design System Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root { --body: "Nunito Sans", system-ui, sans-serif; --display: var(--body); }
+* { box-sizing: border-box; } html { scroll-behavior: smooth; }
+body { margin: 0; font-family: var(--body); }
+/* Boas-vindas em 3 passos: cartão claro, ilustração em círculo, pontos e botão pílula preto */
+:root {
+  --ob-bg: #e9eef1; --ob-card: #f8f9fa; --ob-ink: #111111; --ob-muted: #4a4a4a;
+  --ob-gold: #f2c45a; --ob-sand: #d9cfc0; --ob-sand-dark: #b5a589; --ob-floor: #e4e6e8;
+  --ob-dark: #2b1f1d; --ob-skin: #7a4b33; --ob-paper: #ffffff; --ob-line: #b9ab95; --ob-pill: #000000; --ob-pill-ink: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ob-bg: #0e1420; --ob-card: #172032; --ob-ink: #f2f2f2; --ob-muted: #b4bccb;
+    --ob-sand: #4a4436; --ob-floor: #232c3e; --ob-paper: #e9e4da; --ob-dark: #1a1311; --ob-pill: #f2f2f2; --ob-pill-ink: #000000;
+  }
+}
+.ob {
+  position: fixed; inset: 0; z-index: 20; background: var(--ob-bg); display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+}
+.ob-card {
+  width: 100%; max-width: 380px; min-height: min(640px, 100%); background: var(--ob-card); border-radius: 36px;
+  box-shadow: 0 30px 60px -30px rgb(20 30 40 / .25); padding: 36px 28px 32px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; animation: ob-entra .45s cubic-bezier(.2,.7,.2,1);
+}
+.ob-ilustra { width: 100%; max-width: 260px; }
+.ob-ilustra svg { width: 100%; height: auto; display: block; }
+.ob-dots { display: flex; gap: 5px; margin: 22px 0 18px; }
+.ob-dots span { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ob-ink); transition: background .25s; }
+.ob-dots span[data-on="true"] { background: var(--ob-ink); }
+.ob-titulo { font-family: var(--body); font-weight: 600; font-size: 1.7rem; line-height: 1.3; color: var(--ob-ink); margin: 0; }
+.ob-texto { color: var(--ob-muted); font-size: .98rem; line-height: 1.6; margin: 12px 0 0; max-width: 30ch; }
+.ob-acoes { margin-top: auto; padding-top: 32px; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.ob-acoes-fim { justify-content: center; }
+.ob-skip { font: inherit; font-weight: 700; font-size: .9rem; text-transform: uppercase; letter-spacing: .02em; background: none; border: 0; color: var(--ob-ink); padding: 14px 16px; cursor: pointer; }
+.ob-pill {
+  font: inherit; font-weight: 700; font-size: .9rem; text-transform: uppercase; letter-spacing: .02em; min-height: 52px; padding: 0 30px;
+  border: 0; border-radius: 999px; background: var(--ob-pill); color: var(--ob-pill-ink); cursor: pointer;
+  box-shadow: 0 16px 24px -12px rgb(0 0 0 / .35); transition: transform .2s, box-shadow .2s;
+}
+.ob-pill:hover { transform: translateY(-2px); box-shadow: 0 20px 28px -12px rgb(0 0 0 / .4); }
+.ob-pill:active { transform: translateY(0); }
+.ob-pill-larga { width: 100%; max-width: 220px; }
+@keyframes ob-entra { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+
+
+/* Documentação (só estrutura da página) */
+body { background: var(--ob-bg); color: var(--ob-ink); }
+.ds-nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--ob-bg) 88%, transparent); backdrop-filter: blur(8px); display: flex; gap: 4px; overflow-x: auto; padding: 10px 16px; border-bottom: 1px solid var(--ob-floor); }
+.ds-nav a { color: var(--ob-ink); text-decoration: none; font-weight: 700; font-size: .85rem; padding: 8px 12px; border-radius: 999px; white-space: nowrap; }
+.ds-nav a:hover { background: var(--ob-card); }
+section { max-width: 1180px; margin: 0 auto; padding: 56px 16px; }
+section > h2 { font-weight: 600; font-size: 1.5rem; margin: 0 0 24px; }
+.ds-hero { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-start; }
+.ds-hero .ob-card { min-height: 600px; flex: 1 1 300px; }
+.ds-hero .ob-card:nth-child(2) { margin-top: 70px; }
+.ds-tabela { background: var(--ob-card); border-radius: 24px; overflow: hidden; }
+.ds-linha { display: grid; grid-template-columns: 140px 1fr auto; gap: 16px; align-items: center; padding: 18px 22px; }
+.ds-linha + .ds-linha { border-top: 1px solid var(--ob-floor); }
+.ds-linha small { color: var(--ob-muted); font-size: .8rem; } .ds-linha .ob-texto { margin: 0; max-width: none; }
+.ds-cores { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.ds-cor { background: var(--ob-card); border-radius: 20px; padding: 10px; font-size: .82rem; }
+.ds-cor i { display: block; height: 72px; border-radius: 14px; margin-bottom: 8px; border: 1px solid var(--ob-floor); }
+.ds-grade { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; background: var(--ob-card); border-radius: 24px; padding: 28px; }
+.ds-grade figure { margin: 0; display: grid; justify-items: center; gap: 10px; font-size: .8rem; color: var(--ob-muted); }
+.ds-grade .ob-card { box-shadow: 0 10px 30px -18px rgb(20 30 40 / .35); }
+.is-hover { transform: translateY(-2px); box-shadow: 0 20px 28px -12px rgb(0 0 0 / .4); }
+.is-focus { outline: 2px solid var(--ob-gold); outline-offset: 3px; }
+.ds-replay { animation: none; } .ds-replay.run { animation: ob-entra .45s cubic-bezier(.2,.7,.2,1); }
+@media (max-width: 640px) { .ds-linha { grid-template-columns: 1fr; gap: 4px; } .ds-hero .ob-card:nth-child(2) { margin-top: 0; } }
+</style></head><body>
+<nav class="ds-nav"><a href="#hero">Início</a><a href="#tipografia">Tipografia</a><a href="#cores">Cores e superfícies</a><a href="#componentes">Componentes</a><a href="#layout">Layout</a><a href="#movimento">Movimento</a><a href="#ilustracoes">Ilustrações</a></nav>
+
+<section id="hero"><div class="ds-hero"><div class="ob-card"><div class="ob-ilustra"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <circle cx="176" cy="44" r="22" fill="var(--ob-paper)" stroke="var(--ob-line)" stroke-width="3" />
+    <path d="M176 30v14l9 6" stroke="var(--ob-dark)" stroke-width="3" fill="none" stroke-linecap="round" />
+    <path d="M40 92h56l14 14-14 14H40z" fill="var(--ob-gold)" />
+    <circle cx="50" cy="106" r="4" fill="var(--ob-paper)" />
+    <path d="M62 100h26M62 110h18" stroke="var(--ob-dark)" stroke-width="3" stroke-linecap="round" />
+    <path d="M150 104v34m-8-8 8 8 8-8" stroke="var(--ob-line)" stroke-width="3" fill="none" stroke-linecap="round" />
+    <circle cx="112" cy="128" r="12" fill="var(--ob-dark)" />
+    <path d="M100 130c0-10 24-10 24 0v14h-24z" fill="var(--ob-dark)" />
+    <circle cx="112" cy="136" r="10" fill="var(--ob-skin)" />
+    <path d="M94 156c0-10 36-10 36 0v32H94z" fill="var(--ob-gold)" />
+    <path d="M120 166l16-12 4 6-16 12z" fill="var(--ob-skin)" />
+    <rect x="134" y="146" width="10" height="16" rx="2" fill="var(--ob-dark)" />
+    <path d="M96 188h32l4 24h-10l-6-16-6 16h-10z" fill="var(--ob-dark)" />
+    <path d="M100 212h12M120 212h12" stroke="var(--ob-gold)" stroke-width="4" stroke-linecap="round" />
+  </svg></div><div class="ob-dots"><span data-on="true"></span><span data-on="false"></span><span data-on="false"></span></div><h1 class="ob-titulo">Um só visual, do início ao fim</h1><p class="ob-texto">Cartões claros, ilustrações em círculo, pontos de progresso e botões pílula.</p><div class="ob-acoes"><button class="ob-skip">Pular</button><button class="ob-pill">Próximo</button></div></div><div class="ob-card"><div class="ob-ilustra"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <path d="M120 70v130M80 200h80" stroke="var(--ob-dark)" stroke-width="5" stroke-linecap="round" />
+    <path d="M58 92h124" stroke="var(--ob-dark)" stroke-width="4" stroke-linecap="round" />
+    <circle cx="120" cy="70" r="7" fill="var(--ob-gold)" />
+    <path d="M58 92l-20 44h40zM182 92l-20 44h40z" fill="none" stroke="var(--ob-line)" stroke-width="2" />
+    <path d="M34 136h48a24 10 0 0 1-48 0zM158 136h48a24 10 0 0 1-48 0z" fill="var(--ob-dark)" />
+    <rect x="44" y="104" width="28" height="32" rx="4" fill="var(--ob-gold)" />
+    <rect x="48" y="112" width="20" height="8" rx="2" fill="var(--ob-paper)" />
+    <rect x="166" y="92" width="32" height="44" rx="5" fill="var(--ob-sand-dark)" />
+    <rect x="171" y="104" width="22" height="10" rx="2" fill="var(--ob-paper)" />
+    <text x="120" y="182" text-anchor="middle" font-size="16" font-weight="800" fill="var(--ob-dark)" font-family="var(--display)">R$/kg</text>
+  </svg></div><div class="ob-dots"><span data-on="false"></span><span data-on="true"></span><span data-on="false"></span></div><h1 class="ob-titulo">Cada peça em seu lugar</h1><p class="ob-texto">Tipografia, cores, componentes e movimento documentados com as classes reais.</p><div class="ob-acoes"><button class="ob-skip">Pular</button><button class="ob-pill">Próximo</button></div></div><div class="ob-card"><div class="ob-ilustra"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <path d="M166 22c-12 0-18 10-18 22v14l-6 8h48l-6-8V44c0-12-6-22-18-22z" fill="var(--ob-paper)" stroke="var(--ob-line)" stroke-width="3" />
+    <circle cx="166" cy="70" r="5" fill="var(--ob-line)" />
+    <path d="M196 30c6 6 6 16 0 22M204 24c10 10 10 26 0 36" stroke="var(--ob-line)" stroke-width="2" fill="none" stroke-linecap="round" />
+    <path d="M64 120l12 64h70l6-30" stroke="var(--ob-sand-dark)" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M70 186l-10 24M140 186l10 24" stroke="var(--ob-sand-dark)" stroke-width="6" stroke-linecap="round" />
+    <circle cx="102" cy="108" r="11" fill="var(--ob-skin)" />
+    <path d="M92 104c2-12 20-12 22 0z" fill="var(--ob-dark)" />
+    <path d="M88 126c0-8 28-8 28 0v40H88z" fill="var(--ob-gold)" />
+    <path d="M104 160h46l14 34" stroke="var(--ob-dark)" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M160 196h14" stroke="var(--ob-gold)" stroke-width="6" stroke-linecap="round" />
+    <path d="M118 140h38l-6 22h-26z" fill="var(--ob-paper)" stroke="var(--ob-dark)" stroke-width="3" stroke-linejoin="round" />
+    <path d="M124 140c0-12 26-12 26 0" stroke="var(--ob-dark)" stroke-width="3" fill="none" />
+    <circle cx="130" cy="136" r="5" fill="var(--ob-gold)" />
+    <circle cx="142" cy="135" r="5" fill="#c9d48a" />
+  </svg></div><div class="ob-dots"><span data-on="false"></span><span data-on="false"></span><span data-on="true"></span></div><h1 class="ob-titulo">Pronto para usar</h1><p class="ob-texto">Copie a marcação e as classes direto para as telas do app.</p><div class="ob-acoes ob-acoes-fim"><button class="ob-pill ob-pill-larga">Começar</button></div></div></div></section>
+
+<section id="tipografia"><h2>Tipografia</h2><div class="ds-tabela">
+<div class="ds-linha"><small>Heading 1</small><h1 class="ob-titulo">Preço de oportunidade</h1><small>27px / 35px · 600</small></div>
+<div class="ds-linha"><small>Regular M</small><p class="ob-texto">Comparamos pelo preço do quilo ou do litro.</p><small>15,7px / 25px · 400</small></div>
+<div class="ds-linha"><small>Bold S</small><span><button class="ob-skip">Pular</button> <button class="ob-pill">Próximo</button></span><small>14,4px · 700 · caixa alta</small></div>
+</div></section>
+
+<section id="cores"><h2>Cores e superfícies</h2><div class="ds-cores"><div class="ds-cor"><i style="background:var(--ob-bg)"></i><b>Fundo da página</b><br><code>--ob-bg</code></div><div class="ds-cor"><i style="background:var(--ob-card)"></i><b>Cartão</b><br><code>--ob-card</code></div><div class="ds-cor"><i style="background:var(--ob-ink)"></i><b>Texto</b><br><code>--ob-ink</code></div><div class="ds-cor"><i style="background:var(--ob-muted)"></i><b>Texto suave</b><br><code>--ob-muted</code></div><div class="ds-cor"><i style="background:var(--ob-gold)"></i><b>Dourado</b><br><code>--ob-gold</code></div><div class="ds-cor"><i style="background:var(--ob-sand)"></i><b>Areia</b><br><code>--ob-sand</code></div><div class="ds-cor"><i style="background:var(--ob-sand-dark)"></i><b>Areia escura</b><br><code>--ob-sand-dark</code></div><div class="ds-cor"><i style="background:var(--ob-floor)"></i><b>Chão / divisória</b><br><code>--ob-floor</code></div><div class="ds-cor"><i style="background:var(--ob-line)"></i><b>Traço</b><br><code>--ob-line</code></div><div class="ds-cor"><i style="background:var(--ob-skin)"></i><b>Pele</b><br><code>--ob-skin</code></div><div class="ds-cor"><i style="background:var(--ob-dark)"></i><b>Escuro</b><br><code>--ob-dark</code></div><div class="ds-cor"><i style="background:var(--ob-pill)"></i><b>Botão pílula</b><br><code>--ob-pill</code></div>
+<div class="ds-cor"><i style="background:radial-gradient(circle at 50% 30%, var(--ob-sand), transparent 70%)"></i><b>Degradê do círculo</b><br><code>radial: areia → transparente</code></div>
+<div class="ds-cor"><i style="background:var(--ob-card);box-shadow:0 30px 60px -30px rgb(20 30 40 / .25)"></i><b>Sombra do cartão</b><br><code>0 30px 60px -30px</code></div>
+</div></section>
+
+<section id="componentes"><h2>Componentes</h2><div class="ds-grade">
+<figure><button class="ob-pill">Próximo</button>padrão</figure>
+<figure><button class="ob-pill is-hover">Próximo</button>hover</figure>
+<figure><button class="ob-pill is-focus">Próximo</button>foco</figure>
+<figure><button class="ob-pill ob-pill-larga" style="width:220px">Começar</button>larga (último passo)</figure>
+<figure><button class="ob-skip">Pular</button>link de texto</figure>
+<figure><div class="ob-dots" style="margin:0"><span data-on="true"></span><span data-on="false"></span><span data-on="false"></span></div>pontos de progresso</figure>
+</div></section>
+
+<section id="layout"><h2>Layout e espaçamento</h2><div class="ds-grade">
+<figure><div class="ob-card" style="width:300px;min-height:0"><div class="ob-ilustra"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <circle cx="176" cy="44" r="22" fill="var(--ob-paper)" stroke="var(--ob-line)" stroke-width="3" />
+    <path d="M176 30v14l9 6" stroke="var(--ob-dark)" stroke-width="3" fill="none" stroke-linecap="round" />
+    <path d="M40 92h56l14 14-14 14H40z" fill="var(--ob-gold)" />
+    <circle cx="50" cy="106" r="4" fill="var(--ob-paper)" />
+    <path d="M62 100h26M62 110h18" stroke="var(--ob-dark)" stroke-width="3" stroke-linecap="round" />
+    <path d="M150 104v34m-8-8 8 8 8-8" stroke="var(--ob-line)" stroke-width="3" fill="none" stroke-linecap="round" />
+    <circle cx="112" cy="128" r="12" fill="var(--ob-dark)" />
+    <path d="M100 130c0-10 24-10 24 0v14h-24z" fill="var(--ob-dark)" />
+    <circle cx="112" cy="136" r="10" fill="var(--ob-skin)" />
+    <path d="M94 156c0-10 36-10 36 0v32H94z" fill="var(--ob-gold)" />
+    <path d="M120 166l16-12 4 6-16 12z" fill="var(--ob-skin)" />
+    <rect x="134" y="146" width="10" height="16" rx="2" fill="var(--ob-dark)" />
+    <path d="M96 188h32l4 24h-10l-6-16-6 16h-10z" fill="var(--ob-dark)" />
+    <path d="M100 212h12M120 212h12" stroke="var(--ob-gold)" stroke-width="4" stroke-linecap="round" />
+  </svg></div><div class="ob-dots"><span data-on="true"></span><span data-on="false"></span><span data-on="false"></span></div><h1 class="ob-titulo">Cartão 380px</h1><p class="ob-texto">Raio 36px, respiro 36/28/32px, conteúdo centralizado.</p><div class="ob-acoes"><button class="ob-skip">Pular</button><button class="ob-pill">Próximo</button></div></div>Coluna do cartão</figure>
+<figure><div class="ob-acoes" style="width:300px;padding:0"><button class="ob-skip">Pular</button><button class="ob-pill">Próximo</button></div>Ações distribuídas</figure>
+<figure><div class="ob-acoes ob-acoes-fim" style="width:300px;padding:0"><button class="ob-pill ob-pill-larga">Começar</button></div>Ação centralizada</figure>
+</div></section>
+
+<section id="movimento"><h2>Movimento</h2><div class="ds-grade">
+<figure><div class="ob-card ds-replay run" id="rp" style="min-height:0;width:240px;padding:24px"><p class="ob-texto" style="margin:0">ob-entra · .45s · cubic-bezier(.2,.7,.2,1)</p></div><button class="ob-skip" onclick="var e=document.getElementById('rp');e.classList.remove('run');void e.offsetWidth;e.classList.add('run')">Repetir entrada</button></figure>
+<figure><button class="ob-pill">Passe o mouse</button>sobe 2px e a sombra cresce · .2s</figure>
+<figure><div class="ob-dots" style="margin:0" id="dt"><span data-on="true"></span><span data-on="false"></span><span data-on="false"></span></div><button class="ob-skip" onclick="var s=[].slice.call(document.querySelectorAll('#dt span')),i=s.findIndex(function(x){return x.dataset.on==='true'});s.forEach(function(x,j){x.dataset.on=String(j===(i+1)%3)})">Avançar ponto</button></figure>
+</div></section>
+
+<section id="ilustracoes"><h2>Ilustrações</h2><div class="ds-grade"><figure><div class="ob-ilustra" style="width:120px"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <circle cx="176" cy="44" r="22" fill="var(--ob-paper)" stroke="var(--ob-line)" stroke-width="3" />
+    <path d="M176 30v14l9 6" stroke="var(--ob-dark)" stroke-width="3" fill="none" stroke-linecap="round" />
+    <path d="M40 92h56l14 14-14 14H40z" fill="var(--ob-gold)" />
+    <circle cx="50" cy="106" r="4" fill="var(--ob-paper)" />
+    <path d="M62 100h26M62 110h18" stroke="var(--ob-dark)" stroke-width="3" stroke-linecap="round" />
+    <path d="M150 104v34m-8-8 8 8 8-8" stroke="var(--ob-line)" stroke-width="3" fill="none" stroke-linecap="round" />
+    <circle cx="112" cy="128" r="12" fill="var(--ob-dark)" />
+    <path d="M100 130c0-10 24-10 24 0v14h-24z" fill="var(--ob-dark)" />
+    <circle cx="112" cy="136" r="10" fill="var(--ob-skin)" />
+    <path d="M94 156c0-10 36-10 36 0v32H94z" fill="var(--ob-gold)" />
+    <path d="M120 166l16-12 4 6-16 12z" fill="var(--ob-skin)" />
+    <rect x="134" y="146" width="10" height="16" rx="2" fill="var(--ob-dark)" />
+    <path d="M96 188h32l4 24h-10l-6-16-6 16h-10z" fill="var(--ob-dark)" />
+    <path d="M100 212h12M120 212h12" stroke="var(--ob-gold)" stroke-width="4" stroke-linecap="round" />
+  </svg></div>120px</figure><figure><div class="ob-ilustra" style="width:180px"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <path d="M120 70v130M80 200h80" stroke="var(--ob-dark)" stroke-width="5" stroke-linecap="round" />
+    <path d="M58 92h124" stroke="var(--ob-dark)" stroke-width="4" stroke-linecap="round" />
+    <circle cx="120" cy="70" r="7" fill="var(--ob-gold)" />
+    <path d="M58 92l-20 44h40zM182 92l-20 44h40z" fill="none" stroke="var(--ob-line)" stroke-width="2" />
+    <path d="M34 136h48a24 10 0 0 1-48 0zM158 136h48a24 10 0 0 1-48 0z" fill="var(--ob-dark)" />
+    <rect x="44" y="104" width="28" height="32" rx="4" fill="var(--ob-gold)" />
+    <rect x="48" y="112" width="20" height="8" rx="2" fill="var(--ob-paper)" />
+    <rect x="166" y="92" width="32" height="44" rx="5" fill="var(--ob-sand-dark)" />
+    <rect x="171" y="104" width="22" height="10" rx="2" fill="var(--ob-paper)" />
+    <text x="120" y="182" text-anchor="middle" font-size="16" font-weight="800" fill="var(--ob-dark)" font-family="var(--display)">R$/kg</text>
+  </svg></div>180px</figure><figure><div class="ob-ilustra" style="width:240px"><svg viewBox="0 0 240 230" aria-hidden="true">
+    <defs><radialGradient id="bv-c" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="var(--ob-sand)"/><stop offset="1" stop-color="var(--ob-sand)" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="112" r="96" fill="url(#bv-c)"/><ellipse cx="120" cy="214" rx="78" ry="6" fill="var(--ob-floor)"/>
+    <path d="M166 22c-12 0-18 10-18 22v14l-6 8h48l-6-8V44c0-12-6-22-18-22z" fill="var(--ob-paper)" stroke="var(--ob-line)" stroke-width="3" />
+    <circle cx="166" cy="70" r="5" fill="var(--ob-line)" />
+    <path d="M196 30c6 6 6 16 0 22M204 24c10 10 10 26 0 36" stroke="var(--ob-line)" stroke-width="2" fill="none" stroke-linecap="round" />
+    <path d="M64 120l12 64h70l6-30" stroke="var(--ob-sand-dark)" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M70 186l-10 24M140 186l10 24" stroke="var(--ob-sand-dark)" stroke-width="6" stroke-linecap="round" />
+    <circle cx="102" cy="108" r="11" fill="var(--ob-skin)" />
+    <path d="M92 104c2-12 20-12 22 0z" fill="var(--ob-dark)" />
+    <path d="M88 126c0-8 28-8 28 0v40H88z" fill="var(--ob-gold)" />
+    <path d="M104 160h46l14 34" stroke="var(--ob-dark)" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M160 196h14" stroke="var(--ob-gold)" stroke-width="6" stroke-linecap="round" />
+    <path d="M118 140h38l-6 22h-26z" fill="var(--ob-paper)" stroke="var(--ob-dark)" stroke-width="3" stroke-linejoin="round" />
+    <path d="M124 140c0-12 26-12 26 0" stroke="var(--ob-dark)" stroke-width="3" fill="none" />
+    <circle cx="130" cy="136" r="5" fill="var(--ob-gold)" />
+    <circle cx="142" cy="135" r="5" fill="#c9d48a" />
+  </svg></div>240px</figure></div>
+<p class="ob-texto" style="max-width:none">As cores vêm das variáveis --ob-* e mudam juntas no modo escuro.</p></section>
+</body></html>
