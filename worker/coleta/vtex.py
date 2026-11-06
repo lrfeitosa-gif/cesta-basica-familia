@@ -23,7 +23,10 @@ LOJAS = {
     "paguemenos": ("Pague Menos", "https://www.superpaguemenos.com.br"),
     "savegnago": ("Savegnago", "https://www.savegnago.com.br"),
     "atacadao": ("Atacadão", "https://atacadaobr.vtexcommercestable.com.br"),
+    "samsclub": ("Sam's Club", "https://www.samsclub.com.br"),  # preço de sócio: exige assinatura do clube
 }
+# CEP próprio por loja (o Sam's só mostra o vendedor "Sam's Club Indaiatuba" com o CEP da loja)
+CEPS = {"samsclub": "13348645"}
 CEP_PADRAO = "13330000"  # Indaiatuba: a VTEX devolve o preço da região deste CEP
 PAGINA = 50          # limite da VTEX por requisição
 MAX_ITENS = 2500     # a VTEX não pagina além disso (coleções)
@@ -159,8 +162,9 @@ def para_oferta(p: dict, mercado: str, hoje: str) -> dict | None:
 
 
 def coletar(loja: str, termos: list[str] | None = None, colecao: str | None = None,
-            cep: str = CEP_PADRAO) -> list[dict]:
+            cep: str | None = None) -> list[dict]:
     mercado, base = LOJAS[loja]
+    cep = cep or CEPS.get(loja, CEP_PADRAO)
     hoje = date.today().isoformat()
     vistos, saida = set(), []
     buscas = [{"colecao": colecao}] if colecao else [{"termo": t} for t in (termos or TERMOS_CESTA)]
@@ -183,7 +187,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("loja", choices=LOJAS)
     ap.add_argument("termos", nargs="*", help="termos de busca (padrão: itens da cesta básica)")
     ap.add_argument("--colecao", help="id de coleção VTEX (ex.: 161 = ofertas do Pague Menos)")
-    ap.add_argument("--cep", default=CEP_PADRAO)
+    ap.add_argument("--cep", default=None)
     ap.add_argument("--saida")
     a = ap.parse_args(argv)
     ofertas = coletar(a.loja, a.termos, a.colecao, a.cep)

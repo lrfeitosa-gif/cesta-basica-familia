@@ -242,7 +242,7 @@ export default function MinhaCompra() {
       m.set(k, v);
     }
     return [...m.entries()].map(([chave, v]) => ({ chave, nome: v.nome, mercados: v.mercados.size }))
-      .sort((a, b) => b.mercados - a.mercados || a.nome.localeCompare(b.nome, 'pt-BR'));
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   };
 
   // menor preço de cada item em cada mercado, respeitando a marca fixada

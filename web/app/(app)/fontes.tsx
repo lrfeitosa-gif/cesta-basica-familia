@@ -9,6 +9,7 @@ const MERCADOS: { mercado: string; motivo: string }[] = [
   { mercado: 'Goodbom', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Pague Menos', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Roldão', motivo: 'Nenhum encarte válido encontrado no site hoje.' },
+  { mercado: "Sam's Club", motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Savegnago', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'São Vicente', motivo: 'A coleta do site ainda não rodou ou falhou hoje.' },
   { mercado: 'Sumerbol', motivo: 'Nenhum encarte válido encontrado no site hoje.' },

@@ -47,9 +47,13 @@ export async function POST(req: Request) {
 
   await db.rpc('garantir_familia');   // a etapa de família saiu do cadastro; a linha é criada aqui
   const mercado = nota.cnpj ?(await db.from('mercado').select('id,rede').eq('cnpj', nota.cnpj).maybeSingle()).data : null;
-  const { data: compra, error: ec } = await db.from('compra').insert({
+  const linha = {
     familia_id: u.user.id, mercado_id: mercado?.id ?? null, data: nota.data, total: nota.total, origem: 'nota', chave_nfce: chave,
-  }).select('id').single();
+  };
+  const lojaNota = mercado ? null : nota.loja?.slice(0, 80) ?? null;
+  // loja_nota vem da migração 0009; enquanto ela não roda, grava sem o nome da loja
+  let { data: compra, error: ec } = await db.from('compra').insert({ ...linha, loja_nota: lojaNota }).select('id').single();
+  if (ec?.message.includes('loja_nota')) ({ data: compra, error: ec } = await db.from('compra').insert(linha).select('id').single());
   if (ec || !compra) {
     const semFamilia = ec?.message.includes('foreign key');
     return NextResponse.json({ erro: semFamilia ? 'Complete o cadastro da família antes de enviar notas.' : 'Não conseguimos salvar a nota.' }, { status: 400 });

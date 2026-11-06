@@ -9,7 +9,7 @@ import { useSessao } from '@/lib/sessao';
 // A câmera só existe no navegador: o leitor não é renderizado no servidor.
 const Scanner = dynamic(() => import('@yudiel/react-qr-scanner').then((m) => m.Scanner), { ssr: false });
 
-type Compra = { id: number; data: string; total: number | null; mercado: { rede: string } | null; itens: { count: number }[] };
+type Compra = { id: number; data: string; total: number | null; loja_nota?: string | null; mercado: { rede: string } | null; itens: { count: number }[] };
 const META = 3;
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dataBr = (iso: string) => iso.split('-').reverse().join('/');
@@ -31,9 +31,10 @@ function Notas() {
   };
 
   const carregar = async () => {
-    const { data } = await supabase.from('compra')
-      .select('id,data,total,mercado(rede),itens:item_comprado(count)')
+    const busca = (campos: string) => supabase.from('compra').select(campos)
       .eq('origem', 'nota').order('data', { ascending: false }).limit(20);
+    let { data, error } = await busca('id,data,total,loja_nota,mercado(rede),itens:item_comprado(count)');
+    if (error) ({ data, error } = await busca('id,data,total,mercado(rede),itens:item_comprado(count)'));  // antes da migração 0009
     setCompras((data as unknown as Compra[]) ?? []);
   };
   useEffect(() => { if (sessao) carregar(); }, [sessao]);
@@ -168,7 +169,7 @@ function Notas() {
           <div className="nota-lista">
             {compras.map((c) => (
               <div key={c.id}>
-                <b>{c.mercado?.rede ?? 'Supermercado'}</b>
+                <b>{c.mercado?.rede ?? c.loja_nota ?? 'Supermercado'}</b>
                 {c.total != null && <span className="etiqueta">{brl(c.total)}</span>}
                 <span className="muted" style={{ gridColumn: '1 / -1' }}>{dataBr(c.data)} · {c.itens[0]?.count ?? 0} itens</span>
                 <details style={{ gridColumn: '1 / -1' }} onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) verItens(c.id); }}>
@@ -190,7 +191,7 @@ function Notas() {
         </section>
       )}
 
-      <p className="muted">Da nota guardamos só itens, quantidades, preços, loja e data. CPF e dados pessoais nunca são gravados.</p>
+      <p className="aviso-nota">Da nota guardamos só itens, quantidades, preços, loja e data. CPF e dados pessoais nunca são gravados.</p>
 
       {onboarding && (
         <div className="stack" style={{ marginTop: 'auto' }}>

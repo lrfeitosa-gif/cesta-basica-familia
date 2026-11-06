@@ -125,9 +125,13 @@ ${JSON.stringify(SCHEMA)}` },
   const data = lida.data && /^\d{4}-\d{2}-\d{2}$/.test(lida.data) ? lida.data : new Date().toISOString().slice(0, 10);
   const total = lida.total ?? lida.itens.reduce((s, i) => s + i.quantidade * i.preco_unitario, 0);
 
-  const { data: compra, error: ec } = await db.from('compra').insert({
+  const linha = {
     familia_id: u.user.id, mercado_id: mercado?.id ?? null, data, total, origem: 'nota', chave_nfce: chaveValida,
-  }).select('id').single();
+  };
+  const lojaNota = mercado ? null : lida.loja?.slice(0, 80) ?? null;
+  // loja_nota vem da migração 0009; enquanto ela não roda, grava sem o nome da loja
+  let { data: compra, error: ec } = await db.from('compra').insert({ ...linha, loja_nota: lojaNota }).select('id').single();
+  if (ec?.message.includes('loja_nota')) ({ data: compra, error: ec } = await db.from('compra').insert(linha).select('id').single());
   if (ec || !compra) return NextResponse.json({ erro: 'Não conseguimos salvar a nota.' }, { status: 400 });
   await db.from('item_comprado').insert(lida.itens.map((i) => ({
     compra_id: compra.id, descricao_nota: i.descricao, quantidade: i.quantidade, preco_unitario: i.preco_unitario,

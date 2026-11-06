@@ -517,7 +517,7 @@ body:has(.barra-topo), body:has(.barra-topo) { background:
 /* fundo da área logada recolorido: a imagem vai numa camada fixa com filtro */
 body:has(.barra-topo) { background: var(--background); }
 body:has(.barra-topo)::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat; filter: var(--filtro-img); opacity: .9; }
+  background: url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat; filter: var(--filtro-img); opacity: .45; }
 @media (prefers-color-scheme: dark) { body:has(.barra-topo)::before { opacity: .18; } }
 
 /* Barra com 6 abas */
@@ -537,3 +537,8 @@ nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-in
 .evol-sobe { color: var(--danger); font-weight: 700; }
 .evol-desce { color: var(--good); font-weight: 700; }
 .evol-tabela > div { grid-template-columns: minmax(100px, 1.4fr) 1.2fr 1fr 1fr .8fr; min-width: 0; font-size: .8rem; }
+
+/* Mais contraste: texto secundário mais escuro sobre o fundo ilustrado */
+:root { --muted: #3d4752; }
+.aviso-nota { color: var(--ink); font-weight: 600; background: var(--surface); border-radius: var(--radius); padding: 10px 14px; margin: 0; }
+@media (prefers-color-scheme: dark) { :root { --muted: #c3cbd4; } }
