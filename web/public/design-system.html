@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Design System Onboarding</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Tomorrow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root { --body: "Nunito Sans", system-ui, sans-serif; --display: var(--body); }
+:root { --body: Tomorrow, ui-sans-serif, system-ui, sans-serif; --display: var(--body); }
 * { box-sizing: border-box; } html { scroll-behavior: smooth; }
 body { margin: 0; font-family: var(--body); }
 /* Boas-vindas em 3 passos: cartão claro, ilustração em círculo, pontos e botão pílula preto */
@@ -77,6 +77,21 @@ section > h2 { font-weight: 600; font-size: 1.5rem; margin: 0 0 24px; }
 :root { --ob-bg:#f2f8fd; --ob-card:#ffffff; --ob-ink:#0f2340; --ob-muted:#33425a; --ob-gold:#1f7ae0; --ob-line:#c9d9ea; --ob-pill:#050a14; --ob-dot:#1f7ae0; --ob-dot-off:#d3dce6; }
 .ob-dots span { border:0; background:var(--ob-dot-off); width:8px; height:8px; } .ob-dots span[data-on="true"] { background:var(--ob-dot); }
 .ob-titulo { font-weight:800; }
+
+/* Estilo 3 (tema verde-salvia, Tomorrow, cantos retos) */
+:root { --background:oklch(0.9842 0.0034 247.8575); --foreground:oklch(0.3013 0.0240 238.8090); --card:oklch(1 0 0);
+  --primary:oklch(0.5200 0.0490 147.7951); --primary-foreground:oklch(1 0 0); --muted-foreground:oklch(0.3025 0.0164 156.1138);
+  --accent-bg:oklch(0.9181 0.0477 145.1734); --border:oklch(0.8717 0.0093 258.3382); --ring:oklch(0.7099 0.0954 147.5011); --radius:0.15rem;
+  --shadow:0px 0px 14px -2px hsl(116 28.3% 10.4% / .10),0px 1px 2px -3px hsl(116 28.3% 10.4% / .10);
+  --shadow-lg:0px 0px 14px -2px hsl(116 28.3% 10.4% / .10),0px 4px 6px -3px hsl(116 28.3% 10.4% / .10); }
+@media (prefers-color-scheme: dark) { :root { --background:oklch(0.2063 0.0120 277.8347); --foreground:oklch(0.9363 0.0433 183.9088);
+  --card:oklch(0.2810 0.0177 227.3784); --primary:oklch(0.8556 0.1555 179.7932); --primary-foreground:oklch(0.2523 0.0373 174.7008);
+  --muted-foreground:oklch(0.7137 0.0192 261.3246); --accent-bg:oklch(0.3729 0.0306 259.7328); --border:oklch(0.4911 0.0340 196.1004); --ring:oklch(0.8556 0.1555 179.7932); } }
+:root { --ob-bg:var(--background); --ob-card:var(--card); --ob-ink:var(--foreground); --ob-muted:var(--muted-foreground); --ob-floor:var(--border);
+  --ob-line:var(--border); --ob-pill:var(--primary); --ob-pill-ink:var(--primary-foreground); --ob-gold:var(--primary); --ob-dot:var(--primary); --ob-dot-off:var(--border); }
+.ob-card, .ob-pill, .ds-tabela, .ds-cor, .ds-cor i, .ds-grade, .ds-nav a { border-radius: var(--radius); }
+.ob-card { box-shadow: var(--shadow-lg); } .ob-pill { box-shadow: var(--shadow-lg); } .ob-titulo { font-weight:600; }
+.is-focus { outline-color: var(--ring); }
 </style></head><body>
 <nav class="ds-nav"><a href="#hero">Início</a><a href="#tipografia">Tipografia</a><a href="#cores">Cores e superfícies</a><a href="#componentes">Componentes</a><a href="#layout">Layout</a><a href="#movimento">Movimento</a><a href="#ilustracoes">Ilustrações</a></nav>
 
@@ -132,7 +147,7 @@ section > h2 { font-weight: 600; font-size: 1.5rem; margin: 0 0 24px; }
 <div class="ds-linha"><small>Bold S</small><span><button class="ob-skip">Pular</button> <button class="ob-pill">Próximo</button></span><small>14,4px · 700 · caixa alta</small></div>
 </div></section>
 
-<section id="cores"><h2>Cores e superfícies</h2><div class="ds-cores"><div class="ds-cor"><i style="background:var(--ob-bg)"></i><b>Fundo da página</b><br><code>--ob-bg</code></div><div class="ds-cor"><i style="background:var(--ob-card)"></i><b>Cartão</b><br><code>--ob-card</code></div><div class="ds-cor"><i style="background:var(--ob-ink)"></i><b>Texto</b><br><code>--ob-ink</code></div><div class="ds-cor"><i style="background:var(--ob-muted)"></i><b>Texto suave</b><br><code>--ob-muted</code></div><div class="ds-cor"><i style="background:var(--ob-gold)"></i><b>Dourado</b><br><code>--ob-gold</code></div><div class="ds-cor"><i style="background:var(--ob-sand)"></i><b>Areia</b><br><code>--ob-sand</code></div><div class="ds-cor"><i style="background:var(--ob-sand-dark)"></i><b>Areia escura</b><br><code>--ob-sand-dark</code></div><div class="ds-cor"><i style="background:var(--ob-floor)"></i><b>Chão / divisória</b><br><code>--ob-floor</code></div><div class="ds-cor"><i style="background:var(--ob-line)"></i><b>Traço</b><br><code>--ob-line</code></div><div class="ds-cor"><i style="background:var(--ob-skin)"></i><b>Pele</b><br><code>--ob-skin</code></div><div class="ds-cor"><i style="background:var(--ob-dark)"></i><b>Escuro</b><br><code>--ob-dark</code></div><div class="ds-cor"><i style="background:var(--ob-pill)"></i><b>Botão pílula</b><br><code>--ob-pill</code></div>
+<section id="cores"><h2>Cores e superfícies</h2><div class="ds-cores"><div class="ds-cor"><i style="background:var(--primary)"></i><b>Primária</b><br><code>--primary</code></div><div class="ds-cor"><i style="background:var(--accent-bg)"></i><b>Destaque suave</b><br><code>--accent</code></div><div class="ds-cor"><i style="background:var(--ring)"></i><b>Foco</b><br><code>--ring</code></div><div class="ds-cor"><i style="background:var(--ob-bg)"></i><b>Fundo da página</b><br><code>--ob-bg</code></div><div class="ds-cor"><i style="background:var(--ob-card)"></i><b>Cartão</b><br><code>--ob-card</code></div><div class="ds-cor"><i style="background:var(--ob-ink)"></i><b>Texto</b><br><code>--ob-ink</code></div><div class="ds-cor"><i style="background:var(--ob-muted)"></i><b>Texto suave</b><br><code>--ob-muted</code></div><div class="ds-cor"><i style="background:var(--ob-gold)"></i><b>Dourado</b><br><code>--ob-gold</code></div><div class="ds-cor"><i style="background:var(--ob-sand)"></i><b>Areia</b><br><code>--ob-sand</code></div><div class="ds-cor"><i style="background:var(--ob-sand-dark)"></i><b>Areia escura</b><br><code>--ob-sand-dark</code></div><div class="ds-cor"><i style="background:var(--ob-floor)"></i><b>Chão / divisória</b><br><code>--ob-floor</code></div><div class="ds-cor"><i style="background:var(--ob-line)"></i><b>Traço</b><br><code>--ob-line</code></div><div class="ds-cor"><i style="background:var(--ob-skin)"></i><b>Pele</b><br><code>--ob-skin</code></div><div class="ds-cor"><i style="background:var(--ob-dark)"></i><b>Escuro</b><br><code>--ob-dark</code></div><div class="ds-cor"><i style="background:var(--ob-pill)"></i><b>Botão pílula</b><br><code>--ob-pill</code></div>
 <div class="ds-cor"><i style="background:radial-gradient(circle at 50% 30%, var(--ob-sand), transparent 70%)"></i><b>Degradê do círculo</b><br><code>radial: areia → transparente</code></div>
 <div class="ds-cor"><i style="background:var(--ob-card);box-shadow:0 30px 60px -30px rgb(20 30 40 / .25)"></i><b>Sombra do cartão</b><br><code>0 30px 60px -30px</code></div>
 </div></section>
