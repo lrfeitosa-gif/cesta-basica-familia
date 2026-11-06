@@ -443,3 +443,64 @@ body:has(.barra-topo) {
 .au-titulo span { color: var(--accent); }
 .au-traco { background: var(--accent); }
 .au-ico { background: var(--accent-soft); color: var(--accent); }
+
+/* ===== Estilo 3 (tema verde-sálvia, fonte Tomorrow, cantos retos) — tokens do tema enviado ===== */
+:root {
+  --background: oklch(0.9842 0.0034 247.8575); --foreground: oklch(0.3013 0.0240 238.8090);
+  --card: oklch(1 0 0); --card-foreground: oklch(0.3193 0.0228 209.5983);
+  --primary: oklch(0.5200 0.0490 147.7951); --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9276 0.0058 264.5313); --secondary-foreground: oklch(0.4073 0.0290 176.1402);
+  --muted-bg: oklch(0.9670 0.0029 264.5419); --muted-foreground: oklch(0.3025 0.0164 156.1138);
+  --accent-bg: oklch(0.9181 0.0477 145.1734); --accent-foreground: oklch(0.4091 0.0226 200.5214);
+  --destructive: oklch(0.5664 0.2031 32.6994); --border: oklch(0.8717 0.0093 258.3382);
+  --input-bg: oklch(0.9163 0.0250 143.4909); --ring: oklch(0.7099 0.0954 147.5011);
+  --radius: 0.15rem;
+  --shadow: 0px 0px 14px -2px hsl(116 28.3% 10.4% / 0.10), 0px 1px 2px -3px hsl(116 28.3% 10.4% / 0.10);
+  --shadow-lg: 0px 0px 14px -2px hsl(116 28.3% 10.4% / 0.10), 0px 4px 6px -3px hsl(116 28.3% 10.4% / 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.2063 0.0120 277.8347); --foreground: oklch(0.9363 0.0433 183.9088);
+    --card: oklch(0.2810 0.0177 227.3784); --card-foreground: oklch(0.9363 0.0433 183.9088);
+    --primary: oklch(0.8556 0.1555 179.7932); --primary-foreground: oklch(0.2523 0.0373 174.7008);
+    --secondary: oklch(0.3675 0.0243 204.2418); --secondary-foreground: oklch(0.8717 0.0093 258.3382);
+    --muted-bg: oklch(0.2801 0.0188 225.3491); --muted-foreground: oklch(0.7137 0.0192 261.3246);
+    --accent-bg: oklch(0.3729 0.0306 259.7328); --accent-foreground: oklch(0.8717 0.0093 258.3382);
+    --destructive: oklch(0.7036 0.1665 59.0920); --border: oklch(0.4911 0.0340 196.1004);
+    --input-bg: oklch(0.4291 0.0366 195.8739); --ring: oklch(0.8556 0.1555 179.7932);
+    --shadow: 0px 0px 14px -2px hsl(175 100% 86% / 0.10), 0px 1px 2px -3px hsl(175 100% 86% / 0.10);
+    --shadow-lg: 0px 0px 14px -2px hsl(175 100% 86% / 0.10), 0px 4px 6px -3px hsl(175 100% 86% / 0.10);
+  }
+}
+/* o tema alimenta os tokens que as telas já usam */
+:root {
+  --bg: var(--background); --surface: var(--card); --ink: var(--foreground); --muted: var(--muted-foreground); --line: var(--border);
+  --accent: var(--primary); --accent-ink: var(--primary-foreground); --accent-soft: var(--accent-bg); --danger: var(--destructive);
+  --ob-bg: var(--background); --ob-ink: var(--foreground); --ob-muted: var(--muted-foreground); --ob-paper: var(--card);
+  --ob-pill: var(--primary); --ob-pill-ink: var(--primary-foreground); --ob-dot: var(--primary); --ob-dot-off: var(--border); --ob-line: var(--border);
+}
+* { outline-color: color-mix(in srgb, var(--ring) 50%, transparent); }
+body { background-color: var(--background); color: var(--foreground); }
+h1, h2, .brand, .ob-titulo, .au-titulo, .logo-nome { font-family: var(--body); letter-spacing: 0; }
+h1, .ob-titulo, .au-titulo { font-weight: 600; }
+.btn, .input, .card, .lista, .nota-lista, .empty, .fontes, .alerta-card, .ranking, .adm-numeros > div, .alert, .destaque, .dupla,
+.choice label, .ob-pill, .au-campo, .au-ico, .au-google .btn, .au-card, .au .alert, .menu-conta > div, .marca-sel { border-radius: var(--radius); }
+.card, .lista, .nota-lista, .fontes, .alerta-card, .ranking, .adm-numeros > div, .au-campo, .au-google .btn { box-shadow: var(--shadow); backdrop-filter: none; }
+.btn-primary, .ob-pill { background: var(--primary); color: var(--primary-foreground); box-shadow: var(--shadow-lg); }
+.btn-secondary { background: var(--secondary); color: var(--secondary-foreground); border-color: var(--border); }
+.input, .au-campo { background: var(--card); border-color: var(--input-bg); }
+.au-campo:focus-within, .input:focus { border-color: var(--ring); }
+.au-ico { background: var(--accent-bg); color: var(--accent-foreground); }
+.au-card { background: color-mix(in srgb, var(--card) 88%, transparent); box-shadow: var(--shadow-lg); }
+.ob { background: var(--background); }
+.ob-ilustra img { border-radius: var(--radius); }
+
+/* Fundo da área logada: imagem menor, carrinho encostado embaixo */
+body:has(.barra-topo), body:has(.barra-topo) { background:
+  linear-gradient(color-mix(in srgb, var(--background) 35%, transparent), color-mix(in srgb, var(--background) 35%, transparent)),
+  url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat fixed, var(--background); }
+@media (prefers-color-scheme: dark) {
+  body:has(.barra-topo) { background:
+    linear-gradient(color-mix(in srgb, var(--background) 85%, transparent), color-mix(in srgb, var(--background) 85%, transparent)),
+    url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat fixed, var(--background); }
+}

@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import type { Metadata, Viewport } from 'next';
-import { Barlow_Condensed, Nunito_Sans } from 'next/font/google';
+import { Barlow_Condensed, Tomorrow } from 'next/font/google';
 import RegistrarSW from './registrar-sw';
 import { FundoCarrinho } from './logo';
 import './globals.css';
 
 const display = Barlow_Condensed({ subsets: ['latin'], weight: ['600', '700', '800'], variable: '--font-display' });
-const body = Nunito_Sans({ subsets: ['latin'], variable: '--font-body' });
+const body = Tomorrow({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-body' });
 
 export const metadata: Metadata = {
   title: 'fast-promotions-mk',
