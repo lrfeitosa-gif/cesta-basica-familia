@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ ...o, lista }, {
       headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600' },
     });
-  } catch {
-    return NextResponse.json({ erro: 'falha' }, { status: 502 });
+  } catch (e) {
+    return NextResponse.json({ erro: 'falha', detalhe: String((e as { message?: string })?.message ?? e).slice(0, 300) }, { status: 502 });
   }
 }
