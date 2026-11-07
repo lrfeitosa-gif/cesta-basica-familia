@@ -49,6 +49,12 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python rodar_coleta.py ${{ steps.alvo.outputs.lista }}
+      - name: Ligar produtos ao cadastro base
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python catalogo.py || echo "cadastro base ainda não criado (migração 0011)"
       - name: Resumo do banco
         if: always()
         env:

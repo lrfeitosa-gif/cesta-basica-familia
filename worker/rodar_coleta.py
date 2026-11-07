@@ -21,6 +21,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from supabase import create_client
 
+import catalogo
 from coleta import encartes, goodbom, svicente, vtex
 from coleta.vtex import embalagem
 
@@ -106,6 +107,12 @@ def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None)
         lote = lista[i:i + 200]
         produtos = tentar(lambda: db.table("produto").upsert([n["produto"] for n in lote], on_conflict="chave").execute().data)
         ids = {p["chave"]: p["id"] for p in produtos}
+        novos = [p for p in produtos if not p.get("item_base_origem")]
+        if novos:
+            try:   # liga ao cadastro base (migração 0011); sem a migração, segue sem ligar
+                catalogo.ligar(db, novos)
+            except Exception as erro:
+                print(f"{mercado}: catálogo não ligado – {str(erro)[:120]}", flush=True)
         # oferta de encarte vencida (validade antes do dia) não entra naquele dia
         linhas = [{**n["oferta"], "produto_id": ids[n["produto"]["chave"]], "mercado_id": mercado_id, "valido_de": dia}
                   for n in lote for dia in dias
