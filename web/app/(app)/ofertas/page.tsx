@@ -78,17 +78,19 @@ export default function Oportunidades() {
         </Link>
       )}
 
-      {erro && <ErroCarga tentarDeNovo={tentarDeNovo} />}
-      {!dados && !erro && (previa && opp.length ? (
+      {erro && !(previa && opp.length) && <ErroCarga tentarDeNovo={tentarDeNovo} />}
+      {!dados && (previa && opp.length ? (
         <>
           <div className="lista">
             {opp.slice(0, POR_PAGINA).map(({ o, desc }) => (
               <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} extra={<span className="off">−{Math.round(desc * 100)}%</span>} />
             ))}
           </div>
-          <p className="muted" role="status">Carregando os demais preços para busca e filtros…</p>
+          {erro ? (
+            <button type="button" className="btn btn-secondary btn-block" onClick={tentarDeNovo}>Carregar todos os preços</button>
+          ) : <p className="muted" role="status">Carregando a busca e os filtros…</p>}
         </>
-      ) : <Carregando />)}
+      ) : !erro && <Carregando />)}
       {dados && (
         <>
           <div className="chips" role="group" aria-label="Filtrar por categoria">

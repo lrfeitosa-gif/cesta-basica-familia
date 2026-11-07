@@ -1,5 +1,5 @@
-'use client';
-import { useEffect, useState } from 'react';
+// Sem 'use client': a rota /api/ofertas também usa buscarOfertas no servidor.
+import * as React from 'react';   // hooks via React.* para o arquivo servir também à rota do servidor
 import { supabase } from './supabase';
 
 export type Oferta = {
@@ -57,14 +57,14 @@ export function carregarOfertas(): Promise<Ofertas> {
 // Preços do dia para as telas, com estado de erro e "tentar de novo".
 // Atualiza sozinho quando alguém marca uma oferta como esgotada.
 export function useOfertas() {
-  const [dados, setDados] = useState<Ofertas | null>(null);
-  const [erro, setErro] = useState(false);
-  const [tentativa, setTentativa] = useState(0);
-  useEffect(() => {
+  const [dados, setDados] = React.useState<Ofertas | null>(null);
+  const [erro, setErro] = React.useState(false);
+  const [tentativa, setTentativa] = React.useState(0);
+  React.useEffect(() => {
     setErro(false);
     carregarOfertas().then(setDados).catch(() => setErro(true));
   }, [tentativa]);
-  useEffect(() => { ouvintes.add(setDados); return () => { ouvintes.delete(setDados); }; }, []);
+  React.useEffect(() => { ouvintes.add(setDados); return () => { ouvintes.delete(setDados); }; }, []);
   return { dados, erro, tentarDeNovo: () => setTentativa((t) => t + 1) };
 }
 
@@ -126,7 +126,20 @@ function paraOfertas(linhas: Linha[], esgotadas: Set<number>): Oferta[] {
   return lista;
 }
 
+// No aparelho: primeiro a versão pronta do servidor (um arquivo só, em cache); se falhar, consulta o banco direto.
 async function buscar(): Promise<Ofertas> {
+  try {
+    const r = await fetch('/api/ofertas');
+    if (!r.ok) throw new Error(String(r.status));
+    const o = (await r.json()) as Ofertas;
+    for (const x of o.lista) x.busca = norm(`${x.nome} ${x.marca} ${x.q}${x.u} ${x.categoria} ${grupo(x.categoria)}`);
+    return o;
+  } catch {
+    return buscarOfertas();
+  }
+}
+
+export async function buscarOfertas(): Promise<Ofertas> {
   // Último dia (até hoje, em Brasília) com coleta dos sites. Prints de encarte são gravados também para dias
   // futuros e, sozinhos, não podem virar "o dia mais recente"; no dia escolhido eles também estão presentes.
   const dia = await diaAtual();
