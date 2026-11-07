@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
 import { horaBr } from '@/lib/ofertas';
+import Link from 'next/link';
 
 type Usuario = {
   id: string; email: string; criado_em: string; confirmado_em: string | null; ultimo_login: string | null; convite: string | null;
@@ -87,6 +88,7 @@ export default function Admin() {
     <>
       <div>
         <h1>Administração</h1>
+        <p><Link href="/admin/catalogo" className="btn btn-secondary">Cadastro base de produtos →</Link></p>
         <p className="lead">Contas, uso e volume do piloto.</p>
       </div>
 

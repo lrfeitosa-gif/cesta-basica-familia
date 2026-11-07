@@ -2,7 +2,7 @@
 
 Regra: a 1ª palavra do nome do produto é a 1ª palavra do item base e as outras palavras do item aparecem no nome
 (ou o nome começa com o item inteiro); nenhuma exclusão aparece. Vale o item base mais específico (mais palavras).
-Produtos decididos no admin (item_base_origem = 'admin') nunca são mexidos.
+Produtos decididos no admin (origem "admin" ou "fora") nunca são mexidos.
 
 Uso:
     python catalogo.py            # liga os produtos ainda sem decisão (rápido; roda depois de cada coleta)
@@ -68,7 +68,7 @@ def ligar(db, produtos: list[dict], cat: Catalogo | None = None) -> int:
     for item, ids in grupos.items():
         for i in range(0, len(ids), 300):
             (db.table("produto").update({"item_base_id": item, "item_base_origem": "regra" if item else "sem"})
-             .in_("id", ids[i:i + 300]).or_("item_base_origem.is.null,item_base_origem.neq.admin").execute())
+             .in_("id", ids[i:i + 300]).or_("item_base_origem.is.null,item_base_origem.in.(regra,sem)").execute())
         if item:
             ligados += len(ids)
     return ligados

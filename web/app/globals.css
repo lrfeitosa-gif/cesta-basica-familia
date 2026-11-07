@@ -542,3 +542,13 @@ nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-in
 :root { --muted: #3d4752; }
 .aviso-nota { color: var(--ink); font-weight: 600; background: var(--surface); border-radius: var(--radius); padding: 10px 14px; margin: 0; }
 @media (prefers-color-scheme: dark) { :root { --muted: #c3cbd4; } }
+
+/* Admin: cadastro base */
+.cat-itens { display: grid; gap: 6px; }
+.cat-item { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--surface); display: grid; gap: 8px; }
+.cat-inativo { opacity: .6; }
+.cat-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cat-cab .btn-link { text-align: left; }
+.cat-produtos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 420px; overflow-y: auto; }
+.cat-produtos li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: .85rem; border-top: 1px solid var(--line); padding-top: 4px; }
+.cat-produtos select { max-width: 45%; }
