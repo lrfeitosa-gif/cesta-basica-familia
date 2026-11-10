@@ -4,11 +4,18 @@
 export type ItemBase = { id: number; termo: string; nome: string; exclusoes: string[]; ativo: boolean };
 
 const LIGACAO = new Set(['de', 'do', 'da', 'em', 'com', 'e', 'tipo', '1', '500g']);
+const PLURAIS_IRREGULARES: Record<string, string> = { ais: 'al', eis: 'el', ois: 'ol', uis: 'ul' };
 
 export const normCat = (s: string | null | undefined) =>
   (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean).join(' ');
 
-const raiz = (w: string) => (w.endsWith('es') && w.length > 4 ? w.slice(0, -2) : w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w);
+const raiz = (w: string) => {
+  if (w.length > 3 && (w.endsWith('oes') || w.endsWith('aes'))) return `${w.slice(0, -3)}ao`;
+  const final = w.slice(-3);
+  if (w.length > 4 && final in PLURAIS_IRREGULARES) return w.slice(0, -3) + PLURAIS_IRREGULARES[final];
+  if (w.endsWith('es') && w.length > 4 && ['r', 'z'].includes(w[w.length - 3])) return w.slice(0, -2);
+  return w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w;
+};
 
 export function criarClassificador(itens: ItemBase[]) {
   const regras = itens.filter((i) => i.ativo).map((i) => ({

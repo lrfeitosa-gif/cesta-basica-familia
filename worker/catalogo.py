@@ -15,6 +15,7 @@ import re
 import unicodedata
 
 LIGACAO = {"de", "do", "da", "em", "com", "e", "tipo", "1", "500g"}
+PLURAIS_IRREGULARES = {"ais": "al", "eis": "el", "ois": "ol", "uis": "ul"}
 
 
 def norm(s: str | None) -> str:
@@ -24,9 +25,14 @@ def norm(s: str | None) -> str:
 
 
 def raiz(w: str) -> str:
-    """Singular simples: 'ovos' -> 'ovo', 'limoes' -> 'limo' (vale igual para item e produto)."""
+    """Reduz plurais comuns do português à forma singular normalizada."""
+    if len(w) > 3 and w.endswith(("oes", "aes")):
+        return w[:-3] + "ao"
+    if len(w) > 4 and w[-3:] in PLURAIS_IRREGULARES:
+        return w[:-3] + PLURAIS_IRREGULARES[w[-3:]]
     if w.endswith("es") and len(w) > 4:
-        return w[:-2]
+        if w[-3] in {"r", "z"}:
+            return w[:-2]
     if w.endswith("s") and len(w) > 3:
         return w[:-1]
     return w
