@@ -103,7 +103,7 @@ export async function carregarPrevia(): Promise<Oferta[]> {
   const dia = await diaAtual();
   const { data, error } = await supabase.from('oferta').select(SEL).eq('valido_de', dia).not('preco_de', 'is', null).limit(400);
   if (error) throw error;
-  return paraOfertas(data as unknown as Linha[], new Set());
+  return paraOfertas(data as unknown as Linha[], new Set(), dia);
 }
 
 const SEL = 'id,preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)';
@@ -123,10 +123,30 @@ function diaAtual(): Promise<string> {
 const textoBusca = (nome: string, marca: string, q: number, u: string, categoria: string, mercado: string) =>
   norm(`${nome} ${marca} ${q}${u} ${categoria} ${grupo(categoria)} ${mercado}`);
 
-function paraOfertas(linhas: Linha[], esgotadas: Set<number>): Oferta[] {
+// Encarte com oferta de dia certo ("Só 09/11; ...", "Só 09 e 10/11"): devolve os dias "dd/mm"; null = vale o encarte todo.
+export function diasDaCondicao(cond: string | null | undefined): string[] | null {
+  const m = (cond ?? '').match(/^\s*s[óo]\s+([^;]+)/i);
+  if (!m) return null;
+  const toks = [...m[1].matchAll(/(\d{1,2})(?:\/(\d{1,2}))?/g)];
+  if (!toks.some((t) => t[2])) return null;
+  const dias: string[] = [];
+  let mes = '';
+  for (let i = toks.length - 1; i >= 0; i--) {   // "09 e 10/11": o mês vem no último
+    if (toks[i][2]) mes = toks[i][2].padStart(2, '0');
+    dias.unshift(`${toks[i][1].padStart(2, '0')}/${mes}`);
+  }
+  return dias;
+}
+const valeNoDia = (cond: string | null, dia: string) => {
+  const dias = diasDaCondicao(cond);
+  return !dias || dias.includes(`${dia.slice(8, 10)}/${dia.slice(5, 7)}`);
+};
+
+function paraOfertas(linhas: Linha[], esgotadas: Set<number>, dia: string): Oferta[] {
   const lista: Oferta[] = [];
   for (const l of linhas) {
     if (esgotadas.has(l.id)) continue;
+    if (!valeNoDia(l.condicao, dia)) continue;   // "Só 09/11" não aparece no dia 11
     const p = l.produto;
     if (!p || !l.mercado) continue;
     const base = p.unidade === 'g' || p.unidade === 'ml' ? p.quantidade / 1000 : p.quantidade;
@@ -172,7 +192,7 @@ export async function buscarOfertas(): Promise<Ofertas> {
   const linhas: Linha[] = [];
   for (const { data, error } of paginas) { if (error) throw error; linhas.push(...(data as unknown as Linha[])); }
   const esgotadas = new Set((esg.data ?? []).map((e: { oferta_id: number }) => e.oferta_id));
-  const lista = paraOfertas(linhas, esgotadas);
+  const lista = paraOfertas(linhas, esgotadas, dia);
   padronizarMarcas(lista);
   const info = new Map<string, InfoMercado>();
   for (const l of linhas) {
