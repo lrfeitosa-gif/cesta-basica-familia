@@ -2,7 +2,7 @@ name: Medir precisão do extrator de encartes
 
 # Lê um encarte com cada modelo e compara com o gabarito transcrito à mão (gabarito.json na pasta do encarte).
 # Não grava nada no banco. Botão "Run workflow" na aba Actions; o resultado (tabela item por item) fica no Summary.
-# Medições de 11/11/2026 (Assaí 26/10, páginas 1 a 3): Opus 99% dos preços certos, Sonnet 99%, Haiku 96%, Groq 82-86%.
+# Primeiras medições (11/11/2026) usaram um comparador com falhas; refazer antes de decidir o modelo.
 on:
   workflow_dispatch:
     inputs:
@@ -55,6 +55,11 @@ jobs:
               *)      echo "::warning::modelo desconhecido: $m" ;;
             esac
             echo "::endgroup::"
+          done
+          # o que cada modelo leu fica no log, para recalcular a tabela sem rodar os modelos de novo
+          for f in opus-*.json sonnet-*.json haiku-*.json gemini-*.json groq-*.json; do
+            [ -f "$f" ] || continue
+            echo "::group::leitura $f"; cat "$f"; echo; echo "::endgroup::"
           done
       - name: Tabela item por item
         if: always()

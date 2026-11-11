@@ -152,3 +152,27 @@ def test_pdf_vira_imagens():
     pdf.save(buf)
     paginas = extrator._paginas(buf.getvalue(), "application/pdf")
     assert len(paginas) == 2 and all(t == "image/jpeg" and d[:2] == b"\xff\xd8" for d, t in paginas)
+
+
+def test_gemini_pede_raciocinio_curto_e_tenta_de_novo_na_sobrecarga(ambiente, monkeypatch):
+    monkeypatch.setenv("EXTRATOR", "gemini")
+    pedidos = []
+    fila = [httpx.Response(503, text="alta demanda"), resposta_gemini(json.dumps({"ofertas": [ITEM]}))]
+
+    def responder(req):
+        pedidos.append(json.loads(req.content))
+        return fila.pop(0)
+
+    e = extrator.extrair("x.jpg", http=httpx.Client(transport=httpx.MockTransport(responder)))
+    assert len(e.ofertas) == 1 and ambiente["claude"] == 0 and len(pedidos) == 2
+    assert pedidos[0]["generationConfig"]["thinkingConfig"]["thinkingLevel"] == "low"
+
+
+def test_gemini_demorando_sempre_vai_para_o_claude(ambiente, monkeypatch):
+    monkeypatch.setenv("EXTRATOR", "gemini")
+
+    def demora(req):
+        raise httpx.ReadTimeout("demorou", request=req)
+
+    extrator.extrair("x.jpg", http=httpx.Client(transport=httpx.MockTransport(demora)))
+    assert ambiente["claude"] == 1

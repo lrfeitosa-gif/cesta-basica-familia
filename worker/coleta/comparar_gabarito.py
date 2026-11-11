@@ -44,9 +44,23 @@ def _nota(e: dict, g: dict) -> float:
     marca não lida: o nome tem que ser bem parecido (>= 0,75). Sem isso, um item que o modelo não leu
     "pegava" o preço de um produto qualquer e virava um falso erro de preço."""
     parecido = _parecido(e["produto"], g["produto"])
-    if _norm(e.get("marca")) == _norm(g["marca"]):
+    if _mesma_marca(e.get("marca"), g["marca"]):
         return parecido + 1 if parecido >= 0.35 else 0     # +1: par da mesma marca vem antes
-    return parecido if parecido >= 0.75 else 0
+    if _norm(e.get("marca")):
+        return 0                                           # marca lida e diferente: é outro produto
+    # marca não lida: vale o nome completo bem parecido
+    completo = _parecido(e["produto"], f"{g['marca']} {g['produto']}")
+    melhor = max(parecido, completo)
+    return melhor if melhor >= 0.75 else 0
+
+
+def _mesma_marca(a: str | None, b: str | None) -> bool:
+    """Mesma marca, mesmo escrita de outro jeito: "Ana Maria" e "Ana Maria Pullman", "Maggi" e "Maggi Meu Segredo"
+    (a linha do produto às vezes vem na marca) ou "Agifácil" e "Agiifácil" (erro de leitura)."""
+    a, b = _norm(a), _norm(b)
+    if not (a and b):
+        return False
+    return a == b or a.startswith(b + " ") or b.startswith(a + " ") or SequenceMatcher(None, a, b).ratio() >= 0.8
 
 
 def _parear(gabarito: list[dict], extraido: list[dict]) -> dict[int, int]:
