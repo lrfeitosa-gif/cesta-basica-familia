@@ -1,0 +1,47 @@
+name: Medir precisão do extrator de encartes
+
+# Lê as páginas 1 a 3 do encarte do Assaí de 26/10 com a Groq e com o Claude e compara com o gabarito
+# transcrito à mão. Não grava nada no banco. Botão "Run workflow" na aba Actions.
+on:
+  workflow_dispatch:
+
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: worker
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      PAGINAS: ../encartes/assai/2026-10-26/p1-higiene-limpeza.jpg ../encartes/assai/2026-10-26/p2-frios-bebidas.jpg ../encartes/assai/2026-10-26/p3-mercearia.jpg
+      GABARITO: ../encartes/assai/2026-10-26/gabarito.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: worker/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Groq (com o Claude como reserva por página)
+        env:
+          EXTRATOR: groq
+        run: |
+          [ -n "$GROQ_API_KEY" ] || { echo "Falta o segredo GROQ_API_KEY no GitHub"; exit 1; }
+          i=0; for p in $PAGINAS; do i=$((i+1)); python -m coleta.extrator "$p" --mercado Assaí --saida groq-$i.json; done
+          echo '## Groq (com reserva no Claude)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python -m coleta.comparar_gabarito "$GABARITO" groq-*.json | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Claude (como é hoje)
+        if: always()
+        env:
+          EXTRATOR: claude
+        run: |
+          i=0; for p in $PAGINAS; do i=$((i+1)); python -m coleta.extrator "$p" --mercado Assaí --saida claude-$i.json; done
+          echo '## Claude' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python -m coleta.comparar_gabarito "$GABARITO" claude-*.json | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
