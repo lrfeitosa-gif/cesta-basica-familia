@@ -45,6 +45,19 @@ function tamanhoReferencia(l: Oferta[]): { base: number; ub: string } | null {
 }
 const fmtTam = (r: { base: number; ub: string }) =>
   r.ub === 'un' ? `${r.base} un` : r.base < 1 ? `${Math.round(r.base * 1000)} ${r.ub === 'l' ? 'ml' : 'g'}` : `${String(r.base).replace('.', ',')} ${r.ub}`;
+// Itens contados por unidade mesmo quando o site informa o peso (cápsulas: "10 Cápsulas 110g", "18x4,4g").
+const POR_UNIDADE = /(^|\s)capsulas?(\s|$)/;
+const contagem = (o: Oferta) => {
+  if (o.u === 'un') return o.q;
+  const n = norm(o.nome);
+  const m = n.match(/(\d+)\s*(capsulas?|unidades?|unid|un)\b/) ?? n.match(/(\d+)\s*x\s*\d/);
+  return m ? Number(m[1]) : 0;
+};
+// Mediana: um preço fora da curva (cadastro errado num mercado) não puxa a estimativa.
+const mediana = (xs: number[]) => {
+  const o = [...xs].sort((a, b) => a - b), k = Math.floor(o.length / 2);
+  return o.length % 2 ? o[k] : (o[k - 1] + o[k]) / 2;
+};
 const ehHorti = (o: Oferta) => (o.u === 'g' || o.u === 'kg') && grupo(o.categoria) === 'Hortifruti';
 // Frutas, legumes e verduras: item que começa com um destes nomes compara pelo preço do quilo, sem marca.
 const HORTIFRUTI = new Set(('abacate abacaxi abobora abobrinha acelga agriao alface alho ameixa banana batata berinjela '
@@ -221,9 +234,10 @@ export default function MinhaCompra() {
 
   // todas as ofertas que servem para cada item (qualquer marca). Item de hortifruti (com "kg" no nome ou quando
   // a maior parte do que a busca encontra é fruta, legume ou verdura) compara pelo preço do quilo, sem marca.
-  const { candidatos, kgs, refs } = useMemo(() => {
+  const { candidatos, kgs, unis, refs } = useMemo(() => {
     const r: Record<string, Oferta[]> = {};
     const kgs = new Set<string>();
+    const unis = new Set<string>();   // comparados pelo preço de cada unidade (cápsulas)
     const refs: Record<string, { base: number; ub: string }> = {};
     const lista = dados?.lista ?? [];
     for (const c of todos) {
@@ -236,7 +250,14 @@ export default function MinhaCompra() {
           r[c.id] = filtrar(lista, termo).filter((o) => ehHorti(o) && norm(o.nome).startsWith(inicio) && !PROCESSADO.test(norm(o.nome)));
         } else {
           r[c.id] = tirarVariantes(termo, filtrarFoco(lista, termo));
-          if (!TEM_TAMANHO.test(termo)) {
+          if (POR_UNIDADE.test(norm(termo)) && !TEM_TAMANHO.test(termo)) {
+            // cápsulas: pelo preço de cada uma; referência = caixa mais comum (geralmente 10)
+            r[c.id] = r[c.id].filter((o) => contagem(o) > 0);
+            const conta = new Map<number, number>();
+            for (const o of r[c.id]) conta.set(contagem(o), (conta.get(contagem(o)) ?? 0) + 1);
+            const [n] = [...conta.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+            if (n) { unis.add(c.id); refs[c.id] = { base: n, ub: 'un' }; }
+          } else if (!TEM_TAMANHO.test(termo)) {
             // sem tamanho: compara pelo preço do litro/quilo, com o tamanho mais comum como referência
             const ref = tamanhoReferencia(r[c.id]);
             // por unidade (ovos, rolos, folhas), só pacotes de tamanho parecido (até 3x maior ou menor): a bandeja de
@@ -259,10 +280,15 @@ export default function MinhaCompra() {
         refs[c.id] = { base: c.u === 'g' || c.u === 'ml' ? c.q! / 1000 : c.q!, ub: c.u === 'g' ? 'kg' : c.u === 'ml' ? 'l' : c.u! };
       }
     }
-    return { candidatos: r, kgs, refs };
+    return { candidatos: r, kgs, unis, refs };
   }, [dados, todos]);
   // preço usado na comparação: por kg (hortifruti), pelo tamanho de referência (sem tamanho) ou o da etiqueta
-  const v = (c: ItemCesta, o: Oferta) => (kgs.has(c.id) ? o.porUn : refs[c.id] ? o.porUn * refs[c.id].base : o.preco);
+  // pu: preço por quilo/litro/unidade (cápsula: preço de cada uma)
+  const pu = (c: ItemCesta, o: Oferta) => (unis.has(c.id) ? o.preco / contagem(o) : o.porUn);
+  const v = (c: ItemCesta, o: Oferta) => (kgs.has(c.id) ? o.porUn : refs[c.id] ? pu(c, o) * refs[c.id].base : o.preco);
+  // como o item é medido, para mostrar junto do nome ("1,9 kg", "10 un") e na base da estimativa
+  const tamTxt = (c: ItemCesta) => (refs[c.id] && !c.q ? ` (${fmtTam(refs[c.id])})` : '');
+  const unTxt = (c: ItemCesta) => (unis.has(c.id) ? 'cápsula' : kgs.has(c.id) ? 'kg' : refs[c.id]?.ub ?? '');
   const novoPrevia = useMemo(() => (dados && novo.trim() ? filtrarFoco(dados.lista, novo).length : null), [dados, novo]);
   // marcas do item, sem repetir grafias e mostrando quantos mercados têm cada uma
   const marcasDe = (id: string) => {
@@ -290,16 +316,17 @@ export default function MinhaCompra() {
       }
     }
     return r;
-  }, [candidatos, kgs, refs, marcas, todos]);
+  }, [candidatos, kgs, unis, refs, marcas, todos]);
 
   if (erro) return <><h1>Minha compra</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
 
   const itens = todos.filter((c) => sel[c.id]);
-  // média do item entre os mercados que têm preço: estimativa para quem não tem
+  // mediana do item entre os mercados que têm preço: estimativa para quem não tem
   const media: Record<string, number> = {};
+  const nMedia: Record<string, number> = {};
   for (const c of itens) {
     const ps = Object.values(porItem[c.id]).map((o) => v(c, o));
-    if (ps.length) media[c.id] = ps.reduce((s, p) => s + p, 0) / ps.length;
+    if (ps.length) { media[c.id] = mediana(ps); nMedia[c.id] = ps.length; }
   }
   const ranking = (dados?.mercados ?? []).map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
@@ -308,9 +335,9 @@ export default function MinhaCompra() {
       const o = porItem[c.id][m];
       if (o) { total += v(c, o) * sel[c.id]; escolhas.push({ c, o }); }
       else {
-        // marca fixada e ausente aqui: estima pela média das outras marcas deste mercado, se houver
+        // marca fixada e ausente aqui: estima pela mediana das outras marcas deste mercado, se houver
         const outras = marcas[c.id] ? candidatos[c.id].filter((x) => x.mercado === m) : [];
-        const un = outras.length ? outras.reduce((s, x) => s + v(c, x), 0) / outras.length : (media[c.id] ?? 0);
+        const un = outras.length ? mediana(outras.map((x) => v(c, x))) : (media[c.id] ?? 0);
         falta.push(c.rotulo);
         estimado += un * sel[c.id];
         estimados.push({ c, valor: un * sel[c.id], outrasMarcas: outras.length > 0 });
@@ -390,7 +417,7 @@ export default function MinhaCompra() {
           {(() => { const d = locais.distancia(top.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
           {top.falta.length > 0 && (
             <span className="cond">
-              Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pela média dos outros mercados).
+              Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pelo preço do meio dos outros mercados).
             </span>
           )}
           {melhorCompleto && (
@@ -446,7 +473,7 @@ export default function MinhaCompra() {
                 <span className="falta">
                   Sem preço hoje: {r.falta.join(', ')}.{' '}
                   {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
-                  Estimado pela média dos outros mercados.
+                  Estimado pelo preço do meio dos outros mercados.
                 </span>
               )}
               {r.escolhas.length > 0 && (
@@ -454,15 +481,16 @@ export default function MinhaCompra() {
                   <summary>Ver marcas e preços</summary>
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
-                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{refs[c.id] && !c.q ? ` (${fmtTam(refs[c.id])})` : ''}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
-                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(o.porUn)}/{o.ub}</>}
+                      <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{tamTxt(c)}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
+                        {brl(o.preco)}{(kgs.has(c.id) || refs[c.id]) && <> · {brl(pu(c, o))}/{unis.has(c.id) ? 'cápsula' : o.ub}</>}
                         {' '}<span className="subtotal">= {brl(v(c, o) * sel[c.id])}</span></li>
                     ))}
                     {r.estimados.map(({ c, valor, outrasMarcas }) => (
                       <li key={c.id} className="estimado">
-                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: {!marcas[c.id] ? 'sem preço neste mercado, média dos outros'
-                          : outrasMarcas ? 'sem preço para esta marca, média das outras marcas'
-                          : 'sem preço para esta marca, média dos outros mercados'}{' '}
+                        {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{tamTxt(c)}: {!marcas[c.id] ? 'sem preço neste mercado'
+                          : 'sem preço para esta marca'}, estimado pelo preço do meio {outrasMarcas ? 'das outras marcas deste mercado'
+                          : `de ${nMedia[c.id] ?? 0} ${nMedia[c.id] === 1 ? 'mercado' : 'mercados'}`}
+                        {refs[c.id] && !kgs.has(c.id) && valor > 0 && <> ({brl(valor / sel[c.id] / refs[c.id].base)}/{unTxt(c)} × {fmtTam(refs[c.id])})</>}{' '}
                         <span className="subtotal">≈ {brl(valor)}</span>
                       </li>
                     ))}
@@ -480,7 +508,7 @@ export default function MinhaCompra() {
       )}
       <p className="muted">
         Roldão, Sumerbol e Assaí entram só com os itens em promoção nos encartes. Quando falta preço,
-        o total usa a média dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
+        o total usa o preço do meio (mediana) dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
       </p>
       </>}
 
@@ -524,7 +552,7 @@ export default function MinhaCompra() {
             É fruta, legume ou verdura (compara pelo preço do quilo, sem marca)
           </label>
           <span className="help">
-            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (350ml, 1kg). A caixa de hortifruti é marcada sozinha quando reconhecemos o nome.'
+            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (350ml, 1kg). Use - para tirar o que não quer: café -cápsula. A caixa de hortifruti é marcada sozinha quando reconhecemos o nome.'
               : novoPrevia ? `${novoPrevia} preços encontrados hoje.` : 'Nenhum preço hoje com essas palavras. Tente menos palavras.'}
           </span>
           {avisoNovo && <div className="alert alert-error" role="alert">{avisoNovo}</div>}

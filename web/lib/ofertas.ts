@@ -230,7 +230,7 @@ export const marcaCasa = (marcaOferta: string, digitada: string) => {
 // mantém todos os que contêm as palavras.
 export function filtrarFoco(lista: Oferta[], consulta: string): Oferta[] {
   const achados = filtrar(lista, consulta);
-  const primeira = norm(consulta).split(/\s+/).find((t) => t && !t.startsWith('-'));
+  const primeira = partesDaBusca(lista, consulta).termos[0]?.[0];
   if (!primeira) return achados;
   const foco = achados.filter((o) => norm(o.nome).startsWith(primeira));
   return foco.length ? foco : achados;
@@ -240,12 +240,25 @@ export function filtrarFoco(lista: Oferta[], consulta: string): Oferta[] {
 const GRAFIAS: string[][] = [['taiti', 'tahiti'], ['ketchup', 'catchup']];
 const variantes = (t: string): string[] => GRAFIAS.find((g) => g.includes(t)) ?? [t];
 
-// Filtro composto: todas as palavras precisam aparecer; "-palavra" (ou "- palavra") exclui.
-export function filtrar(lista: Oferta[], consulta: string): Oferta[] {
+// Palavras da busca. "-palavra" (ou "- palavra") exclui. Hífen colado ("café-cápsula") também exclui, a menos que
+// a palavra com hífen exista nos produtos ("lava-roupas", "tira-manchas"): aí é buscada como está.
+function partesDaBusca(lista: Oferta[], consulta: string): { termos: string[][]; fora: string[] } {
   const partes = norm(consulta).replace(/(\d+)\s+(kg|g|ml|l)\b/g, '$1$2').replace(/(^|\s)-\s+(?=\S)/g, '$1-')
-    .split(/\s+/).filter(Boolean);
-  const termos = partes.filter((t) => !t.startsWith('-')).map(variantes);
-  const fora = partes.filter((t) => t.startsWith('-') && t.length > 1).map((t) => t.slice(1));
+    .split(/\s+/).filter(Boolean)
+    .flatMap((t) => {
+      const m = t.match(/^(-?[^-]+)-(.+)$/);
+      if (!m || lista.some((o) => o.busca.includes(t.replace(/^-/, '')))) return [t];
+      return [m[1], ...m[2].split('-').filter(Boolean).map((x) => `-${x}`)];
+    });
+  return {
+    termos: partes.filter((t) => !t.startsWith('-')).map(variantes),
+    fora: partes.filter((t) => t.startsWith('-') && t.length > 1).map((t) => t.slice(1)),
+  };
+}
+
+// Filtro composto: todas as palavras precisam aparecer; as marcadas com "-" ficam de fora.
+export function filtrar(lista: Oferta[], consulta: string): Oferta[] {
+  const { termos, fora } = partesDaBusca(lista, consulta);
   if (!termos.length) return [];
   return lista.filter((o) => termos.every((vs) => vs.some((t) => o.busca.includes(t))) && !fora.some((t) => o.busca.includes(t)));
 }

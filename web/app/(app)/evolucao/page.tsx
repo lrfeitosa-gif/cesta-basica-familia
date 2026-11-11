@@ -12,7 +12,9 @@ type Serie = { mercado: string; pontos: Ponto[]; cor: string };
 type ItemBase = { id: number; nome: string };
 // Escolha: um item genérico do cadastro base (todas as marcas e tamanhos, pelo preço do quilo/litro)
 // ou um produto específico (mesmo código de barras, ou mesmo nome e tamanho).
-type Escolha = { item: ItemBase } | { produto: Oferta };
+// ou todos os produtos achados pela busca juntos (mesma categoria, todas as marcas, pelo preço do quilo/litro).
+type Escolha = { item: ItemBase } | { produto: Oferta } | { grupo: { busca: string; produtos: Oferta[] } };
+const chaveProd = (ean: string | null, nome: string, q: number, u: string) => `${ean || nome}|${Number(q)}${u}`;
 
 // Evolução do preço ao longo das coletas: uma linha por mercado, no período escolhido.
 export default function Evolucao() {
@@ -33,18 +35,31 @@ export default function Evolucao() {
   const itensAchados = useMemo(() => {
     const termos = norm(q).split(/\s+/).filter(Boolean);
     if (!termos.length) return [];
-    return itens.filter((i) => termos.every((t) => norm(i.nome).includes(t))).slice(0, 8);
+    // "arroz" acha "Arroz branco"; "arroz branco tipo 1 5 kg" também (todas as palavras do item estão na busca)
+    const busca = ` ${termos.join(' ')} `;
+    return itens.filter((i) => termos.every((t) => norm(i.nome).includes(t))
+      || norm(i.nome).split(/\s+/).every((w) => busca.includes(` ${w} `))).slice(0, 8);
   }, [itens, q]);
 
-  const achados = useMemo(() => {
+  // todos os produtos diferentes que a busca acha (para "comparar todos"); a lista mostra os 15 primeiros
+  const todosAchados = useMemo(() => {
     if (!dados || !q.trim()) return [];
     const vistos = new Set<string>();
     return filtrarFoco(dados.lista, q).filter((o) => {
-      const k = o.ean || `${o.nome}|${o.q}${o.u}`;
+      const k = chaveProd(o.ean, o.nome, o.q, o.u);
       if (vistos.has(k)) return false;
       vistos.add(k); return true;
-    }).slice(0, 15);
+    });
   }, [dados, q]);
+  const achados = todosAchados.slice(0, 15);
+  // medida mais comum entre os achados: o grupo compara só os vendidos nela (quilo com quilo)
+  const grupoDaBusca = useMemo(() => {
+    const conta = new Map<string, number>();
+    for (const o of todosAchados) conta.set(o.ub, (conta.get(o.ub) ?? 0) + 1);
+    const [ub] = [...conta.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+    const produtos = todosAchados.filter((o) => o.ub === ub).slice(0, 60);
+    return { produtos, marcas: new Set(produtos.map((o) => o.marca).filter(Boolean)).size, ub: ub ?? '' };
+  }, [todosAchados]);
 
   useEffect(() => {
     if (!sel) return;
@@ -62,6 +77,37 @@ export default function Evolucao() {
     };
     const erroCarga = () => setFalha('Não conseguimos carregar o histórico agora.');
 
+    if ('grupo' in sel) {
+      // histórico de cada produto achado; por dia e mercado vale o menor preço do quilo/litro/unidade
+      const prods = sel.grupo.produtos;
+      const chaves = new Set(prods.map((o) => chaveProd(o.ean, o.nome, o.q, o.u)));
+      const eans = [...new Set(prods.filter((o) => o.ean).map((o) => o.ean))];
+      const nomes = [...new Set(prods.filter((o) => !o.ean).map((o) => o.nome))];
+      const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
+      type Linha = { preco: number; valido_de: string; mercado: { rede: string }; produto: { nome: string; ean: string | null; quantidade: number; unidade: string } };
+      const buscarTudo = async (campo: 'produto.ean' | 'produto.nome', valores: string[]) => {
+        const out: Linha[] = [];
+        for (let i = 0; valores.length && i < 20; i++) {
+          const { data, error } = await supabase.from('oferta')
+            .select('preco,valido_de,mercado!inner(rede),produto!inner(nome,ean,quantidade,unidade)')
+            .gte('valido_de', desde).in(campo, valores).order('id').range(i * 1000, i * 1000 + 999);
+          if (error) throw error;
+          out.push(...(data as unknown as Linha[]));
+          if ((data ?? []).length < 1000) break;
+        }
+        return out;
+      };
+      setUnidade(prods[0]?.ub ?? '');
+      Promise.all([buscarTudo('produto.ean', eans), buscarTudo('produto.nome', nomes)]).then(([a, b]) => {
+        const linhas = [...a, ...b].filter((l) => chaves.has(chaveProd(l.produto.ean, l.produto.nome, l.produto.quantidade, l.produto.unidade)));
+        montar(linhas.map((l) => {
+          const qtd = Number(l.produto.quantidade);
+          const base = l.produto.unidade === 'g' || l.produto.unidade === 'ml' ? qtd / 1000 : qtd;
+          return { dia: l.valido_de, mercado: l.mercado.rede, preco: Number(l.preco) / base };
+        }));
+      }).catch(erroCarga);
+      return;
+    }
     if ('item' in sel) {
       // agrupado no banco (migração 0014): menor preço do quilo/litro por dia e mercado, entre todas as marcas
       supabase.rpc('evolucao_item_base', { p_item: sel.item.id, p_dias: dias }).then(({ data, error }) => {
@@ -88,7 +134,7 @@ export default function Evolucao() {
     });
   }, [sel, dias]);
 
-  const porItem = !!sel && 'item' in sel;
+  const porItem = !!sel && ('item' in sel || 'grupo' in sel);
   const nomeUnidade = unidade === 'un' ? 'unidade' : unidade === 'l' ? 'litro' : 'quilo';
 
   return (
@@ -119,6 +165,13 @@ export default function Evolucao() {
                 ))}
               </div>
             </>}
+            {dados && grupoDaBusca.produtos.length > 1 && (
+              <button type="button" className="linha-escolha linha-grupo" onClick={() => setSel({ grupo: { busca: q.trim(), produtos: grupoDaBusca.produtos } })}>
+                <span><b>Comparar todos os {grupoDaBusca.produtos.length} encontrados</b>
+                  <span className="muted"> · {grupoDaBusca.marcas} {grupoDaBusca.marcas === 1 ? 'marca' : 'marcas'}, pelo preço do {grupoDaBusca.ub === 'un' ? 'item' : grupoDaBusca.ub === 'l' ? 'litro' : 'quilo'}</span></span>
+                <span className="mkt">ver →</span>
+              </button>
+            )}
             {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : achados.length > 0 ? <>
               <h2 className="evol-secao">Ou um produto específico</h2>
               <div className="lista">
@@ -136,7 +189,9 @@ export default function Evolucao() {
         <>
           <div className="card stack">
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              {'item' in sel
+              {'grupo' in sel
+                ? <span><b>&quot;{sel.grupo.busca}&quot;</b> <span className="muted">{sel.grupo.produtos.length} produtos, todas as marcas, preço do {nomeUnidade}</span></span>
+                : 'item' in sel
                 ? <span><b>{sel.item.nome}</b> <span className="muted">todas as marcas{unidade && `, preço do ${nomeUnidade}`}</span></span>
                 : <span><b>{sel.produto.nome}</b> <span className="muted">{emb(sel.produto)}</span></span>}
               <button type="button" className="btn btn-link" onClick={() => { setSel(null); setSeries(null); }}>Trocar</button>
@@ -153,7 +208,7 @@ export default function Evolucao() {
           {series && series.length > 0 && (
             <p className="muted">
               Variação: do primeiro ao último preço do período.
-              {porItem && ` Em cada dia vale a opção mais barata pelo preço do ${nomeUnidade}, entre todas as marcas e tamanhos do item.`}
+              {porItem && ` Em cada dia vale a opção mais barata pelo preço do ${nomeUnidade}, entre todas as marcas e tamanhos ${'grupo' in sel ? 'encontrados pela busca' : 'do item'}.`}
               {' '}Preços de site podem diferir da loja física.
             </p>
           )}
