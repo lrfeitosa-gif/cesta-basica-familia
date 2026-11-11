@@ -258,7 +258,9 @@ export function filtrarFoco(lista: Oferta[], consulta: string): Oferta[] {
 
 // Grafias diferentes da mesma coisa nos sites dos mercados: a busca por uma acha também a outra.
 const GRAFIAS: string[][] = [['taiti', 'tahiti'], ['ketchup', 'catchup']];
-const variantes = (t: string): string[] => GRAFIAS.find((g) => g.includes(t)) ?? [t];
+// Plural acha o singular: "capsulas" acha "Cápsula 3 Corações" (a busca é por trecho, então "capsula" acha as duas).
+const singular = (t: string) => (t.length >= 5 && /[^s]s$/.test(t) && !/\d/.test(t) ? t.slice(0, -1) : t);
+const variantes = (t: string): string[] => GRAFIAS.find((g) => g.includes(t)) ?? [singular(t)];
 
 // Palavras da busca. "-palavra" (ou "- palavra") exclui. Hífen colado ("café-cápsula") também exclui, a menos que
 // a palavra com hífen exista nos produtos ("lava-roupas", "tira-manchas"): aí é buscada como está.
