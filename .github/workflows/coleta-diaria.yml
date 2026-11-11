@@ -55,6 +55,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python catalogo.py || echo "cadastro base ainda não criado (migração 0011)"
+      - name: Histórico de preços e limpeza
+        # migração 0019: preço igual ao do dia anterior só estica o período; a tabela do dia guarda 7 dias
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python historico.py || echo "histórico ainda não criado (migração 0019)"
       - name: Preparar os preços do dia no app
         # monta a lista do dia no servidor logo após a coleta: a primeira pessoa a abrir o app não espera a carga
         if: always()
