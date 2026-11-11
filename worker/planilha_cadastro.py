@@ -99,6 +99,10 @@ def exportar(saida: str, anterior: str | None = None) -> None:
         mercados[pid].add(o["mercado"]["rede"])
         menor[pid] = min(menor.get(pid, float("inf")), float(o["preco"]))
 
+    # só o que teve oferta no dia: produto sem estoque ou de encarte vencido fica na fila e volta quando reaparecer
+    fora_do_dia = sum(1 for p in fila if p["id"] not in mercados)
+    fila = [p for p in fila if p["id"] in mercados]
+
     # sugestão: item ativo cuja 1ª palavra do termo é a 1ª palavra do produto
     por_palavra: dict[str, list[str]] = defaultdict(list)
     for i in itens:
@@ -223,7 +227,8 @@ def exportar(saida: str, anterior: str | None = None) -> None:
                 cel.alignment = Alignment(vertical="top")
 
     wb.save(saida)
-    print(f"{saida}: {len(fila)} produtos em {len(grupos)} grupos; {len(itens)} itens base (dia {dia}).")
+    print(f"{saida}: {len(fila)} produtos em {len(grupos)} grupos; {len(itens)} itens base (dia {dia}); "
+          f"{fora_do_dia} da fila sem oferta no dia ficaram de fora.")
 
 
 # ---------------------------------------------------------------- importação (planilha -> SQL)
