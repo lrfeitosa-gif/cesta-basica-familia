@@ -4,11 +4,13 @@ Uso:
     python -m coleta.extrator encarte.jpg --mercado Assaí --loja "Assaí Indaiatuba"
     python -m coleta.extrator https://.../encarte.pdf --mercado Covabra --saida ofertas.json
 
-Quem lê o encarte:
-    * Groq primeiro (modelo de visão, mais barato), página por página. PDFs viram uma imagem por página.
-    * Claude como reserva, só para a página em que a Groq falhou (erro, limite de uso ou nenhuma oferta lida).
-    EXTRATOR=claude no ambiente desliga a Groq; sem GROQ_API_KEY, tudo vai para o Claude, como antes.
-    CLAUDE_MODELO escolhe o modelo do Claude (padrão: claude-opus-5-5).
+Quem lê o encarte (variável EXTRATOR):
+    * claude (padrão): o Claude lê o arquivo inteiro. CLAUDE_MODELO escolhe o modelo (padrão claude-opus-5-5).
+    * groq ou gemini: o modelo mais barato lê página por página (PDFs viram uma imagem por página) e o Claude
+      lê só a página em que ele falhou (erro, limite de uso ou nenhuma oferta lida). Sem a chave do serviço
+      (GROQ_API_KEY ou GEMINI_API_KEY), tudo vai para o Claude.
+    Atenção: a reserva só pega falhas. Um modelo que lê o preço errado com confiança não é corrigido;
+    por isso, meça antes com o workflow "Medir precisão do extrator".
 
 Requer ANTHROPIC_API_KEY (reserva) e, para usar a Groq, GROQ_API_KEY.
 """
@@ -106,16 +108,19 @@ FORMATO_GROQ = ('Responda só com JSON neste formato: {"valido_de":null,"valido_
                 '"marca":"Marca","quantidade":5,"unidade":"kg","categoria":"mercearia","preco":25.9,"preco_de":null,"condicao":null}]}')
 
 
-class FalhaGroq(Exception):
-    """A Groq não leu a página: o Claude lê no lugar."""
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+GEMINI_MODELO = os.environ.get("GEMINI_MODELO", "gemini-3.8-flash")
 
 
-def _usar_groq() -> bool:
-    return bool(os.environ.get("GROQ_API_KEY")) and os.environ.get("EXTRATOR", "groq").lower() != "claude"
+class FalhaLeitura(Exception):
+    """O modelo mais barato não leu a página: o Claude lê no lugar."""
+
+
+FalhaGroq = FalhaLeitura   # nome antigo
 
 
 def _paginas(dados: bytes, tipo: str) -> list[tuple[bytes, str]]:
-    """Imagem -> ela mesma; PDF -> uma imagem JPEG por página (a Groq só lê imagens)."""
+    """Imagem -> ela mesma; PDF -> uma imagem JPEG por página (a Groq só lê imagens; página a página, a reserva é por página)."""
     if tipo != "application/pdf":
         return [(dados, tipo)]
     import io
@@ -138,11 +143,11 @@ def _ler_json(texto: str) -> dict:
     limpo = re.sub(r"<think>[\s\S]*?(</think>|$)", "", texto, flags=re.I).replace("```json", "").replace("```", "")
     ini, fim = limpo.find("{"), limpo.rfind("}")
     if ini < 0 or fim <= ini:
-        raise FalhaGroq("resposta sem JSON")
+        raise FalhaLeitura("resposta sem JSON")
     try:
         return json.loads(limpo[ini:fim + 1])
     except json.JSONDecodeError as erro:
-        raise FalhaGroq(f"JSON inválido: {erro}") from erro
+        raise FalhaLeitura(f"JSON inválido: {erro}") from erro
 
 
 def _encarte_groq(corpo: dict) -> Encarte:
@@ -154,7 +159,7 @@ def _encarte_groq(corpo: dict) -> Encarte:
         except Exception:
             continue
     if not ofertas:
-        raise FalhaGroq("nenhuma oferta lida")
+        raise FalhaLeitura("nenhuma oferta lida")
     return Encarte(valido_de=corpo.get("valido_de"), valido_ate=corpo.get("valido_ate"), ofertas=ofertas)
 
 
@@ -179,10 +184,46 @@ def _groq_pagina(dados: bytes, tipo: str, http: httpx.Client) -> Encarte:
             if falha:
                 return _encarte_groq(_ler_json(falha))
         if resp.status_code != 200:
-            raise FalhaGroq(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            raise FalhaLeitura(f"HTTP {resp.status_code}: {resp.text[:200]}")
         texto = resp.json()["choices"][0]["message"]["content"] or ""
         return _encarte_groq(_ler_json(texto))
-    raise FalhaGroq("limite de uso da Groq")
+    raise FalhaLeitura("limite de uso da Groq")
+
+
+def _gemini_pagina(dados: bytes, tipo: str, http: httpx.Client) -> Encarte:
+    pedido = {
+        "system_instruction": {"parts": [{"text": f"{INSTRUCOES.format(ano=date.today().year)}\n{FORMATO_GROQ}"}]},
+        "contents": [{"role": "user", "parts": [
+            {"text": "Extraia as ofertas deste encarte."},
+            {"inline_data": {"mime_type": tipo, "data": base64.standard_b64encode(dados).decode()}},
+        ]}],
+        "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1, "maxOutputTokens": 32000},
+    }
+    url = GEMINI_URL.format(modelo=GEMINI_MODELO)
+    for tentativa in range(2):
+        resp = http.post(url, params={"key": os.environ["GEMINI_API_KEY"]}, json=pedido, timeout=180)
+        if resp.status_code in (429, 503) and tentativa == 0:   # limite ou sobrecarga: espera e tenta de novo
+            time.sleep(min(float(resp.headers.get("retry-after") or 30), 60))
+            continue
+        if resp.status_code != 200:
+            raise FalhaLeitura(f"HTTP {resp.status_code}: {resp.text[:200]}")
+        candidato = (resp.json().get("candidates") or [{}])[0]
+        partes = (candidato.get("content") or {}).get("parts") or []
+        texto = "".join(p.get("text", "") for p in partes if not p.get("thought"))
+        return _encarte_groq(_ler_json(texto))
+    raise FalhaLeitura("limite de uso do Gemini")
+
+
+# leitores baratos: nome -> (função que lê uma página, chave exigida, nome para o log)
+LEITORES = {
+    "groq": (_groq_pagina, "GROQ_API_KEY", "Groq"),
+    "gemini": (_gemini_pagina, "GEMINI_API_KEY", "Gemini"),
+}
+
+
+def _leitor() -> str | None:
+    nome = os.environ.get("EXTRATOR", "claude").lower()
+    return nome if nome in LEITORES and os.environ.get(LEITORES[nome][1]) else None
 
 
 def _juntar(partes: list[Encarte]) -> Encarte:
@@ -193,15 +234,17 @@ def _juntar(partes: list[Encarte]) -> Encarte:
 
 def extrair(origem: str, client: anthropic.Anthropic | None = None, http: httpx.Client | None = None) -> Encarte:
     dados, tipo = _carregar(origem)
-    if not _usar_groq():
+    nome = _leitor()
+    if not nome:
         return _extrair_claude(dados, tipo, client)
+    ler, _, rotulo = LEITORES[nome]
     partes, http = [], http or httpx.Client()
     for n, (pagina, tipo_pagina) in enumerate(_paginas(dados, tipo), 1):
         try:
-            partes.append(_groq_pagina(pagina, tipo_pagina, http))
-            print(f"  página {n}: Groq ({len(partes[-1].ofertas)} ofertas)", file=sys.stderr, flush=True)
-        except Exception as erro:   # qualquer falha da Groq: o Claude lê esta página
-            print(f"  página {n}: Groq falhou ({str(erro)[:120]}); lendo com o Claude", file=sys.stderr, flush=True)
+            partes.append(ler(pagina, tipo_pagina, http))
+            print(f"  página {n}: {rotulo} ({len(partes[-1].ofertas)} ofertas)", file=sys.stderr, flush=True)
+        except Exception as erro:   # qualquer falha do leitor barato: o Claude lê esta página
+            print(f"  página {n}: {rotulo} falhou ({str(erro)[:120]}); lendo com o Claude", file=sys.stderr, flush=True)
             partes.append(_extrair_claude(pagina, tipo_pagina, client))
     return _juntar(partes)
 

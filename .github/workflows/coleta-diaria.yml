@@ -49,7 +49,8 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          # quem lê os encartes: Claude até a variável EXTRATOR = groq ser criada (Settings → Secrets and variables → Actions → Variables)
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # quem lê os encartes: Claude até a variável EXTRATOR (groq ou gemini) ser criada (Settings → Secrets and variables → Actions → Variables)
           EXTRATOR: ${{ vars.EXTRATOR || 'claude' }}
           # modelo do Claude: Opus até a variável CLAUDE_MODELO ser criada (ex.: claude-sonnet-5-5, metade do preço)
           CLAUDE_MODELO: ${{ vars.CLAUDE_MODELO || 'claude-opus-5-5' }}

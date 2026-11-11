@@ -1,5 +1,6 @@
 {
   "_sobre": "Transcrição manual das páginas 1-3 (itens de cesta básica) para medir a precisão do extrator. Pág. 4-5 (doces/Halloween, 22/10 a 02/11) ficaram de fora. 'preco' = menor preço; 'condicao' explica quando exige quantidade mínima.",
+  "paginas": ["p1-higiene-limpeza.jpg", "p2-frios-bebidas.jpg", "p3-mercearia.jpg"],
   "mercado": "Assaí",
   "loja": "Assaí Indaiatuba",
   "valido_de": "2026-10-26",
