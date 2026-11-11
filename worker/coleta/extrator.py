@@ -4,7 +4,12 @@ Uso:
     python -m coleta.extrator encarte.jpg --mercado Assaí --loja "Assaí Indaiatuba"
     python -m coleta.extrator https://.../encarte.pdf --mercado Covabra --saida ofertas.json
 
-Requer ANTHROPIC_API_KEY no ambiente.
+Quem lê o encarte:
+    * Groq primeiro (modelo de visão, mais barato), página por página. PDFs viram uma imagem por página.
+    * Claude como reserva, só para a página em que a Groq falhou (erro, limite de uso ou nenhuma oferta lida).
+    EXTRATOR=claude no ambiente desliga a Groq; sem GROQ_API_KEY, tudo vai para o Claude, como antes.
+
+Requer ANTHROPIC_API_KEY (reserva) e, para usar a Groq, GROQ_API_KEY.
 """
 from __future__ import annotations
 
@@ -12,7 +17,10 @@ import argparse
 import base64
 import json
 import mimetypes
+import os
+import re
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -89,9 +97,114 @@ def _schema_estrito(modelo: type[BaseModel]) -> dict:
     return schema
 
 
-def extrair(origem: str, client: anthropic.Anthropic | None = None) -> Encarte:
-    client = client or anthropic.Anthropic()
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODELO = os.environ.get("GROQ_MODELO_VISAO", "qwen/qwen3.8-27b")
+FORMATO_GROQ = ('Responda só com JSON neste formato: {"valido_de":null,"valido_ate":null,"ofertas":[{"produto":"Arroz branco tipo 1",'
+                '"marca":"Marca","quantidade":5,"unidade":"kg","categoria":"mercearia","preco":25.9,"preco_de":null,"condicao":null}]}')
+
+
+class FalhaGroq(Exception):
+    """A Groq não leu a página: o Claude lê no lugar."""
+
+
+def _usar_groq() -> bool:
+    return bool(os.environ.get("GROQ_API_KEY")) and os.environ.get("EXTRATOR", "groq").lower() != "claude"
+
+
+def _paginas(dados: bytes, tipo: str) -> list[tuple[bytes, str]]:
+    """Imagem -> ela mesma; PDF -> uma imagem JPEG por página (a Groq só lê imagens)."""
+    if tipo != "application/pdf":
+        return [(dados, tipo)]
+    import io
+
+    import pypdfium2 as pdfium
+
+    paginas = []
+    pdf = pdfium.PdfDocument(dados)
+    for pagina in pdf:
+        imagem = pagina.render(scale=2).to_pil().convert("RGB")
+        imagem.thumbnail((2000, 2000))     # texto pequeno legível, arquivo dentro do limite da Groq
+        buf = io.BytesIO()
+        imagem.save(buf, format="JPEG", quality=85)
+        paginas.append((buf.getvalue(), "image/jpeg"))
+    return paginas
+
+
+def _ler_json(texto: str) -> dict:
+    """Objeto JSON da resposta, mesmo com <think>, cercas ``` ou texto em volta."""
+    limpo = re.sub(r"<think>[\s\S]*?(</think>|$)", "", texto, flags=re.I).replace("```json", "").replace("```", "")
+    ini, fim = limpo.find("{"), limpo.rfind("}")
+    if ini < 0 or fim <= ini:
+        raise FalhaGroq("resposta sem JSON")
+    try:
+        return json.loads(limpo[ini:fim + 1])
+    except json.JSONDecodeError as erro:
+        raise FalhaGroq(f"JSON inválido: {erro}") from erro
+
+
+def _encarte_groq(corpo: dict) -> Encarte:
+    """Valida item por item: um item malformado é descartado, os outros ficam."""
+    ofertas = []
+    for item in corpo.get("ofertas") or []:
+        try:
+            ofertas.append(OfertaExtraida.model_validate({**{k: None for k in OfertaExtraida.model_fields}, **item}))
+        except Exception:
+            continue
+    if not ofertas:
+        raise FalhaGroq("nenhuma oferta lida")
+    return Encarte(valido_de=corpo.get("valido_de"), valido_ate=corpo.get("valido_ate"), ofertas=ofertas)
+
+
+def _groq_pagina(dados: bytes, tipo: str, http: httpx.Client) -> Encarte:
+    url = f"data:{tipo};base64,{base64.standard_b64encode(dados).decode()}"
+    pedido = {
+        "model": GROQ_MODELO, "temperature": 0.1, "max_completion_tokens": 8000,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": f"{INSTRUCOES.format(ano=date.today().year)}\n{FORMATO_GROQ}"},
+            {"role": "user", "content": [{"type": "text", "text": "Extraia as ofertas deste encarte."},
+                                         {"type": "image_url", "image_url": {"url": url}}]},
+        ],
+    }
+    for tentativa in range(2):
+        resp = http.post(GROQ_URL, json=pedido, headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"}, timeout=120)
+        if resp.status_code == 429 and tentativa == 0:      # limite por minuto: espera e tenta mais uma vez
+            time.sleep(min(float(resp.headers.get("retry-after") or 30), 60))
+            continue
+        if resp.status_code == 400:                          # modo JSON reprovado: aproveita o texto gerado
+            falha = (resp.json().get("error") or {}).get("failed_generation")
+            if falha:
+                return _encarte_groq(_ler_json(falha))
+        if resp.status_code != 200:
+            raise FalhaGroq(f"HTTP {resp.status_code}: {resp.text[:200]}")
+        texto = resp.json()["choices"][0]["message"]["content"] or ""
+        return _encarte_groq(_ler_json(texto))
+    raise FalhaGroq("limite de uso da Groq")
+
+
+def _juntar(partes: list[Encarte]) -> Encarte:
+    return Encarte(valido_de=next((p.valido_de for p in partes if p.valido_de), None),
+                   valido_ate=next((p.valido_ate for p in partes if p.valido_ate), None),
+                   ofertas=[o for p in partes for o in p.ofertas])
+
+
+def extrair(origem: str, client: anthropic.Anthropic | None = None, http: httpx.Client | None = None) -> Encarte:
     dados, tipo = _carregar(origem)
+    if not _usar_groq():
+        return _extrair_claude(dados, tipo, client)
+    partes, http = [], http or httpx.Client()
+    for n, (pagina, tipo_pagina) in enumerate(_paginas(dados, tipo), 1):
+        try:
+            partes.append(_groq_pagina(pagina, tipo_pagina, http))
+            print(f"  página {n}: Groq ({len(partes[-1].ofertas)} ofertas)", file=sys.stderr, flush=True)
+        except Exception as erro:   # qualquer falha da Groq: o Claude lê esta página
+            print(f"  página {n}: Groq falhou ({str(erro)[:120]}); lendo com o Claude", file=sys.stderr, flush=True)
+            partes.append(_extrair_claude(pagina, tipo_pagina, client))
+    return _juntar(partes)
+
+
+def _extrair_claude(dados: bytes, tipo: str, client: anthropic.Anthropic | None = None) -> Encarte:
+    client = client or anthropic.Anthropic()
     # streaming: encartes em PDF de várias páginas geram respostas longas
     with client.beta.messages.stream(
         model=MODELO,
