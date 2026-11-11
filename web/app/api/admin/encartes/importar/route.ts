@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     inicio = body.inicio;
     fim = body.fim;
     ofertas = body.ofertas;
-    if (!['Assaí', 'Sonda'].includes(mercado) || !/^\d{4}-\d{2}-\d{2}$/.test(inicio)
+    if (!['Assaí', 'Sonda', 'Revolução'].includes(mercado) || !/^\d{4}-\d{2}-\d{2}$/.test(inicio)
       || !/^\d{4}-\d{2}-\d{2}$/.test(fim) || !Array.isArray(ofertas) || !ofertas.length || ofertas.length > 500) {
       throw new Error('invalid');
     }

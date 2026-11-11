@@ -104,7 +104,7 @@ export default function EncartesAdmin() {
       <div>
         <p><Link href="/admin">← Administração</Link></p>
         <h1>Carga de encartes</h1>
-        <p className="lead">Envie páginas do Assaí ou Sonda, revise os preços extraídos e carregue as ofertas de Indaiatuba. Use um mercado e uma validade por lote.</p>
+        <p className="lead">Envie páginas do Assaí, Sonda ou Revolução, revise os preços extraídos e carregue as ofertas de Indaiatuba. Use um mercado e uma validade por lote.</p>
       </div>
 
       <form className="card stack" onSubmit={extrair}>
@@ -119,6 +119,7 @@ export default function EncartesAdmin() {
             <select id="encarte-mercado" className="input" value={mercado} onChange={(e) => setMercado(e.target.value)}>
               <option>Assaí</option>
               <option>Sonda</option>
+              <option>Revolução</option>
             </select>
           </div>
           <div className="field" style={{ flex: '1 1 150px' }}>
