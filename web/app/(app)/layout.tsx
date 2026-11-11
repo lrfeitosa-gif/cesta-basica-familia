@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useSessao } from '@/lib/sessao';
+import { marcarSaida, useEncerrarSemUso, useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
 import Logo from '@/app/logo';
 import Avisos from './aviso';
@@ -22,7 +22,17 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
   const sessao = useSessao();
   const rota = usePathname();
   const router = useRouter();
-  const [admin, setAdmin] = useState(false);
+  const [admin, setAdmin] = useState<boolean | null>(null);   // null: ainda conferindo
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEncerrarSemUso(sessao, admin);
+  // menu da conta: fecha ao trocar de tela, ao tocar fora dele ou com Esc
+  useEffect(() => { if (menu.current) menu.current.open = false; }, [rota]);
+  useEffect(() => {
+    const fora = (e: PointerEvent) => { if (menu.current?.open && !menu.current.contains(e.target as Node)) menu.current.open = false; };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && menu.current) menu.current.open = false; };
+    document.addEventListener('pointerdown', fora); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', fora); document.removeEventListener('keydown', esc); };
+  }, []);
   useEffect(() => { if (sessao) supabase.rpc('eh_admin').then(({ data }) => setAdmin(!!data)); }, [sessao]);
   // uso por tela (uma vez por tela em cada visita) e erros de tela, para o painel de administração
   useEffect(() => {
@@ -38,21 +48,23 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
     return () => { window.removeEventListener('error', erro); window.removeEventListener('unhandledrejection', promessa); };
   }, []);
   if (!sessao) return null;
-  const sair = async () => { await supabase.auth.signOut(); router.replace('/'); };
+  const fecharMenu = () => { if (menu.current) menu.current.open = false; };
+  const sair = async () => { marcarSaida(); await supabase.auth.signOut(); router.replace('/'); };
   return (
     <>
       <header className="barra-topo">
         <Link href="/ofertas" className="logo-link" aria-label="Ir para as ofertas"><Logo size={30} /></Link>
-        <details className="menu-conta">
+        <details className="menu-conta" ref={menu}>
           <summary aria-label="Conta">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
           </summary>
           <div className="menu-conta-caixa">
             <span className="muted">{sessao.user.email}</span>
-            <Link href="/conta">Meus dados</Link>
-            {admin && <Link href="/admin">Administração</Link>}
-            <Link href="/indicar">Indicar um mercado</Link>
-            <Link href="/privacidade">Privacidade</Link>
+            {/* fecha também ao tocar no link da tela em que já está (a rota não muda) */}
+            <Link href="/conta" onClick={fecharMenu}>Meus dados</Link>
+            {admin && <Link href="/admin" onClick={fecharMenu}>Administração</Link>}
+            <Link href="/indicar" onClick={fecharMenu}>Indicar um mercado</Link>
+            <Link href="/privacidade" onClick={fecharMenu}>Privacidade</Link>
             <button type="button" className="btn btn-secondary" onClick={sair}>Sair</button>
           </div>
         </details>

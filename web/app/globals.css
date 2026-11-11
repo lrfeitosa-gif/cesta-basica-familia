@@ -552,3 +552,15 @@ nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-in
 .cat-produtos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 420px; overflow-y: auto; }
 .cat-produtos li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: .85rem; border-top: 1px solid var(--line); padding-top: 4px; }
 .cat-produtos select { max-width: 45%; }
+
+/* Busca: sugestões ao digitar e aviso de "buscando" enquanto a lista completa carrega */
+.sugestoes { margin-top: -4px; }
+.buscando { display: flex; align-items: center; gap: 10px; color: var(--muted, inherit); margin: 0; }
+.giro {
+  width: 16px; height: 16px; flex: none; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--primary, currentColor); animation: girar .8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .giro { animation-duration: 2.4s; } }
+.esq-texto { display: inline-block; width: 140px; height: 12px; border-radius: 6px; background: var(--line); vertical-align: middle; }
+.evol-secao { font-size: .9rem; margin: 4px 0 -4px; color: var(--muted); }

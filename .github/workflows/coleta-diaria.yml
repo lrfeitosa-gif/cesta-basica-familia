@@ -55,6 +55,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python catalogo.py || echo "cadastro base ainda não criado (migração 0011)"
+      - name: Preparar os preços do dia no app
+        # monta a lista do dia no servidor logo após a coleta: a primeira pessoa a abrir o app não espera a carga
+        if: always()
+        run: |
+          for i in 1 2; do
+            curl -s -o /dev/null -w "api/ofertas: %{http_code} em %{time_total}s
+" --max-time 60 https://cesta-basica-familia.vercel.app/api/ofertas || true
+            sleep 20
+          done
       - name: Resumo do banco
         if: always()
         env:

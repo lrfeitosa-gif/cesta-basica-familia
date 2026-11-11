@@ -9,7 +9,9 @@ import { dominio, registrar } from '@/lib/eventos';
 
 function Formulario() {
   const router = useRouter();
-  const voltar = useSearchParams().get('voltar') || '/ofertas';
+  const params = useSearchParams();
+  const voltar = params.get('voltar') || '/ofertas';
+  const motivo = params.get('motivo');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
@@ -38,6 +40,14 @@ function Formulario() {
   return (
     <TelaAcesso titulo="Compre no preço" destaque="de oportunidade" sub="Entre para continuar"
       rodape={<>Não tem conta? <Link href="/cadastro">Criar conta</Link></>}>
+      {motivo === 'inatividade' && !erro && !aviso && (
+        <div className="alert alert-ok" role="status">
+          Por segurança, encerramos sua sessão depois de um tempo sem uso. Entre de novo para continuar de onde parou.
+        </div>
+      )}
+      {motivo === 'expirou' && !erro && !aviso && (
+        <div className="alert alert-ok" role="status">Sua sessão expirou. Entre de novo para continuar de onde parou.</div>
+      )}
       <form className="au-form" onSubmit={entrar} noValidate>
         <CampoPilula icone="email" rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required
           value={email} onChange={(e) => setEmail(e.target.value)} />

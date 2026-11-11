@@ -107,6 +107,10 @@ function diaAtual(): Promise<string> {
   return diaCache;
 }
 
+// Texto em que a busca procura: produto, marca, tamanho, categoria e mercado ("pague menos" acha as ofertas de lá).
+const textoBusca = (nome: string, marca: string, q: number, u: string, categoria: string, mercado: string) =>
+  norm(`${nome} ${marca} ${q}${u} ${categoria} ${grupo(categoria)} ${mercado}`);
+
 function paraOfertas(linhas: Linha[], esgotadas: Set<number>): Oferta[] {
   const lista: Oferta[] = [];
   for (const l of linhas) {
@@ -120,7 +124,7 @@ function paraOfertas(linhas: Linha[], esgotadas: Set<number>): Oferta[] {
       mercado: l.mercado.rede, preco: l.preco, de: l.preco_de || 0, cond: l.condicao || '',
       fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte', url: l.url || '',
       porUn: l.preco / base, ub,
-      busca: norm(`${p.nome} ${p.marca || ''} ${p.quantidade}${p.unidade} ${p.categoria} ${grupo(p.categoria)}`),
+      busca: textoBusca(p.nome, p.marca || '', p.quantidade, p.unidade, p.categoria, l.mercado.rede),
     });
   }
   return lista;
@@ -132,7 +136,7 @@ async function buscar(): Promise<Ofertas> {
     const r = await fetch('/api/ofertas');
     if (!r.ok) throw new Error(String(r.status));
     const o = (await r.json()) as Ofertas;
-    for (const x of o.lista) x.busca = norm(`${x.nome} ${x.marca} ${x.q}${x.u} ${x.categoria} ${grupo(x.categoria)}`);
+    for (const x of o.lista) x.busca = textoBusca(x.nome, x.marca, x.q, x.u, x.categoria, x.mercado);
     return o;
   } catch {
     return buscarOfertas();

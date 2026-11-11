@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { brl, dataBr, emb, filtrarFoco, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, dataBr, emb, filtrarFoco, norm, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
 
 const PERIODOS = [[30, '30 dias'], [90, '3 meses'], [365, '1 ano']] as const;
@@ -9,15 +9,32 @@ const CORES = ['#4f7f5c', '#2f6db3', '#c0841a', '#9b4d8f', '#c2493d', '#2a9d8f',
 
 type Ponto = { dia: string; preco: number };
 type Serie = { mercado: string; pontos: Ponto[]; cor: string };
+type ItemBase = { id: number; nome: string };
+// Escolha: um item genérico do cadastro base (todas as marcas e tamanhos, pelo preço do quilo/litro)
+// ou um produto específico (mesmo código de barras, ou mesmo nome e tamanho).
+type Escolha = { item: ItemBase } | { produto: Oferta };
 
-// Evolução do preço de um produto ao longo das coletas: uma linha por mercado, no período escolhido.
+// Evolução do preço ao longo das coletas: uma linha por mercado, no período escolhido.
 export default function Evolucao() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const [q, setQ] = useState('');
-  const [sel, setSel] = useState<Oferta | null>(null);
+  const [sel, setSel] = useState<Escolha | null>(null);
   const [dias, setDias] = useState<number>(90);
   const [series, setSeries] = useState<Serie[] | null>(null);
+  const [unidade, setUnidade] = useState('');
   const [falha, setFalha] = useState('');
+  const [itens, setItens] = useState<ItemBase[]>([]);
+
+  useEffect(() => {
+    supabase.from('item_base').select('id,nome').eq('ativo', true).order('nome')
+      .then(({ data }) => setItens((data ?? []) as ItemBase[]));
+  }, []);
+
+  const itensAchados = useMemo(() => {
+    const termos = norm(q).split(/\s+/).filter(Boolean);
+    if (!termos.length) return [];
+    return itens.filter((i) => termos.every((t) => norm(i.nome).includes(t))).slice(0, 8);
+  }, [itens, q]);
 
   const achados = useMemo(() => {
     if (!dados || !q.trim()) return [];
@@ -31,63 +48,97 @@ export default function Evolucao() {
 
   useEffect(() => {
     if (!sel) return;
-    setSeries(null); setFalha('');
+    setSeries(null); setFalha(''); setUnidade('');
+    const montar = (linhas: { dia: string; mercado: string; preco: number }[]) => {
+      const por = new Map<string, Map<string, number>>();
+      for (const l of linhas) {
+        const m = por.get(l.mercado) ?? new Map<string, number>();
+        m.set(l.dia, Math.min(m.get(l.dia) ?? Infinity, Number(l.preco)));
+        por.set(l.mercado, m);
+      }
+      setSeries([...por.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mercado, m], i) => ({
+        mercado, cor: CORES[i % CORES.length], pontos: [...m.entries()].map(([dia, preco]) => ({ dia, preco })).sort((a, b) => a.dia.localeCompare(b.dia)),
+      })));
+    };
+    const erroCarga = () => setFalha('Não conseguimos carregar o histórico agora.');
+
+    if ('item' in sel) {
+      // agrupado no banco (migração 0014): menor preço do quilo/litro por dia e mercado, entre todas as marcas
+      supabase.rpc('evolucao_item_base', { p_item: sel.item.id, p_dias: dias }).then(({ data, error }) => {
+        if (error) return erroCarga();
+        const linhas = (data ?? []) as { dia: string; mercado: string; preco_un: number; unidade: string }[];
+        setUnidade(linhas[0]?.unidade ?? '');
+        montar(linhas.map((l) => ({ dia: l.dia, mercado: l.mercado, preco: Number(l.preco_un) })));
+      });
+      return;
+    }
+    const prod = sel.produto;
     const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
     let consulta = supabase.from('oferta')
       .select('preco,valido_de,mercado!inner(rede),produto!inner(nome,ean,quantidade,unidade)')
       .gte('valido_de', desde).order('valido_de').range(0, 4999);
     // com código de barras, o mesmo produto é achado em todos os mercados; sem ele, pelo nome e tamanho
-    consulta = sel.ean ? consulta.eq('produto.ean', sel.ean)
-      : consulta.eq('produto.nome', sel.nome).eq('produto.quantidade', sel.q).eq('produto.unidade', sel.u);
+    consulta = prod.ean ? consulta.eq('produto.ean', prod.ean)
+      : consulta.eq('produto.nome', prod.nome).eq('produto.quantidade', prod.q).eq('produto.unidade', prod.u);
     consulta.then(({ data, error }) => {
-      if (error) { setFalha('Não conseguimos carregar o histórico agora.'); return; }
-      const por = new Map<string, Map<string, number>>();
-      for (const l of (data ?? []) as unknown as { preco: number; valido_de: string; mercado: { rede: string } }[]) {
-        const m = por.get(l.mercado.rede) ?? new Map<string, number>();
-        m.set(l.valido_de, Math.min(m.get(l.valido_de) ?? Infinity, Number(l.preco)));
-        por.set(l.mercado.rede, m);
-      }
-      setSeries([...por.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mercado, m], i) => ({
-        mercado, cor: CORES[i % CORES.length], pontos: [...m.entries()].map(([dia, preco]) => ({ dia, preco })).sort((a, b) => a.dia.localeCompare(b.dia)),
-      })));
+      if (error) return erroCarga();
+      montar(((data ?? []) as unknown as { preco: number; valido_de: string; mercado: { rede: string } }[])
+        .map((l) => ({ dia: l.valido_de, mercado: l.mercado.rede, preco: l.preco })));
     });
   }, [sel, dias]);
+
+  const porItem = !!sel && 'item' in sel;
+  const nomeUnidade = unidade === 'un' ? 'unidade' : unidade === 'l' ? 'litro' : 'quilo';
 
   return (
     <>
       <div>
         <h1>Evolução de preços</h1>
-        <p className="lead">Veja como o preço de um produto mudou em cada mercado, desde o início das coletas.</p>
+        <p className="lead">Veja como o preço de um item mudou em cada mercado, desde o início das coletas.</p>
       </div>
 
       {!sel ? (
         <>
           <div className="field">
-            <label htmlFor="q-evol" className="visually-hidden">Buscar produto</label>
-            <input id="q-evol" className="input" type="search" autoComplete="off" placeholder="Ex.: café pilão 500g"
+            <label htmlFor="q-evol" className="visually-hidden">Buscar item</label>
+            <input id="q-evol" className="input" type="search" autoComplete="off" placeholder="Ex.: café, arroz, feijão carioca"
               value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
-          {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : !q.trim() ? (
-            <div className="empty">Digite um produto e escolha na lista para ver o histórico.</div>
-          ) : !achados.length ? (
-            <div className="empty">Nenhum produto encontrado. Tente menos palavras.</div>
-          ) : (
-            <div className="lista">
-              {achados.map((o) => (
-                <button key={o.id} type="button" className="linha-escolha" onClick={() => setSel(o)}>
-                  <span><b>{o.nome}</b>{o.marca && <span className="muted"> · {o.marca}</span>}</span>
-                  <span className="muted">{emb(o)}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {!q.trim() ? (
+            <div className="empty">Digite um item, como &quot;café&quot;, e escolha na lista para ver o histórico.</div>
+          ) : <>
+            {itensAchados.length > 0 && <>
+              <h2 className="evol-secao">Todas as marcas (pelo preço do quilo ou litro)</h2>
+              <div className="lista">
+                {itensAchados.map((i) => (
+                  <button key={i.id} type="button" className="linha-escolha" onClick={() => setSel({ item: i })}>
+                    <span><b>{i.nome}</b></span>
+                    <span className="muted">todas as marcas</span>
+                  </button>
+                ))}
+              </div>
+            </>}
+            {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : achados.length > 0 ? <>
+              <h2 className="evol-secao">Ou um produto específico</h2>
+              <div className="lista">
+                {achados.map((o) => (
+                  <button key={o.id} type="button" className="linha-escolha" onClick={() => setSel({ produto: o })}>
+                    <span><b>{o.nome}</b>{o.marca && <span className="muted"> · {o.marca}</span>}</span>
+                    <span className="muted">{emb(o)}</span>
+                  </button>
+                ))}
+              </div>
+            </> : !itensAchados.length && <div className="empty">Nada encontrado. Tente menos palavras.</div>}
+          </>}
         </>
       ) : (
         <>
           <div className="card stack">
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              <span><b>{sel.nome}</b> <span className="muted">{emb(sel)}</span></span>
-              <button type="button" className="btn btn-link" onClick={() => { setSel(null); setSeries(null); }}>Trocar produto</button>
+              {'item' in sel
+                ? <span><b>{sel.item.nome}</b> <span className="muted">todas as marcas{unidade && `, preço do ${nomeUnidade}`}</span></span>
+                : <span><b>{sel.produto.nome}</b> <span className="muted">{emb(sel.produto)}</span></span>}
+              <button type="button" className="btn btn-link" onClick={() => { setSel(null); setSeries(null); }}>Trocar</button>
             </div>
             <div className="choice" role="radiogroup" aria-label="Período">
               {PERIODOS.map(([d, r]) => (
@@ -96,15 +147,22 @@ export default function Evolucao() {
             </div>
           </div>
           {falha ? <div className="alert alert-error" role="alert">{falha}</div> : !series ? <Carregando /> : !series.length ? (
-            <div className="empty">Ainda não há histórico deste produto no período.</div>
-          ) : <Grafico series={series} />}
+            <div className="empty">Ainda não há histórico deste {porItem ? 'item' : 'produto'} no período.</div>
+          ) : <Grafico series={series} sufixo={porItem && unidade ? `/${unidade}` : ''} />}
+          {series && series.length > 0 && (
+            <p className="muted">
+              Variação: do primeiro ao último preço do período.
+              {porItem && ` Em cada dia vale a opção mais barata pelo preço do ${nomeUnidade}, entre todas as marcas e tamanhos do item.`}
+              {' '}Preços de site podem diferir da loja física.
+            </p>
+          )}
         </>
       )}
     </>
   );
 }
 
-function Grafico({ series }: { series: Serie[] }) {
+function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
   const dias = [...new Set(series.flatMap((s) => s.pontos.map((p) => p.dia)))].sort();
   const precos = series.flatMap((s) => s.pontos.map((p) => p.preco));
   const min = Math.min(...precos), max = Math.max(...precos);
@@ -131,7 +189,7 @@ function Grafico({ series }: { series: Serie[] }) {
             <g key={s.mercado}>
               {s.pontos.length > 1 && <polyline fill="none" stroke={s.cor} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"
                 points={s.pontos.map((p) => `${x(p.dia)},${y(p.preco)}`).join(' ')} />}
-              {s.pontos.map((p) => <circle key={p.dia} cx={x(p.dia)} cy={y(p.preco)} r="2.6" fill={s.cor}><title>{`${s.mercado} · ${dataBr(p.dia)}: ${brl(p.preco)}`}</title></circle>)}
+              {s.pontos.map((p) => <circle key={p.dia} cx={x(p.dia)} cy={y(p.preco)} r="2.6" fill={s.cor}><title>{`${s.mercado} · ${dataBr(p.dia)}: ${brl(p.preco)}${sufixo}`}</title></circle>)}
             </g>
           ))}
         </svg>
@@ -148,15 +206,14 @@ function Grafico({ series }: { series: Serie[] }) {
           return (
             <div role="row" key={s.mercado}>
               <span><i className="evol-cor" style={{ background: s.cor }} />{s.mercado}</span>
-              <span>{brl(ult)}<small className="muted"> {dataBr(s.pontos[s.pontos.length - 1].dia).slice(0, 5)}</small></span>
-              <span>{brl(Math.min(...ps))}</span>
-              <span>{brl(Math.max(...ps))}</span>
+              <span>{brl(ult)}{sufixo}<small className="muted"> {dataBr(s.pontos[s.pontos.length - 1].dia).slice(0, 5)}</small></span>
+              <span>{brl(Math.min(...ps))}{sufixo}</span>
+              <span>{brl(Math.max(...ps))}{sufixo}</span>
               <span className={v > 0.5 ? 'evol-sobe' : v < -0.5 ? 'evol-desce' : ''}>{v > 0 ? '+' : ''}{v.toFixed(1).replace('.', ',')}%</span>
             </div>
           );
         })}
       </div>
-      <p className="muted">Variação: do primeiro ao último preço do período. Preços de site podem diferir da loja física.</p>
     </>
   );
 }

@@ -338,6 +338,9 @@ export default function MinhaCompra() {
         <label><input type="radio" name="aba" checked={aba === 'comparar'} onChange={() => setAba('comparar')} /><span>Comparação</span></label>
       </div>
 
+      {aba === 'lista' && !dados && !erro && (
+        <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando os preços de hoje nos mercados…</p>
+      )}
       {aba === 'lista' && (top ? (
         <button type="button" className="resumo-compra" onClick={() => { setAba('comparar'); window.scrollTo(0, 0); }}>
           <span>Mais barato hoje: <b>{top.m}</b> {fmt(top)}</span>
@@ -508,9 +511,9 @@ export default function MinhaCompra() {
               <div className="meta">
                 {menor
                   ? <span>a partir de <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} ({kgs.has(c.id) ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
-                  : !dados ? <span className="muted">carregando preços…</span>
+                  : !dados ? <span className="esq-texto" aria-hidden="true" />
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
-                <span>{Object.keys(porItem[c.id]).length} mercados</span>
+                {dados && <span>{Object.keys(porItem[c.id]).length} mercados</span>}
                 {c.termo && (
                   <label className="row" style={{ gap: 6 }}>
                     <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />

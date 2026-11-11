@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { useSessao } from '@/lib/sessao';
+import { marcarSaida, useSessao } from '@/lib/sessao';
 
 // Meus dados: o que o app guarda sobre a pessoa, com exportação e exclusão da conta.
 export default function Conta() {
@@ -12,6 +12,7 @@ export default function Conta() {
   const [baixando, setBaixando] = useState(false);
   const [confirma, setConfirma] = useState('');
   const [erro, setErro] = useState('');
+  const [senha, setSenha] = useState('');
 
   const exportar = async () => {
     setBaixando(true);
@@ -36,10 +37,24 @@ export default function Conta() {
     setBaixando(false);
   };
 
+  // Ação sem volta: confirma que é a própria pessoa. Com senha, pede a senha; quem entra pelo Google
+  // precisa ter entrado há pouco (senão, entra de novo e volta para cá).
+  const temSenha = !!sessao?.user.identities?.some((i) => i.provider === 'email') || sessao?.user.app_metadata.provider === 'email';
+  const entrouHaPouco = Date.now() - (Date.parse(sessao?.user.last_sign_in_at ?? '') || 0) < 10 * 60_000;
+  const entrarDeNovo = async () => { marcarSaida(); await supabase.auth.signOut(); router.replace('/entrar?voltar=/conta'); };
+
   const excluir = async () => {
     setErro('');
+    if (temSenha) {
+      if (!senha) return setErro('Digite sua senha para confirmar.');
+      const { error: errSenha } = await supabase.auth.signInWithPassword({ email: sessao!.user.email!, password: senha });
+      if (errSenha) return setErro('Senha incorreta. Confira e tente de novo.');
+    } else if (!entrouHaPouco) {
+      return setErro('reentrar');
+    }
     const { error } = await supabase.rpc('excluir_conta');
     if (error) return setErro('Não foi possível excluir agora. Tente de novo em instantes.');
+    marcarSaida();
     await supabase.auth.signOut();
     try { localStorage.clear(); } catch {}
     router.replace('/');
@@ -69,10 +84,21 @@ export default function Conta() {
 
       <section className="card stack">
         <h2>Excluir conta</h2>
-        <p className="muted">Apaga sua conta, notas e alertas. Não dá para desfazer. Para confirmar, digite EXCLUIR.</p>
+        <p className="muted">
+          Apaga sua conta, notas e alertas. Não dá para desfazer. Para confirmar, digite EXCLUIR{temSenha ? ' e sua senha' : ''}.
+        </p>
         <input className="input" aria-label="Digite EXCLUIR para confirmar" value={confirma} onChange={(e) => setConfirma(e.target.value)} />
-        {erro && <div className="alert alert-error" role="alert">{erro}</div>}
-        <button type="button" className="btn btn-perigo" disabled={confirma.trim().toUpperCase() !== 'EXCLUIR'} onClick={excluir}>
+        {temSenha && (
+          <input className="input" type="password" autoComplete="current-password" placeholder="Sua senha" aria-label="Sua senha"
+            value={senha} onChange={(e) => setSenha(e.target.value)} />
+        )}
+        {erro === 'reentrar' ? (
+          <div className="alert alert-error" role="alert">
+            Por segurança, entre de novo com o Google antes de excluir a conta.{' '}
+            <button type="button" className="btn btn-link" onClick={entrarDeNovo}>Entrar de novo</button>
+          </div>
+        ) : erro && <div className="alert alert-error" role="alert">{erro}</div>}
+        <button type="button" className="btn btn-perigo" disabled={confirma.trim().toUpperCase() !== 'EXCLUIR' || (temSenha && !senha)} onClick={excluir}>
           Excluir minha conta
         </button>
       </section>

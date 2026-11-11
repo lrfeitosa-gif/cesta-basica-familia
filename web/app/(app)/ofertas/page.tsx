@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { brl, carregarPrevia, dataBr, emb, filtrarFoco, GRUPOS, grupo, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, carregarPrevia, dataBr, filtrarFoco, GRUPOS, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
@@ -29,6 +29,21 @@ export default function Oportunidades() {
   // enquanto a lista inteira carrega, mostra já os maiores descontos (consulta pequena e rápida)
   const [previa, setPrevia] = useState<Oferta[] | null>(null);
   useEffect(() => { carregarPrevia().then(setPrevia).catch(() => {}); }, []);
+
+  // sugestões ao digitar: itens genéricos do cadastro base e nomes dos mercados
+  const [itensBase, setItensBase] = useState<string[]>([]);
+  useEffect(() => {
+    supabase.from('item_base').select('nome').eq('ativo', true).order('nome')
+      .then(({ data }) => setItensBase((data ?? []).map((i: { nome: string }) => i.nome)));
+  }, []);
+  const sugestoes = useMemo(() => {
+    const t = norm(q.trim());
+    if (t.length < 2) return [];
+    return [...new Set([...itensBase, ...(dados?.mercados ?? [])])]
+      .filter((n) => norm(n).includes(t) && norm(n) !== t)
+      .sort((a, b) => Number(!norm(b).startsWith(t)) - Number(!norm(a).startsWith(t)) || a.localeCompare(b))
+      .slice(0, 8);
+  }, [q, itensBase, dados]);
 
   const opp = useMemo(() => (dados?.lista ?? previa ?? [])
     .filter((o) => o.de > o.preco && !RUIDO.test(o.busca))
@@ -66,9 +81,19 @@ export default function Oportunidades() {
         <label htmlFor="busca" className="visually-hidden">Buscar produto</label>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input id="busca" className="input" type="search" autoComplete="off" enterKeyHint="search"
-          placeholder="Buscar e comparar: café pilão, arroz 5kg -integral"
+          placeholder="Buscar e comparar: café pilão, arroz 5kg, Pague Menos"
           value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); }} />
       </div>
+      {sugestoes.length > 0 && (
+        <div className="chips sugestoes" role="group" aria-label="Sugestões de busca">
+          {sugestoes.map((n) => (
+            <button key={n} type="button" className="chip" onClick={() => { setQ(n); setLimite(POR_PAGINA); }}>{n}</button>
+          ))}
+        </div>
+      )}
+      {q.trim() && !dados && !erro && (
+        <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando &quot;{q.trim()}&quot; em todos os preços de hoje…</p>
+      )}
       {dados && !q && <Fontes dados={dados} />}
 
       {semNotas && !q && (
@@ -78,8 +103,8 @@ export default function Oportunidades() {
         </Link>
       )}
 
-      {erro && !(previa && opp.length) && <ErroCarga tentarDeNovo={tentarDeNovo} />}
-      {!dados && (previa && opp.length ? (
+      {erro && !(previa && opp.length && !q.trim()) && <ErroCarga tentarDeNovo={tentarDeNovo} />}
+      {!dados && !q.trim() && (previa && opp.length ? (
         <>
           <div className="lista">
             {opp.slice(0, POR_PAGINA).map(({ o, desc }) => (

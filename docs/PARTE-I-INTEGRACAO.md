@@ -101,6 +101,7 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | `0011_cadastro_base.sql` | Cadastro de itens genéricos e ligação automática dos produtos | Sim |
 | `0012_gestao_cadastro_base.sql` | Administração do cadastro base e decisões manuais | Sim |
 | `0013_importacao_encartes.sql` | Busca global de produtos no admin, carga revisada de encartes do Assaí/Sonda e cadastro do Sonda | Sim |
+| `0014_evolucao_item_base.sql` | Evolução de preços pelo item genérico (todas as marcas, pelo preço do quilo/litro) | Sim |
 
 Volume: cerca de 16 mil ofertas por dia com a lista ampliada. O plano gratuito (500 MB) deve durar uns 2 meses; acompanhar em Supabase → Settings → Usage.
 

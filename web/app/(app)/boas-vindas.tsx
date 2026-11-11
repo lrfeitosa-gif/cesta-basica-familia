@@ -15,11 +15,11 @@ export const PASSOS = [
   },
   {
     titulo: 'Compare do jeito certo',
-    texto: 'Comparamos pelo preço do quilo ou do litro. Embalagens de tamanhos diferentes ficam lado a lado de forma justa.',
+    texto: 'Dividimos o preço pelo tamanho da embalagem e mostramos quanto sai o quilo, o litro ou a unidade. Assim, embalagens de tamanhos diferentes ficam lado a lado de forma justa.',
   },
   {
     titulo: 'Sua cesta, seu mercado',
-    texto: 'Monte sua compra e veja qual mercado sai mais barato. Envie suas notas quando quiser: o app aprende o que você compra.',
+    texto: 'Monte sua compra e veja qual mercado sai mais barato. Envie suas notas fiscais para deixar a comparação da sua cesta mais completa.',
   },
 ];
 export const CHAVE = 'boas-vindas-vista';
