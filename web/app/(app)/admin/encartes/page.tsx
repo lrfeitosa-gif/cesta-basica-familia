@@ -58,11 +58,14 @@ export default function EncartesAdmin() {
         headers: { Authorization: `Bearer ${sessao?.access_token ?? ''}` },
         body: dados,
       });
-      const corpo = await resposta.json() as { erro?: string; ofertas?: Omit<Oferta, 'incluir'>[] };
+      const corpo = await resposta.json().catch(() => ({
+        erro: resposta.status === 504 ? 'A leitura demorou demais. Envie uma ou duas páginas por vez.' : 'Não foi possível ler o encarte.',
+      })) as { erro?: string; aviso?: string | null; ofertas?: Omit<Oferta, 'incluir'>[] };
       if (!resposta.ok) throw new Error(corpo.erro || 'Não foi possível ler o encarte.');
       setOfertas((corpo.ofertas ?? []).map((o) => ({ ...o, incluir: true })));
       setOcupado('');
-      setMensagem(`${corpo.ofertas?.length ?? 0} ofertas extraídas. Revise e marque o que deseja gravar.`);
+      setErro(Boolean(corpo.aviso));
+      setMensagem(`${corpo.ofertas?.length ?? 0} ofertas extraídas. Revise e marque o que deseja gravar.${corpo.aviso ? ` ${corpo.aviso}` : ''}`);
     } catch (erro) {
       setOcupado('');
       setErro(true);
