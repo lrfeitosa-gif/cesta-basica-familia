@@ -1,9 +1,15 @@
 name: Medir precisão do extrator de encartes
 
-# Lê as páginas 1 a 3 do encarte do Assaí de 26/10 com a Groq e com o Claude e compara com o gabarito
-# transcrito à mão. Não grava nada no banco. Botão "Run workflow" na aba Actions.
+# Lê as páginas 1 a 3 do encarte do Assaí de 26/10 com cada modelo do Claude e compara com o gabarito
+# transcrito à mão. Não grava nada no banco. Botão "Run workflow" na aba Actions; o resultado fica no Summary.
+# A Groq foi medida em 11/11/2026 (82% de preços certos, contra 99% do Opus) e não entra mais por padrão.
 on:
   workflow_dispatch:
+    inputs:
+      incluir_groq:
+        description: "Medir também a Groq"
+        type: boolean
+        default: false
 
 jobs:
   medir:
@@ -15,6 +21,7 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      EXTRATOR: claude
       PAGINAS: ../encartes/assai/2026-10-26/p1-higiene-limpeza.jpg ../encartes/assai/2026-10-26/p2-frios-bebidas.jpg ../encartes/assai/2026-10-26/p3-mercearia.jpg
       GABARITO: ../encartes/assai/2026-10-26/gabarito.json
     steps:
@@ -25,23 +32,33 @@ jobs:
           cache: pip
           cache-dependency-path: worker/requirements.txt
       - run: pip install -r requirements.txt
-      - name: Groq (com o Claude como reserva por página)
-        env:
-          EXTRATOR: groq
+      - name: Preparar a medição
         run: |
-          [ -n "$GROQ_API_KEY" ] || { echo "Falta o segredo GROQ_API_KEY no GitHub"; exit 1; }
-          i=0; for p in $PAGINAS; do i=$((i+1)); python -m coleta.extrator "$p" --mercado Assaí --saida groq-$i.json; done
-          echo '## Groq (com reserva no Claude)' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          python -m coleta.comparar_gabarito "$GABARITO" groq-*.json | tee -a "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-      - name: Claude (como é hoje)
+          cat > /tmp/medir.sh <<'SH'
+          # uso: medir.sh <título> <prefixo dos arquivos>
+          set -e
+          i=0; for p in $PAGINAS; do i=$((i+1)); python -m coleta.extrator "$p" --mercado Assaí --saida "$2-$i.json"; done
+          { echo "## $1"; echo '```'; python -m coleta.comparar_gabarito "$GABARITO" "$2"-*.json; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          SH
+      - name: Claude Opus 5.5 (como é hoje)
+        env:
+          CLAUDE_MODELO: claude-opus-5-5
+        run: bash /tmp/medir.sh "Claude Opus 5.5 (US\$ 4 / 20 por milhão de tokens)" opus
+      - name: Claude Sonnet 5.5
         if: always()
         env:
-          EXTRATOR: claude
+          CLAUDE_MODELO: claude-sonnet-5-5
+        run: bash /tmp/medir.sh "Claude Sonnet 5.5 (US\$ 2 / 10 por milhão de tokens)" sonnet
+      - name: Claude Haiku 5.5
+        if: always()
+        env:
+          CLAUDE_MODELO: claude-haiku-5-5
+        run: bash /tmp/medir.sh "Claude Haiku 5.5 (a partir de US\$ 0,10 / 0,50 por milhão de tokens)" haiku
+      - name: Groq (com reserva no Claude Opus)
+        if: always() && inputs.incluir_groq
+        env:
+          EXTRATOR: groq
+          CLAUDE_MODELO: claude-opus-5-5
         run: |
-          i=0; for p in $PAGINAS; do i=$((i+1)); python -m coleta.extrator "$p" --mercado Assaí --saida claude-$i.json; done
-          echo '## Claude' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          python -m coleta.comparar_gabarito "$GABARITO" claude-*.json | tee -a "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          [ -n "$GROQ_API_KEY" ] || { echo "Falta o segredo GROQ_API_KEY no GitHub"; exit 1; }
+          bash /tmp/medir.sh "Groq (com reserva no Claude Opus)" groq
