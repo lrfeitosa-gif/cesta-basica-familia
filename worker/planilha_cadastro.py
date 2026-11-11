@@ -61,7 +61,27 @@ def tudo(c: httpx.Client, tabela: str, params: dict) -> list[dict]:
         ini += 1000
 
 
-def exportar(saida: str) -> None:
+def ler_anterior(arquivo: str) -> dict:
+    """O que a pessoa já preencheu numa planilha anterior: decisões e grupos por produto (pelo Id e também pelo
+    texto Produto|Marca|Embalagem, porque produtos repetidos podem ter sumido), decisões de grupo e itens novos."""
+    wb = load_workbook(arquivo, data_only=True)
+    por_id, por_texto = {}, {}
+    for linha in wb["Produtos"].iter_rows(min_row=2, max_col=10, values_only=True):
+        pid, grupo, nome, marca, emb, dec = linha[0], linha[1], linha[2], linha[3], linha[4], linha[9]
+        if not pid:
+            continue
+        v = {"grupo": grupo, "decisao": dec}
+        por_id[int(pid)] = v
+        if dec or grupo:
+            por_texto.setdefault(f"{norm(nome)}|{norm(marca)}|{norm(str(emb or ''))}", []).append(v)
+    grupos = {str(g): d for g, _n, _e, _s, d in wb["Grupos"].iter_rows(min_row=2, max_col=5, values_only=True) if g and d}
+    novos = [(n, t, e) for n, t, e, _s, iid in wb["Itens"].iter_rows(min_row=2, max_col=5, values_only=True)
+             if n and not iid and str(n).strip() != FORA]
+    return {"id": por_id, "texto": por_texto, "grupos": grupos, "novos": novos}
+
+
+def exportar(saida: str, anterior: str | None = None) -> None:
+    ant = ler_anterior(anterior) if anterior else None
     c = api()
     itens = tudo(c, "item_base", {"select": "id,termo,nome,exclusoes,ativo", "order": "nome"})
     fila = tudo(c, "produto", {"select": "id,nome,marca,quantidade,unidade,categoria,ean",
@@ -85,8 +105,24 @@ def exportar(saida: str) -> None:
         if i["ativo"]:
             por_palavra[primeira_palavra(i["termo"])].append(i["nome"])
 
-    fila.sort(key=lambda p: (primeira_palavra(p["nome"]), norm(p["nome"])))
-    grupos = Counter(primeira_palavra(p["nome"]) for p in fila)
+    # o que já foi preenchido na planilha anterior (grupo renomeado e decisão de cada produto)
+    def anterior_de(p: dict) -> dict:
+        if not ant:
+            return {}
+        q = float(p["quantidade"]) if p["quantidade"] is not None else None
+        emb = f"{q:g} {p['unidade']}" if q is not None else ""
+        texto = f"{norm(p['nome'])}|{norm(p['marca'])}|{norm(emb)}"
+        # a própria linha e as das cópias que sumiram (mesmo produto, marca e embalagem): vale o que foi preenchido
+        fontes = [x for x in [ant["id"].get(p["id"]), *ant["texto"].get(texto, [])] if x]
+        auto = primeira_palavra(p["nome"])
+        return {"decisao": next((x["decisao"] for x in fontes if x["decisao"]), None),
+                "grupo": next((x["grupo"] for x in fontes if x["grupo"] and norm(str(x["grupo"])) != auto), None)}
+    for p in fila:
+        a = anterior_de(p)
+        p["_grupo"] = str(a.get("grupo") or "").strip() or primeira_palavra(p["nome"])
+        p["_decisao"] = a.get("decisao")
+    fila.sort(key=lambda p: (norm(p["_grupo"]), norm(p["nome"])))
+    grupos = Counter(p["_grupo"] for p in fila)
 
     wb = Workbook()
     cab = Font(bold=True, color="FFFFFF")
@@ -132,6 +168,12 @@ def exportar(saida: str) -> None:
         wi.cell(row=r, column=3, value=", ".join(i["exclusoes"] or []))
         wi.cell(row=r, column=4, value="existente" if i["ativo"] else "inativo")
         wi.cell(row=r, column=5, value=i["id"])
+    # itens novos criados na planilha anterior (ainda não gravados no banco)
+    for r, (n, t, e) in enumerate((ant or {}).get("novos", []), len(itens) + 3):
+        wi.cell(row=r, column=1, value=n)
+        wi.cell(row=r, column=2, value=t)
+        wi.cell(row=r, column=3, value=e)
+        wi.cell(row=r, column=4, value="novo")
     lista = f"=Itens!$A$2:$A${MAX_ITENS}"
 
     def validacao(ws_, coluna: str, ate: int):
@@ -147,15 +189,15 @@ def exportar(saida: str) -> None:
                    ("Decisão do grupo", 30)])
     exemplos: dict[str, list[str]] = defaultdict(list)
     for p in fila:
-        g = primeira_palavra(p["nome"])
+        g = p["_grupo"]
         if len(exemplos[g]) < 4:
             exemplos[g].append(p["nome"])
     for r, (g, n) in enumerate(sorted(grupos.items(), key=lambda x: -x[1]), 2):
         wg.cell(row=r, column=1, value=g)
         wg.cell(row=r, column=2, value=n)
         wg.cell(row=r, column=3, value=" | ".join(exemplos[g]))
-        wg.cell(row=r, column=4, value=" / ".join(por_palavra.get(g, [])) or None)
-        wg.cell(row=r, column=5).fill = decidir
+        wg.cell(row=r, column=4, value=" / ".join(por_palavra.get(norm(g).split(" ")[0], [])) or None)
+        wg.cell(row=r, column=5, value=(ant or {}).get("grupos", {}).get(g)).fill = decidir
     validacao(wg, "E", len(grupos) + 1)
     wg.auto_filter.ref = f"A1:E{len(grupos) + 1}"
 
@@ -164,11 +206,11 @@ def exportar(saida: str) -> None:
     cabecalho(wp, [("Id", 9), ("Grupo", 16), ("Produto", 60), ("Marca", 18), ("Embalagem", 11), ("Categoria", 18),
                    ("Mercados hoje", 30), ("Menor preço hoje", 12), ("Sugestão", 24), ("Decisão", 30)])
     for r, p in enumerate(fila, 2):
-        g = primeira_palavra(p["nome"])
+        g = p["_grupo"]
         q = float(p["quantidade"]) if p["quantidade"] is not None else None
         valores = [p["id"], g, p["nome"], p["marca"], f"{q:g} {p['unidade']}" if q is not None else None,
                    p["categoria"], ", ".join(sorted(mercados.get(p["id"], []))) or None,
-                   menor.get(p["id"]), " / ".join(por_palavra.get(g, [])) or None, None]
+                   menor.get(p["id"]), " / ".join(por_palavra.get(primeira_palavra(p["nome"]), [])) or None, p["_decisao"]]
         for j, v in enumerate(valores, 1):
             wp.cell(row=r, column=j, value=v)
         wp.cell(row=r, column=8).number_format = '"R$" #,##0.00'
@@ -261,11 +303,12 @@ def main(argv: list[str] | None = None) -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     e = sub.add_parser("exportar")
     e.add_argument("--saida", default="fila_cadastro.xlsx")
+    e.add_argument("--anterior", help="planilha já preenchida: leva decisões, grupos e itens novos para a nova")
     i = sub.add_parser("importar")
     i.add_argument("arquivo")
     i.add_argument("--saida", default="cadastro_decisoes.sql")
     a = ap.parse_args(argv)
-    exportar(a.saida) if a.cmd == "exportar" else importar(a.arquivo, a.saida)
+    exportar(a.saida, a.anterior) if a.cmd == "exportar" else importar(a.arquivo, a.saida)
 
 
 if __name__ == "__main__":
