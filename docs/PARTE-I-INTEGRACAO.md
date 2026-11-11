@@ -106,7 +106,8 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | `0012_gestao_cadastro_base.sql` | Administração do cadastro base e decisões manuais | Sim |
 | `0013_importacao_encartes.sql` | Busca global de produtos no admin, carga revisada de encartes do Assaí/Sonda e cadastro do Sonda | Sim |
 | `0014_evolucao_item_base.sql` | Evolução de preços pelo item genérico (todas as marcas, pelo preço do quilo/litro) | Sim |
-| `0015_produto_por_embalagem.sql` | Um produto por código de barras **e** embalagem (lata avulsa e pack com o mesmo código) | Aplicar **antes** de publicar o coletor novo, senão a coleta falha |
+| `0015_produto_por_embalagem.sql` | Um produto por código de barras **e** embalagem (lata avulsa e pack com o mesmo código) | Em parte: a última etapa falhou por produtos repetidos; concluída pela 0015b |
+| `0015b_juntar_produtos_duplicados.sql` | Junta os produtos repetidos que o coletor antigo criou depois da 0015 parcial e conclui a 0015. Rodar **antes** de publicar o coletor novo | Não |
 | `0016_mercado_revolucao.sql` | Supermercados Revolução (folheto, loja de Indaiatuba) no admin de encartes; carga do admin respeita ofertas "Só dd/mm" | Não |
 | `0017_mercado_cato.sql` | Cato Supermercados (folheto, lojas Cidade Nova e Jd. Califórnia) no admin de encartes | Não |
 

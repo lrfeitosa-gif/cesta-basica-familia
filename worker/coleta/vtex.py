@@ -36,7 +36,8 @@ PAUSA_S = 1.0        # educado com o servidor
 # O que uma família compra no mês. Cada termo traz até MAX_POR_TERMO produtos por mercado.
 TERMOS_CESTA = [
     # mercearia
-    "arroz", "feijão", "açúcar", "café", "óleo", "azeite", "macarrão", "farinha", "sal", "molho de tomate",
+    # cápsulas: na busca "café" vêm depois do 100º resultado (Pague Menos trazia só 3 cápsulas)
+    "arroz", "feijão", "açúcar", "café", "café em cápsula", "cápsula de café", "cápsula", "óleo", "azeite", "macarrão", "farinha", "sal", "molho de tomate",
     "extrato de tomate", "milho", "ervilha", "atum", "sardinha", "biscoito", "bolacha", "achocolatado",
     "cereal", "aveia", "fubá", "farofa", "maionese", "ketchup", "vinagre", "tempero", "gelatina",
     # laticínios e frios
@@ -72,12 +73,27 @@ _DUZIA = re.compile(r"\b(meia\s+)?d[uú]zia\b", re.I)
 _OVOS_COM = re.compile(r"^\s*ovos?\b.*?\bcom\s+(\d+)\b", re.I)   # "Ovo Branco Grande Coag Com 12"
 
 
+_PACK_X = re.compile(r"\b(\d+)\s*[xX]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|lt)\b")       # "18x4,4g", "Caixa com 2x500g"
+_VOLUME = re.compile(r"(\d+(?:[.,]\d+)?)\s*(ml|l|lt|litros?)\b", re.I)
+_UNIDADES = re.compile(r"\b(\d+)\s*(?:unidades|unidade|unid|und|un|latas?|garrafas?)\b", re.I)
+
+
 def embalagem(nome: str) -> tuple[float | None, str | None]:
     """'Arroz Camil 5kg' -> (5.0, 'kg'); 'Ovos ... 13g Protein com 10 Unidades' -> (10.0, 'un');
     'Banana Prata 1 Unidade 180g' -> (180.0, 'g').
+    Packs viram o total: 'Café em Cápsula 18x4,4g' -> (79.2, 'g'); 'Cerveja 269ml Com 8 Unidades' -> (2152.0, 'ml'),
+    para comparar pelo preço do quilo/litro com a embalagem avulsa.
 
     Usa a última medida do nome (entende "Unidades", "unid", "30u"). "Dúzia" vira 12 unidades.
     """
+    if (m := _PACK_X.search(nome)):
+        n, q, u = int(m.group(1)), float(m.group(2).replace(",", ".")), m.group(3).lower()
+        if n > 1:
+            return round(n * q, 3), "l" if u == "lt" else u
+    vol, uni = _VOLUME.search(nome), _UNIDADES.search(nome)
+    if vol and uni and uni.start() > vol.start():   # bebida: volume de cada uma + quantas ("1 Unidade" = a própria)
+        q, u = float(vol.group(1).replace(",", ".")), vol.group(2).lower()
+        return round(int(uni.group(1)) * q, 3) or q, "ml" if u == "ml" else "l"
     achados = [(float(q.replace(",", ".")), u.lower()) for q, u in _EMB.findall(nome)]
     achados = [(q, "l" if u in ("lt", "litro", "litros") else "un" if u.startswith("u") else u) for q, u in achados]
     if achados:

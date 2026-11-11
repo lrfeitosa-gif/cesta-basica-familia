@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import unicodedata
@@ -58,7 +59,8 @@ def normalizar(o: dict) -> dict | None:
     marca = (o.get("marca") or "").strip() or None
     nome = o["produto"].strip()
     ean = o.get("ean") or None
-    chave = ean or f"{_norm(nome)}|{_norm(marca)}|{qtd:g}{un}"
+    # código de barras + embalagem: há mercados que usam o código da lata avulsa também no pack (migração 0015)
+    chave = f"{ean}|{qtd:g}{un}" if ean else f"{_norm(nome)}|{_norm(marca)}|{qtd:g}{un}"
     return {
         "produto": {"chave": chave, "ean": ean, "nome": nome, "marca": marca, "quantidade": qtd, "unidade": un,
                     "categoria": _norm(o.get("categoria")) or "outros"},
@@ -75,6 +77,22 @@ def dias_de_validade(ofertas: list[dict], maximo: int = 14) -> list[str]:
     fins = [date.fromisoformat(o["validoAte"]) for o in ofertas if o.get("validoAte")]
     fim = min(max(fins, default=hoje), hoje + timedelta(days=maximo))
     return [(hoje + timedelta(days=d)).isoformat() for d in range((fim - hoje).days + 1)]
+
+
+_SO_DIA = re.compile(r"^\s*s[óo]\s+([^;]+)", re.I)
+
+
+def vale_no_dia(condicao: str | None, dia: str) -> bool:
+    """Oferta de dia certo dentro do encarte ("Só 09/11; ...", "Só 09 e 10/11") só entra nesses dias."""
+    m = _SO_DIA.match(condicao or "")
+    toks = re.findall(r"(\d{1,2})(?:/(\d{1,2}))?", m.group(1)) if m else []
+    if not any(mes for _, mes in toks):
+        return True
+    dias, mes = set(), ""
+    for d, ms in reversed(toks):   # "09 e 10/11": o mês vem no último
+        mes = ms or mes
+        dias.add(f"{int(d):02d}/{int(mes):02d}")
+    return f"{dia[8:10]}/{dia[5:7]}" in dias
 
 
 def tentar(f, tentativas: int = 4):
@@ -116,7 +134,8 @@ def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None)
         # oferta de encarte vencida (validade antes do dia) não entra naquele dia
         linhas = [{**n["oferta"], "produto_id": ids[n["produto"]["chave"]], "mercado_id": mercado_id, "valido_de": dia}
                   for n in lote for dia in dias
-                  if not n["oferta"]["valido_ate"] or n["oferta"]["valido_ate"] >= dia]
+                  if (not n["oferta"]["valido_ate"] or n["oferta"]["valido_ate"] >= dia)
+                  and vale_no_dia(n["oferta"]["condicao"], dia)]
         tentar(lambda: db.table("oferta").upsert(linhas, on_conflict="produto_id,mercado_id,valido_de,fonte").execute())
         total += len(linhas)
     return total
