@@ -8,3 +8,6 @@ node_modules/
 *.json.tmp
 ~$*
 tsconfig.tsbuildinfo
+
+# planilhas de trabalho do cadastro (dados do banco)
+planilhas/
