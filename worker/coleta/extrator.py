@@ -8,6 +8,7 @@ Quem lê o encarte:
     * Groq primeiro (modelo de visão, mais barato), página por página. PDFs viram uma imagem por página.
     * Claude como reserva, só para a página em que a Groq falhou (erro, limite de uso ou nenhuma oferta lida).
     EXTRATOR=claude no ambiente desliga a Groq; sem GROQ_API_KEY, tudo vai para o Claude, como antes.
+    CLAUDE_MODELO escolhe o modelo do Claude (padrão: claude-opus-5-5).
 
 Requer ANTHROPIC_API_KEY (reserva) e, para usar a Groq, GROQ_API_KEY.
 """
@@ -28,7 +29,9 @@ import anthropic
 import httpx
 from pydantic import BaseModel, Field
 
-MODELO = "claude-opus-5-5"
+# Modelo do Claude: CLAUDE_MODELO no ambiente (claude-opus-5-5, claude-sonnet-5-5 ou claude-haiku-5-5).
+# O Opus é o mais preciso e o mais caro; meça os outros com o workflow "Medir precisão do extrator".
+MODELO = os.environ.get("CLAUDE_MODELO", "claude-opus-5-5")
 
 
 class OfertaExtraida(BaseModel):
