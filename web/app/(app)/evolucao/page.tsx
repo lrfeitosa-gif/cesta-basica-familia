@@ -16,6 +16,38 @@ type ItemBase = { id: number; nome: string };
 type Escolha = { item: ItemBase } | { produto: Oferta } | { grupo: { busca: string; produtos: Oferta[] } };
 const chaveProd = (ean: string | null, nome: string, q: number, u: string) => `${ean || nome}|${Number(q)}${u}`;
 
+// Histórico de preços (migração 0019): os dias recentes ficam em `oferta`, uma linha por dia; os mais antigos
+// em `oferta_periodo`, uma linha por período de preço. Aqui os períodos voltam a ser dias. Um dia que esteja
+// nas duas tabelas tem o mesmo preço nas duas, e `montar` fica com o menor por dia e mercado: não duplica.
+type LinhaHist = { preco: number; valido_de: string; mercado: { rede: string }; produto: { nome: string; ean: string | null; quantidade: number; unidade: string } };
+const SEL_HIST = 'mercado!inner(rede),produto!inner(nome,ean,quantidade,unidade)';
+const maisDias = (d: string, n: number) => new Date(Date.parse(d) + n * 86400000).toISOString().slice(0, 10);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Filtro = (consulta: any) => any;
+async function historico(filtrar: Filtro, desde: string): Promise<LinhaHist[]> {
+  const out: LinhaHist[] = [];
+  for (let i = 0; i < 20; i++) {
+    const { data, error } = await filtrar(supabase.from('oferta').select(`preco,valido_de,${SEL_HIST}`).gte('valido_de', desde))
+      .order('id').range(i * 1000, i * 1000 + 999);
+    if (error) throw error;
+    out.push(...((data ?? []) as LinhaHist[]));
+    if ((data ?? []).length < 1000) break;
+  }
+  type Periodo = Omit<LinhaHist, 'valido_de'> & { de: string; ate: string };
+  for (let i = 0; i < 20; i++) {
+    const { data, error } = await filtrar(supabase.from('oferta_periodo').select(`preco,de,ate,${SEL_HIST}`).gte('ate', desde))
+      .order('id').range(i * 1000, i * 1000 + 999);
+    if (error) throw error;
+    for (const p of (data ?? []) as Periodo[]) {
+      for (let d = p.de < desde ? desde : p.de; d <= p.ate; d = maisDias(d, 1)) {
+        out.push({ preco: p.preco, valido_de: d, mercado: p.mercado, produto: p.produto });
+      }
+    }
+    if ((data ?? []).length < 1000) break;
+  }
+  return out;
+}
+
 // Evolução do preço ao longo das coletas: uma linha por mercado, no período escolhido.
 export default function Evolucao() {
   const { dados, erro, tentarDeNovo } = useOfertas();
@@ -84,19 +116,8 @@ export default function Evolucao() {
       const eans = [...new Set(prods.filter((o) => o.ean).map((o) => o.ean))];
       const nomes = [...new Set(prods.filter((o) => !o.ean).map((o) => o.nome))];
       const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
-      type Linha = { preco: number; valido_de: string; mercado: { rede: string }; produto: { nome: string; ean: string | null; quantidade: number; unidade: string } };
-      const buscarTudo = async (campo: 'produto.ean' | 'produto.nome', valores: string[]) => {
-        const out: Linha[] = [];
-        for (let i = 0; valores.length && i < 20; i++) {
-          const { data, error } = await supabase.from('oferta')
-            .select('preco,valido_de,mercado!inner(rede),produto!inner(nome,ean,quantidade,unidade)')
-            .gte('valido_de', desde).in(campo, valores).order('id').range(i * 1000, i * 1000 + 999);
-          if (error) throw error;
-          out.push(...(data as unknown as Linha[]));
-          if ((data ?? []).length < 1000) break;
-        }
-        return out;
-      };
+      const buscarTudo = async (campo: 'produto.ean' | 'produto.nome', valores: string[]) =>
+        valores.length ? historico((c) => c.in(campo, valores), desde) : [];
       setUnidade(prods[0]?.ub ?? '');
       Promise.all([buscarTudo('produto.ean', eans), buscarTudo('produto.nome', nomes)]).then(([a, b]) => {
         const linhas = [...a, ...b].filter((l) => chaves.has(chaveProd(l.produto.ean, l.produto.nome, l.produto.quantidade, l.produto.unidade)));
@@ -120,18 +141,12 @@ export default function Evolucao() {
     }
     const prod = sel.produto;
     const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
-    let consulta = supabase.from('oferta')
-      .select('preco,valido_de,mercado!inner(rede),produto!inner(nome,ean,quantidade,unidade)')
-      .gte('valido_de', desde).order('valido_de').range(0, 4999);
     // com código de barras, o mesmo produto é achado em todos os mercados; sem ele, pelo nome. Sempre no mesmo
     // tamanho: há mercados que usam o código da lata avulsa também no pack (migração 0015)
-    consulta = (prod.ean ? consulta.eq('produto.ean', prod.ean) : consulta.eq('produto.nome', prod.nome))
-      .eq('produto.quantidade', prod.q).eq('produto.unidade', prod.u);
-    consulta.then(({ data, error }) => {
-      if (error) return erroCarga();
-      montar(((data ?? []) as unknown as { preco: number; valido_de: string; mercado: { rede: string } }[])
-        .map((l) => ({ dia: l.valido_de, mercado: l.mercado.rede, preco: l.preco })));
-    });
+    historico((c) => (prod.ean ? c.eq('produto.ean', prod.ean) : c.eq('produto.nome', prod.nome))
+      .eq('produto.quantidade', prod.q).eq('produto.unidade', prod.u), desde)
+      .then((linhas) => montar(linhas.map((l) => ({ dia: l.valido_de, mercado: l.mercado.rede, preco: l.preco }))))
+      .catch(erroCarga);
   }, [sel, dias]);
 
   const porItem = !!sel && ('item' in sel || 'grupo' in sel);
