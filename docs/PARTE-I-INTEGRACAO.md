@@ -98,6 +98,10 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | `0004_alerta_por_termo.sql` | Alerta por palavras (`termo`), função `garantir_familia()` | Sim |
 | `0005_excluir_conta.sql` | Função `excluir_conta()` para a pessoa apagar a própria conta | Sim |
 | `0006_esgotado_e_sugestao.sql` | Avisos de "Acabou na loja" (valem só para a oferta do dia) e indicações de mercado novo | Sim |
+| `0007_lojas_e_ceps.sql` | Lojas de cada rede e data das regiões de interesse | Sim |
+| `0008_convites_e_admin.sql` | Convites do piloto, administradores e eventos de uso | Sim |
+| `0009_loja_da_nota_e_sams.sql` | Loja da nota fiscal | Sim |
+| `0010_indices_ofertas_do_dia.sql` | Índices da lista do dia (sem eles a consulta estoura o tempo limite) | Sim (aplicada em 11/11/2026) |
 | `0011_cadastro_base.sql` | Cadastro de itens genéricos e ligação automática dos produtos | Sim |
 | `0012_gestao_cadastro_base.sql` | Administração do cadastro base e decisões manuais | Sim |
 | `0013_importacao_encartes.sql` | Busca global de produtos no admin, carga revisada de encartes do Assaí/Sonda e cadastro do Sonda | Sim |
