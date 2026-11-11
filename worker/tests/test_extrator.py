@@ -1,4 +1,4 @@
-"""Groq primeiro, Claude só na página em que a Groq falha (sem rede: respostas simuladas)."""
+"""Leitor barato (Groq ou Gemini) primeiro, Claude só na página em que ele falha (sem rede: respostas simuladas)."""
 import json
 
 import httpx
@@ -18,7 +18,8 @@ def resposta_groq(conteudo: str, status: int = 200) -> httpx.Response:
 @pytest.fixture
 def ambiente(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "teste")
-    monkeypatch.delenv("EXTRATOR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "teste")
+    monkeypatch.setenv("EXTRATOR", "groq")
     monkeypatch.setattr(extrator, "_carregar", lambda origem: (b"img", "image/jpeg"))
     monkeypatch.setattr(extrator.time, "sleep", lambda s: None)
     chamadas = {"claude": 0}
@@ -94,10 +95,51 @@ def test_sem_chave_ou_extrator_claude_usa_so_o_claude(ambiente, monkeypatch):
     monkeypatch.setenv("EXTRATOR", "claude")
     e = extrator.extrair("x.jpg", http=cliente())
     assert ambiente["claude"] == 1 and len(e.ofertas) == 1
-    monkeypatch.delenv("EXTRATOR")
+    monkeypatch.setenv("EXTRATOR", "groq")
     monkeypatch.delenv("GROQ_API_KEY")
     extrator.extrair("x.jpg", http=cliente())
     assert ambiente["claude"] == 2
+    monkeypatch.delenv("EXTRATOR")        # sem EXTRATOR: Claude, mesmo com as chaves
+    monkeypatch.setenv("GROQ_API_KEY", "teste")
+    extrator.extrair("x.jpg", http=cliente())
+    assert ambiente["claude"] == 3
+
+
+def resposta_gemini(texto: str) -> httpx.Response:
+    return httpx.Response(200, json={"candidates": [{"content": {"parts": [
+        {"text": "pensando...", "thought": True}, {"text": texto}]}}]})
+
+
+def test_gemini_le_e_ignora_o_raciocinio(ambiente, monkeypatch):
+    monkeypatch.setenv("EXTRATOR", "gemini")
+    pedidos = []
+
+    def responder(req):
+        pedidos.append(req)
+        return resposta_gemini(json.dumps({"valido_ate": "2026-11-15", "ofertas": [ITEM]}))
+
+    e = extrator.extrair("x.jpg", http=httpx.Client(transport=httpx.MockTransport(responder)))
+    assert len(e.ofertas) == 1 and ambiente["claude"] == 0
+    assert "gemini-3.8-flash:generateContent" in str(pedidos[0].url) and pedidos[0].url.params["key"] == "teste"
+    corpo = json.loads(pedidos[0].content)
+    assert corpo["contents"][0]["parts"][1]["inline_data"]["mime_type"] == "image/jpeg"
+
+
+@pytest.mark.parametrize("falha", [
+    httpx.Response(400, text="modelo inválido"),
+    resposta_gemini("sem json aqui"),
+])
+def test_falha_do_gemini_vai_para_o_claude(ambiente, monkeypatch, falha):
+    monkeypatch.setenv("EXTRATOR", "gemini")
+    e = extrator.extrair("x.jpg", http=cliente(falha))
+    assert ambiente["claude"] == 1 and e.ofertas[0].produto == "Feijão carioca"
+
+
+def test_gemini_sem_chave_usa_o_claude(ambiente, monkeypatch):
+    monkeypatch.setenv("EXTRATOR", "gemini")
+    monkeypatch.delenv("GEMINI_API_KEY")
+    extrator.extrair("x.jpg", http=cliente())
+    assert ambiente["claude"] == 1
 
 
 def test_pdf_vira_imagens():
