@@ -32,8 +32,14 @@ export default function Comparar() {
         <input id="q" className="input" type="search" autoComplete="off" placeholder="Ex.: café pilão 500g  ·  café -cápsula"
           value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : !q.trim() ? (
+      {/* Sem busca, a dica aparece na hora (os preços carregam por trás); o carregando só aparece se já houver busca. */}
+      {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !q.trim() ? (
         <div className="empty">Combine palavras (café pilão 500g) e use o sinal de menos para excluir (café -cápsula).</div>
+      ) : !dados ? (
+        <>
+          <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando os preços de hoje nos mercados…</p>
+          <Carregando />
+        </>
       ) : !achados.length ? (
         <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
       ) : (
