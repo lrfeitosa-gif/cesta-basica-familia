@@ -77,9 +77,10 @@ export default function Evolucao() {
     let consulta = supabase.from('oferta')
       .select('preco,valido_de,mercado!inner(rede),produto!inner(nome,ean,quantidade,unidade)')
       .gte('valido_de', desde).order('valido_de').range(0, 4999);
-    // com código de barras, o mesmo produto é achado em todos os mercados; sem ele, pelo nome e tamanho
-    consulta = prod.ean ? consulta.eq('produto.ean', prod.ean)
-      : consulta.eq('produto.nome', prod.nome).eq('produto.quantidade', prod.q).eq('produto.unidade', prod.u);
+    // com código de barras, o mesmo produto é achado em todos os mercados; sem ele, pelo nome. Sempre no mesmo
+    // tamanho: há mercados que usam o código da lata avulsa também no pack (migração 0015)
+    consulta = (prod.ean ? consulta.eq('produto.ean', prod.ean) : consulta.eq('produto.nome', prod.nome))
+      .eq('produto.quantidade', prod.q).eq('produto.unidade', prod.u);
     consulta.then(({ data, error }) => {
       if (error) return erroCarga();
       montar(((data ?? []) as unknown as { preco: number; valido_de: string; mercado: { rede: string } }[])

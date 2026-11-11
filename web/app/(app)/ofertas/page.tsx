@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { brl, carregarPrevia, dataBr, filtrarFoco, GRUPOS, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, carregarPrevia, dataBr, filtrarFoco, GRUPOS, grupo, norm, ordenarPorMedida, useOfertas, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
@@ -15,7 +15,8 @@ const POR_PAGINA = 10;
 
 export default function Oportunidades() {
   const { dados, erro, tentarDeNovo } = useOfertas();
-  const distTxt = useDistTexto(useSessao()?.user.id);
+  const familiaId = useSessao()?.user.id;
+  const distTxt = useDistTexto(familiaId);
   const [mercado, setMercado] = useState('Todos');
   const [limite, setLimite] = useState(POR_PAGINA);
   const [q, setQ] = useState('');
@@ -52,7 +53,9 @@ export default function Oportunidades() {
     .sort((a, b) => b.desc - a.desc), [dados, previa]);
 
   // com busca: todos os preços que combinam, do menor preço por kg/litro ao maior; sem busca: maiores descontos
-  const busca = useMemo(() => (dados && q.trim() ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : null), [dados, q]);
+  // Preço do quilo não se compara com preço da unidade: a medida mais comum nos resultados vem primeiro
+  // (é dela o "Mais barato"); as outras medidas aparecem depois, cada uma do menor para o maior.
+  const busca = useMemo(() => (dados && q.trim() ? ordenarPorMedida(filtrarFoco(dados.lista, q)) : null), [dados, q]);
   // com categoria escolhida: todos os preços dela (descontos primeiro, depois o menor preço por kg/litro)
   const comDesc = (o: Oferta) => ({ o, desc: o.de > o.preco ? 1 - o.preco / o.de : 0 });
   const porCategoria = useMemo(() => (dados && cat !== 'Todas'
@@ -69,7 +72,7 @@ export default function Oportunidades() {
 
   return (
     <>
-      <BoasVindas />
+      <BoasVindas familiaId={familiaId} />
       <div>
         <h1>Oportunidades de hoje</h1>
         <p className="lead">
@@ -135,7 +138,10 @@ export default function Oportunidades() {
           )}
           {melhor && (
             <div className="destaque">
-              <span className="muted">Mais barato (pelo preço do {melhor.ub === 'un' ? 'item' : melhor.ub === 'l' ? 'litro' : 'quilo'}) · {filtradas.length} preços encontrados</span>
+              <span className="muted">
+                Mais barato pelo preço do {melhor.ub === 'un' ? 'item' : melhor.ub === 'l' ? 'litro' : 'quilo'} · {filtradas.length} preços encontrados
+                {filtradas.some((x) => x.o.ub !== melhor.ub) && ` (os vendidos por ${melhor.ub === 'un' ? 'peso ou volume' : 'outra medida'} aparecem no fim)`}
+              </span>
               <span className="grande">{brl(melhor.preco)}</span>
               <span>{melhor.nome} no <b>{melhor.mercado}</b>{distTxt(melhor.mercado) && <span className="dist"> · 📍 {distTxt(melhor.mercado)}</span>}</span>
               <span className="muted">{brl(melhor.porUn)}/{melhor.ub}</span>

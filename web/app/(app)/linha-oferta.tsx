@@ -1,6 +1,6 @@
 'use client';
 import type { ReactNode } from 'react';
-import { brl, emb, marcarEsgotado, norm, type Oferta } from '@/lib/ofertas';
+import { brl, emb, marcarEsgotado, norm, SO_SOCIOS, type Oferta } from '@/lib/ofertas';
 import { mostrarAviso } from './aviso';
 
 export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: ReactNode; dist?: string | null }) {
@@ -14,6 +14,7 @@ export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: Rea
       </div>
       <div className="meta">
         <span className="mkt">{o.mercado}</span>
+        {SO_SOCIOS.has(o.mercado) && <TagSocios />}
         <span className={`fonte fonte-${o.fonte}`} title={o.fonte === 'site' ? 'Preço do site do mercado' : 'Preço de promoção do encarte'}>
           {o.fonte === 'site' ? 'site' : 'encarte'}
         </span>
@@ -41,6 +42,11 @@ async function avisarEsgotado(o: Oferta) {
     texto: `${o.nome} no ${o.mercado} saiu das listas de hoje. Volta na próxima coleta.`,
     acao: { rotulo: 'Desfazer', fazer: desfazer },
   });
+}
+
+// Aviso de mercado que só vende para sócios (Sam's Club).
+export function TagSocios() {
+  return <span className="fonte fonte-socios" title="Para comprar é preciso ser sócio do clube">só sócios</span>;
 }
 
 // Esqueleto de linhas enquanto os preços chegam: a tela já mostra a forma do conteúdo.

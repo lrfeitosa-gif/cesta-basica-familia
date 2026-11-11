@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { horaBr, type Ofertas } from '@/lib/ofertas';
+import { horaBr, SO_SOCIOS, type Ofertas } from '@/lib/ofertas';
+import { TagSocios } from './linha-oferta';
 
 // Todos os mercados acompanhados. Quem não tiver preço no dia aparece como "sem preço hoje", com o motivo.
 const MERCADOS: { mercado: string; motivo: string }[] = [
@@ -28,6 +29,7 @@ export default function Fontes({ dados }: { dados: Ofertas }) {
         {dados.info.map((i) => (
           <div key={i.mercado}>
             <b>{i.mercado}</b>
+            {SO_SOCIOS.has(i.mercado) && <TagSocios />}
             <span className={`fonte fonte-${i.fonte}`}>{i.fonte === 'site' ? 'site do mercado' : 'encarte'}</span>
             <span className="muted">{i.precos.toLocaleString('pt-BR')} preços · {horaBr(i.atualizado)}</span>
           </div>
@@ -35,6 +37,7 @@ export default function Fontes({ dados }: { dados: Ofertas }) {
         {semHoje.map((s) => (
           <div key={s.mercado}>
             <b>{s.mercado}</b>
+            {SO_SOCIOS.has(s.mercado) && <TagSocios />}
             <span className="fonte fonte-sem">sem preço hoje</span>
             <span className="muted">{s.motivo}</span>
           </div>
@@ -42,7 +45,8 @@ export default function Fontes({ dados }: { dados: Ofertas }) {
       </div>
       <p className="muted">
         <b>Site:</b> preço de prateleira da loja online, todos os produtos, com ou sem promoção.{' '}
-        <b>Encarte:</b> só os itens em promoção do folheto da semana. A loja física pode ter outros preços.
+        <b>Encarte:</b> só os itens em promoção do folheto da semana. A loja física pode ter outros preços.{' '}
+        <b>Só sócios:</b> o Sam&apos;s Club vende apenas para quem é sócio do clube.
       </p>
       <Link href="/indicar" className="btn btn-link">Falta algum mercado? Indique aqui</Link>
     </details>

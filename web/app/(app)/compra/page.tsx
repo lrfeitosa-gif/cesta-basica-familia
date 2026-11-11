@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, useOfertas, type Oferta } from '@/lib/ofertas';
-import { Carregando, ErroCarga } from '../linha-oferta';
+import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfertas, type Oferta } from '@/lib/ofertas';
+import { Carregando, ErroCarga, TagSocios } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
 import { fmtKm, km, useLocais } from '@/lib/locais';
@@ -115,6 +115,20 @@ export default function MinhaCompra() {
   };
 
   const salvarExtras = (l: Extra[]) => { setExtras(l); try { localStorage.setItem('cesta-extra', JSON.stringify(l)); } catch {} };
+  // A lista já é gravada a cada mudança (neste aparelho); o botão grava de novo e confirma para a pessoa.
+  const [salvo, setSalvo] = useState('');
+  const salvarLista = () => {
+    try {
+      localStorage.setItem('cesta-sel', JSON.stringify(sel));
+      localStorage.setItem('cesta-extra', JSON.stringify(extras));
+      localStorage.setItem('cesta-marca', JSON.stringify(marcas));
+      const n = Object.keys(sel).length;
+      setSalvo(`Lista salva neste aparelho: ${n} ${n === 1 ? 'item' : 'itens'}.`);
+    } catch {
+      setSalvo('Não foi possível salvar: o navegador está bloqueando o armazenamento (modo anônimo?).');
+    }
+  };
+  useEffect(() => { setSalvo(''); }, [sel, extras, marcas]);
   const pareceHorti = (t: string) => PADRAO_KG.test(t) || HORTIFRUTI.has(primeiraPalavra(t.replace(PADRAO_KG, ' ')));
   const novoEhHorti = novoHorti ?? pareceHorti(novo);
   const adicionar = (e: FormEvent) => {
@@ -133,8 +147,13 @@ export default function MinhaCompra() {
   // Monta a compra com os itens da última nota enviada: cada linha vira o item da cesta com a mesma palavra
   // principal (ou um item novo), com a quantidade comprada. Linhas sem oferta parecida nos mercados ficam de fora.
   const [avisoNota, setAvisoNota] = useState('');
-  const usarNota = async (notaId?: number) => {
+  // Com itens já marcados, pergunta antes: juntar a nota à lista ou trocar a lista pela nota.
+  const [notaPendente, setNotaPendente] = useState<{ id?: number } | null>(null);
+  const usarNota = async (notaId?: number, modo?: 'juntar' | 'substituir') => {
     if (!dados) return setAvisoNota('Aguarde um instante: os preços de hoje ainda estão carregando.');
+    if (!modo && Object.keys(sel).length) { setAvisoNota(''); setNotaPendente({ id: notaId }); return; }
+    setNotaPendente(null);
+    const juntar = modo === 'juntar';
     setAvisoNota(notaId ? 'Lendo a nota…' : 'Lendo sua última nota…');
     let q = supabase.from('compra').select('data,itens:item_comprado(descricao_nota,quantidade)');
     if (notaId) q = q.eq('id', notaId);
@@ -153,8 +172,11 @@ export default function MinhaCompra() {
       for (const [k, c] of vocab) if (k !== w && k.startsWith(w) && c > n) { melhor = k; n = c; }
       return melhor;
     };
-    const novoSel: Record<string, number> = {};
-    const novosExtras: Extra[] = [];
+    // juntar: parte da lista atual; item que já está nela fica com a maior quantidade (lista ou nota)
+    const novoSel: Record<string, number> = juntar ? { ...sel } : {};
+    const novosExtras: Extra[] = juntar ? [...extras] : [];
+    const daNota: Record<string, number> = {};
+    const somar = (id: string, qtd: number) => { daNota[id] = (daNota[id] ?? 0) + qtd; };
     const ignorados: string[] = [];
     itensNota.forEach((it, i) => {
       // palavras da nota ("DESINF BAK YPE 2L", "TOALHA PAPEL SNOB"): abreviações viram a palavra inteira mais comum
@@ -163,17 +185,22 @@ export default function MinhaCompra() {
       const palavra = ws.length > 1 && filtrar(lista, ws.join(' ')).length ? ws.join(' ') : ws[0];
       const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
       const fixo = palavra && CESTA.find((c) => c.inc?.[0] === palavra.split(' ')[0]);
-      if (fixo) { novoSel[fixo.id] = (novoSel[fixo.id] ?? 0) + qtd; return; }
-      const ja = palavra && novosExtras.find((x) => norm(x.termo) === palavra);
-      if (ja) { novoSel[ja.id] += qtd; return; }
+      if (fixo) { somar(fixo.id, qtd); return; }
+      const ja = palavra && novosExtras.find((x) => norm(semAbrev(x.termo)) === palavra);
+      if (ja) { somar(ja.id, qtd); return; }
       if (!palavra || !filtrar(lista, palavra).length) { ignorados.push(it.descricao_nota); return; }
       const id = `x-${Date.now()}-${i}`;
       novosExtras.push({ id, termo: palavra[0].toUpperCase() + palavra.slice(1), horti: pareceHorti(palavra) });
-      novoSel[id] = qtd;
+      somar(id, qtd);
     });
+    const antes = Object.keys(novoSel).length;
+    for (const [id, qtd] of Object.entries(daNota)) novoSel[id] = Math.max(novoSel[id] ?? 0, qtd);
     salvarExtras(novosExtras);
     mudar(novoSel);
-    setAvisoNota(`Lista montada com ${Object.keys(novoSel).length} itens da nota de ${String(data![0].data).split('-').reverse().join('/')}.`
+    const dataNota = String(data![0].data).split('-').reverse().join('/');
+    setAvisoNota((juntar
+      ? `Nota de ${dataNota} juntada à lista: ${Object.keys(novoSel).length - antes} itens novos, ${Object.keys(novoSel).length} no total.`
+      : `Lista montada com ${Object.keys(novoSel).length} itens da nota de ${dataNota}.`)
       + (ignorados.length ? ` Sem oferta parecida: ${ignorados.slice(0, 5).join(', ')}${ignorados.length > 5 ? '…' : ''}.` : ''));
   };
   // Vindo de "Notas registradas" (/compra?nota=ID): monta a compra com aquela nota assim que os preços carregarem.
@@ -212,10 +239,14 @@ export default function MinhaCompra() {
           if (!TEM_TAMANHO.test(termo)) {
             // sem tamanho: compara pelo preço do litro/quilo, com o tamanho mais comum como referência
             const ref = tamanhoReferencia(r[c.id]);
-            // por unidade (rolos, ovos, folhas), só pacotes com a mesma quantidade: 1000 folhas de interfolha não
-            // se comparam a 2 rolos pelo preço de cada "unidade"
+            // por unidade (ovos, rolos, folhas), só pacotes de tamanho parecido (até 3x maior ou menor): a bandeja de
+            // 20 ovos entra na comparação da de 10 pelo preço de cada ovo, mas 1000 folhas de interfolha não se
+            // comparam a 2 rolos pelo preço de cada "unidade"
             const base = (o: Oferta) => Math.round((o.preco / o.porUn) * 1000) / 1000;
-            if (ref) { refs[c.id] = ref; r[c.id] = r[c.id].filter((o) => o.ub === ref.ub && (ref.ub !== 'un' || base(o) === ref.base)); }
+            if (ref) {
+              refs[c.id] = ref;
+              r[c.id] = r[c.id].filter((o) => o.ub === ref.ub && (ref.ub !== 'un' || (base(o) >= ref.base / 3 && base(o) <= ref.base * 3)));
+            }
           }
         }
         continue;
@@ -343,7 +374,7 @@ export default function MinhaCompra() {
       )}
       {aba === 'lista' && (top ? (
         <button type="button" className="resumo-compra" onClick={() => { setAba('comparar'); window.scrollTo(0, 0); }}>
-          <span>Mais barato hoje: <b>{top.m}</b> {fmt(top)}</span>
+          <span>Mais barato hoje: <b>{top.m}</b>{SO_SOCIOS.has(top.m) && <> <TagSocios /></>} {fmt(top)}</span>
           <span className="mkt">Ver comparação →</span>
         </button>
       ) : !itens.length ? <div className="empty">Marque ao menos um item abaixo.</div> : null)}
@@ -355,7 +386,7 @@ export default function MinhaCompra() {
         <div className="destaque">
           <span className="muted">Melhor mercado único para esta compra</span>
           <span className="grande">{fmt(top)}</span>
-          <span><b>{top.m}</b>{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
+          <span><b>{top.m}</b>{SO_SOCIOS.has(top.m) && <> <TagSocios /></>}{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
           {(() => { const d = locais.distancia(top.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
           {top.falta.length > 0 && (
             <span className="cond">
@@ -409,7 +440,7 @@ export default function MinhaCompra() {
               {!r.confiavel && (i === 0 || ranking[i - 1].confiavel) && (
                 <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
               )}
-              <b>{r.m}{distTxt(r.m) && <span className="dist"> · 📍 {distTxt(r.m)}</span>}</b>
+              <b>{r.m}{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{distTxt(r.m) && <span className="dist"> · 📍 {distTxt(r.m)}</span>}</b>
               <span className="total">{fmt(r)}</span>
               {r.falta.length > 0 && (
                 <span className="falta">
@@ -457,17 +488,29 @@ export default function MinhaCompra() {
       {sessao && (
         <div className="card stack">
           <button type="button" className="btn btn-secondary" onClick={() => usarNota()}>Usar os itens da nota mais recente</button>
-          <span className="muted">Troca a lista pelos itens e quantidades da nota. Para usar outra nota, vá em Notas e toque em &quot;Usar estes itens&quot;.</span>
+          <span className="muted">Junta à sua lista, ou troca a lista, pelos itens e quantidades da nota. Para usar outra nota, vá em Notas e toque em &quot;Usar estes itens&quot;.</span>
+          {notaPendente && (
+            <div className="alert stack" role="group" aria-label="Como usar a nota">
+              <span>Sua lista já tem {Object.keys(sel).length} itens. O que fazer com eles?</span>
+              <button type="button" className="btn btn-primary" onClick={() => usarNota(notaPendente.id, 'juntar')}>Juntar a nota à minha lista</button>
+              <button type="button" className="btn btn-secondary" onClick={() => usarNota(notaPendente.id, 'substituir')}>Trocar a lista pelos itens da nota</button>
+              <button type="button" className="btn btn-link" onClick={() => setNotaPendente(null)}>Cancelar</button>
+            </div>
+          )}
           {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
         </div>
       )}
-      {itens.length > 0 && (
-        <button type="button" className="btn btn-link" style={{ alignSelf: 'flex-start' }} onClick={() => {
-          if (!window.confirm('Limpar a lista? Os itens adicionados saem e os da cesta ficam desmarcados.')) return;
-          salvarExtras([]); mudar({}); setMarcas({}); setAvisoNota('');
-          try { localStorage.setItem('cesta-marca', '{}'); } catch {}
-        }}>Limpar lista</button>
-      )}
+      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+        <button type="button" className="btn btn-primary" onClick={salvarLista}>Salvar lista</button>
+        {itens.length > 0 && (
+          <button type="button" className="btn btn-link" onClick={() => {
+            if (!window.confirm('Limpar a lista? Os itens adicionados saem e os da cesta ficam desmarcados.')) return;
+            salvarExtras([]); mudar({}); setMarcas({}); setAvisoNota(''); setSalvo('');
+            try { localStorage.setItem('cesta-marca', '{}'); } catch {}
+          }}>Limpar lista</button>
+        )}
+      </div>
+      {salvo && <div className={`alert ${salvo.startsWith('Não') ? 'alert-error' : 'alert-ok'}`} role="status">{salvo}</div>}
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>

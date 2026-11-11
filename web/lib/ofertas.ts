@@ -12,6 +12,18 @@ export type Fonte = 'site' | 'encarte';
 export type InfoMercado = { mercado: string; fonte: Fonte; precos: number; atualizado: string };
 export type Ofertas = { dia: string; atualizado: string; mercados: string[]; info: InfoMercado[]; lista: Oferta[] };
 
+// Mercados que só vendem para quem é sócio (aviso ao lado do nome em todas as telas).
+export const SO_SOCIOS = new Set(["Sam's Club"]);
+
+// Preço do quilo não se compara com preço da unidade: a medida mais comum vem primeiro, as outras depois,
+// cada grupo do menor para o maior preço por medida.
+export function ordenarPorMedida(lista: Oferta[]): Oferta[] {
+  const conta = new Map<string, number>();
+  for (const o of lista) conta.set(o.ub, (conta.get(o.ub) ?? 0) + 1);
+  const ordem = [...conta.entries()].sort((a, b) => b[1] - a[1]).map(([ub]) => ub);
+  return lista.sort((a, b) => ordem.indexOf(a.ub) - ordem.indexOf(b.ub) || a.porUn - b.porUn);
+}
+
 export const horaBr = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -175,12 +187,16 @@ export async function buscarOfertas(): Promise<Ofertas> {
   return { dia, atualizado, mercados: infos.map((i) => i.mercado), info: infos, lista };
 }
 
-// Chave da marca: ignora maiúsculas, acentos e pontuação ("LIZA", "Liza", "3 Corações" = "3 coracoes").
-export const chaveMarca = (m: string) => norm(m).replace(/[^a-z0-9]+/g, ' ').trim();
+// Chave da marca: ignora maiúsculas, acentos, pontuação e número escrito em algarismo ou por extenso
+// ("LIZA" = "Liza"; "3 Corações" = "Três Corações" = "TRES - 3 Coracoes").
+const NUMEROS: Record<string, string> = { 1: 'um', 2: 'dois', 3: 'tres', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito', 9: 'nove', 10: 'dez' };
+export const chaveMarca = (m: string) => norm(m).replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+  .map((w) => NUMEROS[w] ?? w).filter((w, i, ws) => w !== ws[i - 1]).join(' ');
 
 const titulo = (m: string) => m.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
 
-// Uma grafia por marca em todas as telas: a mais usada que não seja toda em maiúsculas.
+// Uma grafia por marca em todas as telas: a mais usada que não seja toda em maiúsculas, preferindo a com acentos
+// ("Três Corações" em vez de "Tres Coracoes") e a sem algarismo no lugar do nome ("TRES - 3 Coracoes").
 function padronizarMarcas(lista: Oferta[]) {
   const contagem = new Map<string, Map<string, number>>();
   for (const o of lista) {
@@ -192,7 +208,8 @@ function padronizarMarcas(lista: Oferta[]) {
   }
   const exibir = new Map<string, string>();
   for (const [k, grafias] of contagem) {
-    const ordem = [...grafias.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+    const nota = (g: string) => (/\p{Diacritic}/u.test(g.normalize('NFD')) && g !== g.toUpperCase() ? 2 : 0) + (/\d/.test(g) && /[a-z]{3}/i.test(g) ? -1 : 0);
+    const ordem = [...grafias.entries()].sort((a, b) => nota(b[0]) - nota(a[0]) || b[1] - a[1]).map(([g]) => g);
     const mista = ordem.find((g) => g !== g.toUpperCase() || g.length <= 3);
     exibir.set(k, mista ?? titulo(ordem[0]));
   }
@@ -219,11 +236,16 @@ export function filtrarFoco(lista: Oferta[], consulta: string): Oferta[] {
   return foco.length ? foco : achados;
 }
 
-// Filtro composto: todas as palavras precisam aparecer; "-palavra" exclui.
+// Grafias diferentes da mesma coisa nos sites dos mercados: a busca por uma acha também a outra.
+const GRAFIAS: string[][] = [['taiti', 'tahiti'], ['ketchup', 'catchup']];
+const variantes = (t: string): string[] => GRAFIAS.find((g) => g.includes(t)) ?? [t];
+
+// Filtro composto: todas as palavras precisam aparecer; "-palavra" (ou "- palavra") exclui.
 export function filtrar(lista: Oferta[], consulta: string): Oferta[] {
-  const partes = norm(consulta).replace(/(\d+)\s+(kg|g|ml|l)\b/g, '$1$2').split(/\s+/).filter(Boolean);
-  const termos = partes.filter((t) => !t.startsWith('-'));
+  const partes = norm(consulta).replace(/(\d+)\s+(kg|g|ml|l)\b/g, '$1$2').replace(/(^|\s)-\s+(?=\S)/g, '$1-')
+    .split(/\s+/).filter(Boolean);
+  const termos = partes.filter((t) => !t.startsWith('-')).map(variantes);
   const fora = partes.filter((t) => t.startsWith('-') && t.length > 1).map((t) => t.slice(1));
   if (!termos.length) return [];
-  return lista.filter((o) => termos.every((t) => o.busca.includes(t)) && !fora.some((t) => o.busca.includes(t)));
+  return lista.filter((o) => termos.every((vs) => vs.some((t) => o.busca.includes(t))) && !fora.some((t) => o.busca.includes(t)));
 }

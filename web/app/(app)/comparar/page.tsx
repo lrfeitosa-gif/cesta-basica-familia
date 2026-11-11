@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { brl, emb, filtrarFoco, useOfertas } from '@/lib/ofertas';
+import { brl, emb, filtrarFoco, ordenarPorMedida, useOfertas } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
 import { useDistTexto } from '@/lib/locais';
@@ -12,7 +12,7 @@ export default function Comparar() {
   const distTxt = useDistTexto(useSessao()?.user.id);
   const [q, setQ] = useState('');
 
-  const todos = useMemo(() => dados ? filtrarFoco(dados.lista, q).sort((a, b) => a.porUn - b.porUn) : [], [dados, q]);
+  const todos = useMemo(() => dados ? ordenarPorMedida(filtrarFoco(dados.lista, q)) : [], [dados, q]);
   const [limite, setLimite] = useState(40);
   useEffect(() => setLimite(40), [q]);
   const achados = todos.slice(0, limite);

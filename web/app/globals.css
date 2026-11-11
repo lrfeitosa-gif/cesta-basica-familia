@@ -564,3 +564,8 @@ nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-in
 @media (prefers-reduced-motion: reduce) { .giro { animation-duration: 2.4s; } }
 .esq-texto { display: inline-block; width: 140px; height: 12px; border-radius: 6px; background: var(--line); vertical-align: middle; }
 .evol-secao { font-size: .9rem; margin: 4px 0 -4px; color: var(--muted); }
+.fonte-socios { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); color: var(--warn); }
+/* Onboarding: passo do CEP */
+.ob-cep { display: flex; flex-direction: column; align-items: center; width: 100%; flex: 1; }
+.ob-pino { font-size: 4rem; line-height: 1; margin-top: 24px; }
+.ob-campos { width: 100%; display: flex; flex-direction: column; gap: 12px; margin-top: 20px; text-align: left; }
