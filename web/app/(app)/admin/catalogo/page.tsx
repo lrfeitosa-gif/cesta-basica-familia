@@ -5,7 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
 import { criarClassificador, normCat, type ItemBase } from '@/lib/catalogo';
 
-type Produto = { id: number; nome: string; marca: string | null; item_base_id?: number | null; item_base_origem?: string | null };
+type Produto = {
+  id: number; nome: string; marca: string | null; item_base_id?: number | null;
+  item_base_origem?: string | null; item_base_nome?: string | null;
+};
 type Resumo = { origens: Record<string, number>; itens: Record<string, number> };
 const ORIGEM: Record<string, string> = {
   regra: 'ligados pela regra', admin: 'decididos no admin', sem: 'sem item base (fila)', fora: 'fora da cesta', pendente: 'ainda não verificados',
@@ -32,6 +35,11 @@ export default function Catalogo() {
   const [itens, setItens] = useState<ItemBase[]>([]);
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [busca, setBusca] = useState('');
+  const [buscaProdutos, setBuscaProdutos] = useState('');
+  const [resultadosProdutos, setResultadosProdutos] = useState<Produto[]>([]);
+  const [buscouProdutos, setBuscouProdutos] = useState(false);
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [buscandoProdutos, setBuscandoProdutos] = useState(false);
   const [aberto, setAberto] = useState<number | null>(null);
   const [doItem, setDoItem] = useState<Produto[] | null>(null);
   const [fila, setFila] = useState<Produto[] | null>(null);
@@ -56,6 +64,18 @@ export default function Catalogo() {
       setFila(await todasPaginas<Produto>((u) => supabase.from('produto').select('id,nome,marca')
         .eq('item_base_origem', 'sem').gt('id', u).order('id').limit(1000)));
     } catch { setMsg('Não conseguimos carregar a fila.'); }
+  };
+  const buscarNoCatalogo = async (e: FormEvent) => {
+    e.preventDefault();
+    if (normCat(buscaProdutos).length < 2) return setMsg('Digite pelo menos 2 caracteres para buscar produtos.');
+    setBuscandoProdutos(true);
+    setBuscouProdutos(true);
+    setMsg('');
+    const { data, error } = await supabase.rpc('admin_produtos_buscar', { p_termo: buscaProdutos.trim() });
+    setBuscandoProdutos(false);
+    if (error) return setMsg(`Erro ao buscar produtos: ${error.message}`);
+    setResultadosProdutos((data ?? []) as Produto[]);
+    setSelecionados(new Set());
   };
   useEffect(() => { if (sessao) { carregar(); carregarFila(); } }, [sessao]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -95,7 +115,15 @@ export default function Catalogo() {
     const fora = new Set(ids);
     setFila((f) => (f ? (origem === 'sem' ? f : f.filter((p) => !fora.has(p.id))) : f));
     setDoItem((d) => (d ? d.filter((p) => !fora.has(p.id)) : d));
+    setResultadosProdutos((ps) => ps.map((p) => !fora.has(p.id) ? p : ({
+      ...p,
+      item_base_id: origem === 'admin' ? item : null,
+      item_base_nome: origem === 'admin' ? nomeItem.get(item!) ?? null : null,
+      item_base_origem: origem,
+    })));
+    setSelecionados((s) => new Set([...s].filter((id) => !fora.has(id))));
     carregar();
+    if (origem === 'sem') carregarFila();
   };
 
   const salvarItem = async (it: ItemBase) => {
@@ -168,6 +196,62 @@ export default function Catalogo() {
         <h1>Cadastro base</h1>
         <p className="lead">Itens genéricos da cesta, as palavras que excluem produtos e a fila do que não foi ligado.</p>
       </div>
+
+      <section className="card stack">
+        <h2>Buscar produtos em todo o catálogo</h2>
+        <p className="muted">Encontre produtos por nome ou marca, inclusive os que já estão em outro item ou aguardam classificação. Selecione vários para movê-los juntos.</p>
+        <form className="row" onSubmit={buscarNoCatalogo}>
+          <input className="input" style={{ flex: 1 }} type="search" placeholder="Ex.: café cápsula" value={buscaProdutos}
+            onChange={(e) => setBuscaProdutos(e.target.value)} />
+          <button type="submit" className="btn btn-secondary" disabled={buscandoProdutos}>{buscandoProdutos ? 'Buscando…' : 'Buscar'}</button>
+        </form>
+        {!!resultadosProdutos.length && (
+          <>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <span>{resultadosProdutos.length.toLocaleString('pt-BR')} resultados{resultadosProdutos.length === 2000 ? ' (limite da busca)' : ''}</span>
+              <button type="button" className="btn btn-secondary" onClick={() => setSelecionados(
+                selecionados.size === resultadosProdutos.length ? new Set() : new Set(resultadosProdutos.map((p) => p.id)),
+              )}>
+                {selecionados.size === resultadosProdutos.length ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            </div>
+            {selecionados.size > 0 && (
+              <div className="row">
+                <span>{selecionados.size} selecionados</span>
+                <select className="marca-sel" aria-label="Mover produtos selecionados" value="" disabled={!!ocupado}
+                  onChange={(e) => {
+                    if (confirm(`Mover ${selecionados.size} produtos selecionados?`)) mover([...selecionados], e.target.value);
+                    e.currentTarget.value = '';
+                  }}>
+                  {opcoes}
+                </select>
+              </div>
+            )}
+            <div className="cat-itens">
+              {resultadosProdutos.map((p) => (
+                <div className="cat-item" key={p.id}>
+                  <div className="cat-cab" style={{ alignItems: 'center' }}>
+                    <label className="row" style={{ alignItems: 'flex-start', flex: 1 }}>
+                      <input type="checkbox" checked={selecionados.has(p.id)} onChange={(e) => setSelecionados((s) => {
+                        const n = new Set(s);
+                        if (e.target.checked) n.add(p.id); else n.delete(p.id);
+                        return n;
+                      })} />
+                      <span>{p.nome}{p.marca && <span className="muted"> · {p.marca}</span>}<br />
+                        <span className="muted">{p.item_base_nome ?? ORIGEM[p.item_base_origem ?? 'pendente'] ?? 'ainda não classificado'}</span>
+                      </span>
+                    </label>
+                    <select className="marca-sel" aria-label={`Mover ${p.nome}`} value="" disabled={!!ocupado}
+                      onChange={(e) => { mover([p.id], e.target.value); e.currentTarget.value = ''; }}>{opcoes}</select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {buscouProdutos && resultadosProdutos.length === 0 && !buscandoProdutos
+          && <p className="muted">Nenhum produto encontrado. Faça uma busca para ver os resultados.</p>}
+      </section>
 
       {resumo && (
         <section className="adm-numeros">

@@ -1,4 +1,4 @@
-.venv/
+.venv*/
 __pycache__/
 .pytest_cache/
 node_modules/
@@ -7,3 +7,4 @@ node_modules/
 !.env.local.example
 *.json.tmp
 ~$*
+tsconfig.tsbuildinfo

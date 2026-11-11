@@ -98,11 +98,16 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | `0004_alerta_por_termo.sql` | Alerta por palavras (`termo`), função `garantir_familia()` | Sim |
 | `0005_excluir_conta.sql` | Função `excluir_conta()` para a pessoa apagar a própria conta | Sim |
 | `0006_esgotado_e_sugestao.sql` | Avisos de "Acabou na loja" (valem só para a oferta do dia) e indicações de mercado novo | Sim |
+| `0011_cadastro_base.sql` | Cadastro de itens genéricos e ligação automática dos produtos | Sim |
+| `0012_gestao_cadastro_base.sql` | Administração do cadastro base e decisões manuais | Sim |
+| `0013_importacao_encartes.sql` | Busca global de produtos no admin, carga revisada de encartes do Assaí/Sonda e cadastro do Sonda | Sim |
 
 Volume: cerca de 16 mil ofertas por dia com a lista ampliada. O plano gratuito (500 MB) deve durar uns 2 meses; acompanhar em Supabase → Settings → Usage.
 
 ### 5.5 App web (`web/`, Next.js na Vercel)
 - Endereço: **https://cesta-basica-familia.vercel.app** (pode ser trocado em Vercel → Settings → Domains).
+- Administração → **Carregar encartes do Assaí ou Sonda**: permite enviar até 5 imagens por lote, revisar a extração e gravar ofertas válidas por até 14 dias. A leitura usa `GROQ_API_KEY`; PDFs não são aceitos nesta tela.
+- Administração → **Cadastro base de produtos**: a busca global localiza produtos por nome ou marca e permite mover vários resultados para outro item, inclusive os que já estão classificados.
 - Telas públicas: início, criar conta, entrar, termos, privacidade.
 - Área logada (abas): Ofertas, Comparar, Compra, Alertas, Notas; menu da conta com Meus dados e Sair.
 - `app/api/nota/route.ts`: lê a NFC-e no portal da Sefaz-SP (só esse domínio) e grava compra e itens com o token da pessoa (RLS).

@@ -89,6 +89,7 @@ export default function Admin() {
       <div>
         <h1>Administração</h1>
         <p><Link href="/admin/catalogo" className="btn btn-secondary">Cadastro base de produtos →</Link></p>
+        <p><Link href="/admin/encartes" className="btn btn-secondary">Carregar encartes do Assaí ou Sonda →</Link></p>
         <p className="lead">Contas, uso e volume do piloto.</p>
       </div>
 
