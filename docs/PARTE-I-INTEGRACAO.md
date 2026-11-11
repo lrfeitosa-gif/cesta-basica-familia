@@ -108,6 +108,7 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | `0014_evolucao_item_base.sql` | Evolução de preços pelo item genérico (todas as marcas, pelo preço do quilo/litro) | Sim |
 | `0015_produto_por_embalagem.sql` | Um produto por código de barras **e** embalagem (lata avulsa e pack com o mesmo código) | Aplicar **antes** de publicar o coletor novo, senão a coleta falha |
 | `0016_mercado_revolucao.sql` | Supermercados Revolução (folheto, loja de Indaiatuba) no admin de encartes; carga do admin respeita ofertas "Só dd/mm" | Não |
+| `0017_mercado_cato.sql` | Cato Supermercados (folheto, lojas Cidade Nova e Jd. Califórnia) no admin de encartes | Não |
 
 Volume: cerca de 16 mil ofertas por dia com a lista ampliada. O plano gratuito (500 MB) deve durar uns 2 meses; acompanhar em Supabase → Settings → Usage.
 

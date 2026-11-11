@@ -98,7 +98,7 @@ const CESTA: ItemCesta[] = [
   { id: 'detergente', rotulo: 'Detergente 500 ml', inc: ['detergente'], q: 500, u: 'ml', exc: /maquina|lava-loucas|lava loucas/ },
 ];
 // Mercados coletados só pelos encartes: item fora da promoção não aparece, mas a loja pode ter.
-const ENCARTE = new Set(['Roldão', 'Sumerbol', 'Assaí', 'Sonda', 'Revolução']);
+const ENCARTE = new Set(['Roldão', 'Sumerbol', 'Assaí', 'Sonda', 'Revolução', 'Cato']);
 const PADRAO: Record<string, number> = { arroz: 1, feijao: 2, cafe: 1, oleo: 2, leite: 6, macarrao: 2 };
 
 export default function MinhaCompra() {
@@ -507,7 +507,7 @@ export default function MinhaCompra() {
         </div>
       )}
       <p className="muted">
-        Roldão, Sumerbol, Assaí, Sonda e Revolução entram só com os itens em promoção nos encartes. Quando falta preço,
+        Roldão, Sumerbol, Assaí, Sonda, Revolução e Cato entram só com os itens em promoção nos encartes. Quando falta preço,
         o total usa o preço do meio (mediana) dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
       </p>
       </>}
