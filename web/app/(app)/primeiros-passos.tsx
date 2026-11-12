@@ -3,12 +3,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { registrar } from '@/lib/eventos';
+import { jaViu, marcarVisto } from '@/lib/visto';
 import { CHAVE as CHAVE_BOAS_VINDAS } from './boas-vindas';
 
 export const CHAVE_CESTA = 'cesta-montada';           // gravada pela Cesta ao pôr o 1º item
-const CHAVE_FECHADO = 'primeiros-passos-fechado';     // card fechado ou concluído neste aparelho
+const CHAVE_FECHADO = 'primeiros-passos-fechado';     // card fechado ou concluído
 
 type Feito = { endereco: boolean; alerta: boolean; cesta: boolean };
+const PASSOS: { chave: keyof Feito; href: string; texto: string }[] = [
+  { chave: 'endereco', href: '/compra', texto: 'Cadastre o endereço de casa' },
+  { chave: 'alerta', href: '/alertas', texto: 'Crie um alerta para algo que você compra toda semana' },
+  { chave: 'cesta', href: '/compra', texto: 'Monte sua compra e veja o mercado mais barato' },
+];
 
 const temCesta = () => {
   try {
@@ -17,65 +23,58 @@ const temCesta = () => {
   } catch { return false; }
 };
 
-// R2: depois das boas-vindas, a tela de ofertas mostra as 3 primeiras ações.
-// Cada ação feita aparece marcada; o card some quando as 3 estão feitas ou quando a pessoa o fecha.
+// R2: uma linha só, com o progresso e o próximo passo. Os passos feitos não disputam atenção.
+// Some quando os 3 estão feitos ou quando a pessoa fecha; contas com mais de 7 dias não veem.
 // "versao" muda quando as boas-vindas fecham, para o card aparecer sem recarregar a tela.
 export default function PrimeirosPassos({ familiaId, versao = 0 }: { familiaId?: string; versao?: number }) {
   const [feito, setFeito] = useState<Feito | null>(null);
-  const [visivel, setVisivel] = useState(false);
 
   useEffect(() => {
     if (!familiaId) return;
-    try {
-      if (localStorage.getItem(CHAVE_FECHADO) || !localStorage.getItem(CHAVE_BOAS_VINDAS)) return;
-    } catch { return; }
     let ativo = true;
-    Promise.all([
-      supabase.from('regiao_interesse').select('id', { count: 'exact', head: true }).eq('familia_id', familiaId),
-      supabase.from('item_interesse').select('id', { count: 'exact', head: true }).eq('familia_id', familiaId),
-    ]).then(([r, a]) => {
+    (async () => {
+      try { if (!localStorage.getItem(CHAVE_BOAS_VINDAS)) return; } catch { return; }
+      if (await jaViu('passos', CHAVE_FECHADO)) return;
+      const [r, a] = await Promise.all([
+        supabase.from('regiao_interesse').select('id', { count: 'exact', head: true }).eq('familia_id', familiaId),
+        supabase.from('item_interesse').select('id', { count: 'exact', head: true }).eq('familia_id', familiaId),
+      ]);
       if (!ativo) return;
       const f = { endereco: !!r.count, alerta: !!a.count, cesta: temCesta() };
       if (f.endereco && f.alerta && f.cesta) {
-        try { localStorage.setItem(CHAVE_FECHADO, 'completou'); } catch {}
+        marcarVisto('passos', CHAVE_FECHADO, 'completou');
         registrar('primeiros_passos', 'completou');
         return;
       }
-      setFeito(f); setVisivel(true);
-    });
+      setFeito(f);
+    })();
     return () => { ativo = false; };
   }, [familiaId, versao]);
 
-  if (!visivel || !feito) return null;
+  if (!feito) return null;
+  const feitos = PASSOS.filter((p) => feito[p.chave]).length;
+  const proximo = PASSOS.find((p) => !feito[p.chave])!;
   const fechar = () => {
-    try { localStorage.setItem(CHAVE_FECHADO, 'fechou'); } catch {}
-    registrar('primeiros_passos', `fechou com ${Object.values(feito).filter(Boolean).length} de 3`);
-    setVisivel(false);
+    marcarVisto('passos', CHAVE_FECHADO, 'fechou');
+    registrar('primeiros_passos', `fechou com ${feitos} de 3`);
+    setFeito(null);
   };
-  const passos: { chave: keyof Feito; href: string; titulo: string; texto: string }[] = [
-    { chave: 'endereco', href: '/compra', titulo: 'Cadastre um endereço', texto: 'Casa ou trabalho, para ver a distância até cada mercado.' },
-    { chave: 'alerta', href: '/alertas', titulo: 'Crie seu primeiro alerta', texto: 'Escolha um produto que sua casa compra toda semana.' },
-    { chave: 'cesta', href: '/compra', titulo: 'Monte sua primeira compra', texto: 'Veja qual mercado sai mais barato para a sua lista.' },
-  ];
-  const feitos = Object.values(feito).filter(Boolean).length;
 
   return (
-    <section className="card passos" aria-labelledby="pp-titulo">
-      <div className="passos-topo">
-        <h2 id="pp-titulo">Primeiros passos <span className="muted">· {feitos} de 3</span></h2>
-        <button type="button" className="passos-fechar" aria-label="Fechar primeiros passos" onClick={fechar}>×</button>
-      </div>
-      <ol className="passos-lista">
-        {passos.map((p) => (
-          <li key={p.chave} data-feito={feito[p.chave]}>
-            <span className="passos-marca" aria-hidden="true">{feito[p.chave] ? '✓' : ''}</span>
-            {feito[p.chave]
-              ? <span><b>{p.titulo}</b><span className="visually-hidden"> (feito)</span></span>
-              : <Link href={p.href}><b>{p.titulo}</b><span>{p.texto}</span></Link>}
-          </li>
-        ))}
-      </ol>
-      <p className="muted passos-nota">Quer comparar a sua compra? <Link href="/notas">Envie uma nota fiscal</Link> quando quiser. É opcional.</p>
-    </section>
+    <div className="passo">
+      <Link href={proximo.href} className="passo-link">
+        <span className="passo-barra" role="img" aria-label={`${feitos} de 3 primeiros passos feitos`}>
+          {PASSOS.map((p) => <i key={p.chave} data-feito={feito[p.chave]} />)}
+        </span>
+        <span className="passo-texto">
+          <small>Primeiro passo {feitos + 1} de 3</small>
+          {proximo.texto}
+        </span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </Link>
+      <button type="button" className="passo-fechar" aria-label="Dispensar primeiros passos" onClick={fechar}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    </div>
   );
 }

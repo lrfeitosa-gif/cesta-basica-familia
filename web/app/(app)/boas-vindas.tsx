@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocais } from '@/lib/locais';
+import { jaViu, marcarVisto } from '@/lib/visto';
 
 // Ilustrações do onboarding (imagens em /public/img, recortadas das referências).
 const ALT = ['Pessoa vendo no celular o preço de um produto baixar', 'Balança comparando duas embalagens pelo preço do quilo', 'Pessoa montando a compra no celular, com o carrinho ao lado'];
@@ -25,14 +26,14 @@ export const PASSOS = [
 ];
 export const CHAVE = 'boas-vindas-vista';
 
-// Mostrada uma vez, no primeiro acesso após o cadastro. Depois dos passos de apresentação, pede o CEP
+// Mostrada uma vez por conta, no primeiro acesso após o cadastro (contas com mais de 7 dias não veem). Depois dos passos de apresentação, pede o CEP
 // (opcional) para mostrar a distância até cada mercado; dá para mudar depois na Cesta.
 export default function BoasVindas({ familiaId, aoFechar }: { familiaId?: string; aoFechar?: () => void }) {
   const [passo, setPasso] = useState<number | null>(null);
   useEffect(() => {
-    try { if (!localStorage.getItem(CHAVE)) setPasso(0); } catch { /* sem armazenamento: não mostra */ }
+    jaViu('boas_vindas', CHAVE).then((visto) => { if (!visto) setPasso(0); });
   }, []);
-  const fechar = () => { try { localStorage.setItem(CHAVE, '1'); } catch {} setPasso(null); aoFechar?.(); };
+  const fechar = () => { marcarVisto('boas_vindas', CHAVE); setPasso(null); aoFechar?.(); };
   if (passo === null) return null;
   const total = PASSOS.length + 1;
 
