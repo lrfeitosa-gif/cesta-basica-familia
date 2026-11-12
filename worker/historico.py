@@ -1,7 +1,10 @@
-"""Leva as ofertas para o histórico por período e apaga da tabela do dia o que é antigo (migração 0019).
+"""Leva as ofertas para o histórico por período e apaga da tabela do dia o que é antigo (migrações 0019 e 0020).
 
 Se o produto, no mesmo mercado, tem o mesmo preço do dia anterior, o histórico não ganha linha nova:
 o período só é esticado. Roda depois da coleta, todo dia.
+
+O trabalho vai mercado por mercado: cada chamada da API tem limite de 8 s no Supabase, e um dia inteiro
+de uma vez passava disso (12/11/2026).
 
 Uso:
     python historico.py              # consolida até ontem e mantém 7 dias em `oferta`
@@ -20,12 +23,22 @@ def main(argv: list[str] | None = None) -> None:
     a = ap.parse_args(argv)
 
     db = conectar()
-    n = tentar(lambda: db.rpc("consolidar_ofertas", {}).execute().data)
-    controle = db.table("historico_controle").select("ultimo_dia").eq("id", 1).execute().data
-    print(f"histórico: {n} linhas esticadas ou criadas; consolidado até {controle[0]['ultimo_dia'] if controle else '?'}")
+    mercados = [m["id"] for m in tentar(lambda: db.table("mercado").select("id").order("id").execute().data)]
+    dias = tentar(lambda: db.rpc("dias_para_consolidar", {}).execute().data) or []
+    for dia in dias:
+        n = 0
+        for mercado in mercados:
+            n += tentar(lambda: db.rpc("consolidar_dia", {"p_dia": dia, "p_mercado": mercado}).execute().data) or 0
+        tentar(lambda: db.rpc("marcar_consolidado", {"p_dia": dia}).execute())
+        print(f"histórico {dia}: {n} linhas esticadas ou criadas", flush=True)
+    if not dias:
+        print("histórico: nada a consolidar")
     if a.so_consolidar:
         return
-    apagadas = tentar(lambda: db.rpc("limpar_ofertas_antigas", {"p_manter_dias": a.manter}).execute().data)
+    apagadas = 0
+    for mercado in mercados:
+        apagadas += tentar(lambda: db.rpc("limpar_ofertas_antigas",
+                                          {"p_manter_dias": a.manter, "p_mercado": mercado}).execute().data) or 0
     print(f"limpeza: {apagadas} ofertas antigas apagadas da tabela do dia (mantidos {max(a.manter, 3)} dias)")
 
 
