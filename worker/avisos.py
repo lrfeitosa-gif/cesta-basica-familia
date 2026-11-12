@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import time
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
@@ -241,6 +242,22 @@ def enviar_email(para: str, titulo: str, avisos: list[Aviso]) -> bool:
     return r.status_code < 300
 
 
+def buscar_lista(tentativas: int = 6) -> list[dict]:
+    """Preços do dia montados pelo app. A rota às vezes responde 502 quando monta a lista de novo (visto em 12/11):
+    tenta de novo com espera crescente antes de desistir."""
+    for i in range(tentativas):
+        try:
+            r = httpx.get(f"{APP}/api/ofertas", timeout=90)
+            r.raise_for_status()
+            return r.json()["lista"]
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            print(f"api/ofertas: tentativa {i + 1} falhou ({str(e)[:80]})")
+            if i == tentativas - 1:
+                raise
+            time.sleep(15 * (i + 1))
+    return []
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--simular", action="store_true", help="não envia nem registra")
@@ -248,9 +265,7 @@ def main(argv: list[str] | None = None) -> None:
 
     hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     db = conectar()
-    resp = httpx.get(f"{APP}/api/ofertas", timeout=90)
-    resp.raise_for_status()
-    lista = resp.json()["lista"]
+    lista = buscar_lista()
     for o in lista:
         o["busca"] = texto_busca(o)
     print(f"preços de hoje: {len(lista)}")
