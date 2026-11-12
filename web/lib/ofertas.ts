@@ -143,6 +143,9 @@ const valeNoDia = (cond: string | null, dia: string) => {
   return !dias || dias.includes(`${dia.slice(8, 10)}/${dia.slice(5, 7)}`);
 };
 
+// O leitor de encartes às vezes termina a condição com "tipos" (era "tipos variados"): completa para não parecer cortada.
+const condicaoCompleta = (c: string | null) => (c ?? '').trim().replace(/[;,]\s*tipos\.?$/i, '; tipos variados');
+
 function paraOfertas(linhas: Linha[], esgotadas: Set<number>, dia: string): Oferta[] {
   const lista: Oferta[] = [];
   for (const l of linhas) {
@@ -154,7 +157,7 @@ function paraOfertas(linhas: Linha[], esgotadas: Set<number>, dia: string): Ofer
     const ub = p.unidade === 'g' ? 'kg' : p.unidade === 'ml' ? 'l' : p.unidade;
     lista.push({
       id: l.id, nome: p.nome, marca: p.marca || '', q: p.quantidade, u: p.unidade, categoria: p.categoria, ean: p.ean || '',
-      mercado: l.mercado.rede, preco: l.preco, de: l.preco_de || 0, cond: l.condicao || '',
+      mercado: l.mercado.rede, preco: l.preco, de: l.preco_de || 0, cond: condicaoCompleta(l.condicao),
       fonte: l.fonte === 'ecommerce' ? 'site' : 'encarte', url: l.url || '',
       porUn: l.preco / base, ub,
       busca: textoBusca(p.nome, p.marca || '', p.quantidade, p.unidade, p.categoria, l.mercado.rede),
@@ -231,6 +234,24 @@ const chaveBruta = (m: string) => norm(m).replace(/[^a-z0-9]+/g, ' ').trim().spl
   .map((w) => NUMEROS[w] ?? w).filter((w, i, ws) => w !== ws[i - 1]).join(' ');
 export const chaveMarca = (m: string) => { const k = chaveBruta(m); return MESMA_MARCA[k] ?? k; };
 
+// Quando nenhum mercado escreve a marca com acento ("Sao Pedro", "Grao da Terra", "Cafe Pele"), recoloca os acentos
+// das palavras mais comuns em marcas de supermercado. Só troca palavras inteiras e só se a grafia não tiver acento.
+const ACENTOS: Record<string, string> = {
+  sao: 'São', grao: 'Grão', graos: 'Grãos', cafe: 'Café', pele: 'Pelé', pilao: 'Pilão', uniao: 'União', tres: 'Três',
+  coracoes: 'Corações', acucar: 'Açúcar', joao: 'João', jose: 'José', pao: 'Pão', paes: 'Pães', leao: 'Leão',
+  limao: 'Limão', alianca: 'Aliança', camponesa: 'Camponesa', italac: 'Italac', mae: 'Mãe', terra: 'Terra',
+  agua: 'Água', oleo: 'Óleo', patria: 'Pátria', principe: 'Príncipe', perdigao: 'Perdigão', sadia: 'Sadia',
+  sorriso: 'Sorriso', colonia: 'Colônia', fazendao: 'Fazendão', regiao: 'Região', nacao: 'Nação', vitoria: 'Vitória',
+};
+function comAcento(m: string): string {
+  if (/\p{Diacritic}/u.test(m.normalize('NFD'))) return m;
+  return m.replace(/\p{L}+/gu, (w) => {
+    const a = ACENTOS[w.toLowerCase()];
+    if (!a) return w;
+    return w === w.toUpperCase() && w.length > 1 ? a.toUpperCase() : w[0] === w[0].toUpperCase() ? a : a.toLowerCase();
+  });
+}
+
 const titulo = (m: string) => m.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
 
 // Uma grafia por marca em todas as telas: a mais usada que não seja toda em maiúsculas, preferindo a com acentos
@@ -251,7 +272,7 @@ function padronizarMarcas(lista: Oferta[]) {
       + (/\p{Diacritic}/u.test(g.normalize('NFD')) && g !== g.toUpperCase() ? 2 : 0) + (/\d/.test(g) && /[a-z]{3}/i.test(g) ? -1 : 0);
     const ordem = [...grafias.entries()].sort((a, b) => nota(b[0]) - nota(a[0]) || b[1] - a[1]).map(([g]) => g);
     const mista = ordem.find((g) => g !== g.toUpperCase() || g.length <= 3);
-    exibir.set(k, mista ?? titulo(ordem[0]));
+    exibir.set(k, comAcento(mista ?? titulo(ordem[0])));
   }
   for (const o of lista) {
     const k = chaveMarca(o.marca);

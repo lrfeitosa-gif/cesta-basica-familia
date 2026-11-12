@@ -60,6 +60,7 @@ Liste todos os produtos com preço visível no encarte, um por item. Regras:
 - Se houver dois preços (unitário e "a partir de N un", cartão, clube ou app), use o menor em `preco`, o unitário em `preco_de` e descreva a regra em `condicao`. Preço riscado também vai em `preco_de`.
 - Packs e multipacks: use o conteúdo total ("pack 5x160g" -> 800, "g"; "pack 3x70g" -> 210, "g"). Use "un" só quando não houver peso ou volume (fraldas, escovas, utensílios).
 - Quando o encarte der opções de embalagem ("150 ou 250 ml"), use a menor e cite as opções em `condicao`.
+- Escreva a condição por extenso, sem cortar palavras ("tipos variados", nunca só "tipos").
 - Não invente: se o preço ou a marca não estiver legível, deixe o item de fora ou a marca null.
 - Datas de validade do encarte no formato AAAA-MM-DD; o ano atual é {ano}."""
 
