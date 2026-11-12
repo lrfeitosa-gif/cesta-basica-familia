@@ -5,6 +5,8 @@ Os percentuais em Config são pontos de partida, não valores validados.
 """
 from __future__ import annotations
 
+import re
+import unicodedata
 import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -83,8 +85,19 @@ def casa(interesse: Interesse, oferta: Oferta, cfg: Config = Config()) -> bool:
     return interesse.marca is None or _norm(interesse.marca) == _norm(p.marca)
 
 
+_NUMEROS = {"1": "um", "2": "dois", "3": "tres", "4": "quatro", "5": "cinco",
+            "6": "seis", "7": "sete", "8": "oito", "9": "nove", "10": "dez"}
+# Linhas de produto que os sites gravam como marca contam como a marca dona (igual a chaveMarca no app).
+_MESMA_MARCA = {"tres": "tres coracoes"}
+
+
 def _norm(s: str | None) -> str:
-    return (s or "").strip().lower()
+    """Chave da marca: sem maiúsculas, acentos e pontuação; "3 Corações" = "TRES - 3 Coracoes" = "Três"."""
+    t = unicodedata.normalize("NFD", s or "")
+    t = "".join(c for c in t if not unicodedata.combining(c)).lower()
+    palavras = [_NUMEROS.get(w, w) for w in re.split(r"[^a-z0-9]+", t) if w]
+    k = " ".join(w for i, w in enumerate(palavras) if i == 0 or w != palavras[i - 1])
+    return _MESMA_MARCA.get(k, k)
 
 
 # 2. Gatilho de preço de oportunidade ---------------------------------------
