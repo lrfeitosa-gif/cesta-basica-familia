@@ -14,7 +14,7 @@ export default function Privacidade() {
         <p><b>Alertas:</b> os produtos, marcas e preços-alvo que você cadastra.</p>
         <p><b>Endereços de referência (até 3):</b> só o nome que você der ("Casa", "Trabalho") e a região aproximada,
           arredondada para cerca de 1 km, usada para mostrar a distância até os mercados. O CEP e a rua não são guardados.</p>
-        <p><b>No seu aparelho:</b> os itens da Minha compra e as marcas escolhidas ficam só no celular e não são enviados.</p>
+        <p><b>Na sua conta:</b> a sua cesta (itens, quantidades e marcas escolhidas) fica salva na conta, para abrir igual no celular e no computador. Ela é apagada junto com a conta.</p>
         <p><b>Preços:</b> os preços das notas podem entrar, sem identificação, na média de preços da região que todos veem.</p>
         <p>
           <b>Seus direitos:</b> em <Link href="/conta">Meus dados</Link> você baixa um arquivo com tudo o que está guardado

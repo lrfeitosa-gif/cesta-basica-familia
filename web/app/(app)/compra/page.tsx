@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga, TagSocios } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
@@ -87,6 +87,7 @@ type Extra = { id: string; termo: string; horti?: boolean };   // horti: escolhi
 const PROCESSADO = /triturad|picad|frit|desidrat|pasta|conserva|em po|chips|passa|polpa|congelad|molho|tempero|doce de|geleia|suco|creme|farinha|palha/;
 
 // Cesta básica de referência. Próxima etapa: montar a partir da lista de interesse da família.
+const CHAVE_SYNC = 'cesta-atualizada';   // quando a lista deste aparelho mudou pela última vez (ms)
 const PET = /racao|pet\b|caes|gatos|pedigree|baw waw|whiskas|golden formula|premier pet|petisco|dog\b|cat\b/;
 // marca sem espaços: "La Sante" = "Lasante"
 const marcaCompacta = (m: string) => chaveMarca(m).replace(/ /g, '');
@@ -145,6 +146,62 @@ export default function MinhaCompra() {
     try { localStorage.setItem('cesta-teste', '1'); localStorage.removeItem('cesta-teste'); setSalvo(''); }
     catch { setSalvo('Não foi possível salvar: o navegador está bloqueando o armazenamento (modo anônimo?).'); }
   }, [sel, extras, marcas]);
+
+  // Cesta salva na conta (tabela cesta_salva, migração 0026): itens, quantidades, itens adicionados e marcas
+  // escolhidas abrem iguais no celular e no computador. Ao abrir, vale a versão mais recente (conta ou aparelho);
+  // depois, cada mudança é gravada na conta 1,5 s após a última alteração.
+  const [nuvem, setNuvem] = useState<'carregando' | 'ok' | 'salvando' | 'erro'>('carregando');
+  const sincronizada = useRef(false);
+  const aplicandoDaConta = useRef(false);
+  useEffect(() => {
+    if (!sessao) return;
+    let ativo = true;
+    (async () => {
+      const { data, error } = await supabase.from('cesta_salva').select('sel,extras,marcas,atualizado_em')
+        .eq('familia_id', sessao.user.id).maybeSingle();
+      if (!ativo) return;
+      if (error) { setNuvem('erro'); sincronizada.current = true; return; }
+      let local = 0;
+      try { local = Number(localStorage.getItem(CHAVE_SYNC)) || 0; } catch {}
+      if (data && Date.parse(data.atualizado_em) > local) {
+        aplicandoDaConta.current = true;
+        setSel(data.sel ?? {}); setExtras(data.extras ?? []); setMarcas(data.marcas ?? {});
+        try {
+          localStorage.setItem('cesta-sel', JSON.stringify(data.sel ?? {}));
+          localStorage.setItem('cesta-extra', JSON.stringify(data.extras ?? []));
+          localStorage.setItem('cesta-marca', JSON.stringify(data.marcas ?? {}));
+          localStorage.setItem(CHAVE_SYNC, String(Date.parse(data.atualizado_em)));
+        } catch {}
+        sincronizada.current = true; setNuvem('ok');
+      } else {
+        sincronizada.current = true;
+        setNuvem(data ? 'ok' : 'salvando');
+        if (!data) await gravarNaConta();   // primeira vez: a lista deste aparelho vai para a conta
+      }
+    })();
+    return () => { ativo = false; };
+  }, [sessao?.user.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const atual = useRef({ sel, extras, marcas });
+  atual.current = { sel, extras, marcas };
+  const gravarNaConta = async () => {
+    if (!sessao) return;
+    const agora = new Date();
+    try { localStorage.setItem(CHAVE_SYNC, String(agora.getTime())); } catch {}
+    await supabase.rpc('garantir_familia');
+    const { error } = await supabase.from('cesta_salva').upsert({
+      familia_id: sessao.user.id, ...atual.current, atualizado_em: agora.toISOString(),
+    }, { onConflict: 'familia_id' });
+    setNuvem(error ? 'erro' : 'ok');
+  };
+  useEffect(() => {
+    if (!sincronizada.current) return;
+    if (aplicandoDaConta.current) { aplicandoDaConta.current = false; return; }   // veio da conta: não regrava
+    try { localStorage.setItem(CHAVE_SYNC, String(Date.now())); } catch {}
+    setNuvem('salvando');
+    const t = setTimeout(gravarNaConta, 1500);
+    return () => clearTimeout(t);
+  }, [sel, extras, marcas]);   // eslint-disable-line react-hooks/exhaustive-deps
   const pareceHorti = (t: string) => PADRAO_KG.test(t) || HORTIFRUTI.has(primeiraPalavra(t.replace(PADRAO_KG, ' ')));
   const novoEhHorti = novoHorti ?? pareceHorti(novo);
   const adicionar = (e: FormEvent) => {
@@ -653,7 +710,10 @@ export default function MinhaCompra() {
       {/* A lista grava sozinha a cada mudança: no fim dela fica só a confirmação, sem botão de salvar no caminho */}
       <div className="lista-rodape">
         <span className={salvo.startsWith('Não') ? 'erro' : ''} role="status">
-          {salvo || (itens.length ? `Lista salva só neste aparelho (${itens.length} ${itens.length === 1 ? 'item' : 'itens'}).` : 'Sua lista fica salva neste aparelho.')}
+          {salvo || (nuvem === 'salvando' ? 'Salvando na sua conta…'
+            : nuvem === 'erro' ? 'Não foi possível salvar na sua conta agora. A lista ficou salva neste aparelho.'
+            : nuvem === 'carregando' ? 'Carregando a cesta da sua conta…'
+            : `Cesta salva na sua conta${itens.length ? ` (${itens.length} ${itens.length === 1 ? 'item' : 'itens'})` : ''}: abre igual no celular e no computador.`)}
         </span>
         {itens.length > 0 && (
           <button type="button" className="btn btn-link" onClick={() => {
