@@ -460,10 +460,12 @@ export default function MinhaCompra() {
   }
   const roteiro = [...porMercadoIdeal.entries()].map(([m, l]) => ({ m, l, total: l.reduce((t, x) => t + x.valor, 0), d: locais.distancia(m) }))
     .sort((a, b) => b.total - a.total);
+  // mercados sem loja com localização (Sam's, Roldão…) ficam fora do percurso, e a tela diz quais
+  const semLocal = roteiro.filter((r) => !r.d).map((r) => r.m);
   const percurso = (() => {
     const casa = locais.refs[0];
-    if (!casa || roteiro.some((r) => !r.d)) return null;
-    let aqui: { lat: number; lng: number } = casa; let total = 0; const falta = roteiro.map((r) => r.d!.loja);
+    if (!casa || roteiro.every((r) => !r.d)) return null;
+    let aqui: { lat: number; lng: number } = casa; let total = 0; const falta = roteiro.filter((r) => r.d).map((r) => r.d!.loja);
     while (falta.length) {
       falta.sort((a, b) => km(aqui, a) - km(aqui, b));
       const prox = falta.shift()!; total += km(aqui, prox); aqui = prox;
@@ -607,8 +609,9 @@ export default function MinhaCompra() {
               </li>
             ))}
           </ul>
-          {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta, saindo de {percurso.de} e voltando.</span>
-            : <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span>}
+          {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta, saindo de {percurso.de} e voltando
+            {semLocal.length ? ` (sem ${semLocal.join(' e ')}, que ainda não ${semLocal.length === 1 ? 'tem' : 'têm'} o endereço da loja no app)` : ''}.</span>
+            : !locais.refs.length ? <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span> : null}
         </section>
       )}
 
