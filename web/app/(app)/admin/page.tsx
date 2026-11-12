@@ -97,6 +97,21 @@ export default function Admin() {
     if (!error) { setNovo({ codigo: '', descricao: '', usos: '10' }); carregar(); }
   };
 
+  // Convite pronto para mandar no WhatsApp: o link já leva o código preenchido no cadastro.
+  // No celular abre a tela de compartilhar (WhatsApp, grupos...); no computador, o WhatsApp Web.
+  const compartilharConvite = async (codigo: string, vagas: number) => {
+    const link = `${location.origin}/cadastro?convite=${encodeURIComponent(codigo)}`;
+    const texto = `Oi! Estou testando um app que criei para a gente poupar no mercado aqui em Indaiatuba. `
+      + `Todo dia ele confere os preços de vários mercados e avisa quando o que a sua casa compra está mais em conta perto de você. `
+      + `É gratuito e pede só e-mail (nada de CPF ou endereço).\n\n`
+      + `Para entrar, é só tocar no link (o código ${codigo} já vai preenchido): ${link}\n\n`
+      + `${vagas === 1 ? 'Resta 1 vaga' : `Restam ${vagas} vagas`} neste convite. Em troca, só peço a sua opinião sincera pelo próprio app. Obrigada!`;
+    try {
+      if (navigator.share) { await navigator.share({ text: texto }); return; }
+    } catch (e) { if ((e as Error).name === 'AbortError') return; }
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+  };
+
   if (!sessao || permitido === null) return <h1>Administração</h1>;
   if (!permitido) return <><h1>Administração</h1><div className="empty">Esta área é só para administradores.</div></>;
 
@@ -174,7 +189,7 @@ export default function Admin() {
         {aba === 'convites' && <>
           <p className="muted">Resultado por grupo de origem. O código TESTE não conta nas vagas do piloto. Ativas: fizeram ao menos uma ação de valor (alerta, endereço, cesta montada ou nota).</p>
           <div className="adm-tabela" role="table">
-            <div role="row" className="cab adm-conv"><span>Código</span><span>Grupo</span><span>Vagas usadas</span><span>Ativas</span><span>Entraram em 7 dias</span></div>
+            <div role="row" className="cab adm-conv"><span>Código</span><span>Grupo</span><span>Vagas usadas</span><span>Ativas</span><span>Entraram em 7 dias</span><span>Convidar</span></div>
             {porConvite.map((c) => (
               <div role="row" className="adm-conv" key={c.codigo}>
                 <span><b>{c.codigo}</b></span>
@@ -182,6 +197,11 @@ export default function Admin() {
                 <span>{c.usos} de {c.usos_max}</span>
                 <span>{c.ativas} de {c.contas}{c.contas ? ` (${Math.round((c.ativas / c.contas) * 100)}%)` : ''}</span>
                 <span>{c.entraram7}</span>
+                <span>
+                  {c.usos < c.usos_max
+                    ? <button type="button" className="btn btn-link" onClick={() => compartilharConvite(c.codigo, c.usos_max - c.usos)}>Compartilhar</button>
+                    : <span className="muted">esgotado</span>}
+                </span>
               </div>
             ))}
           </div>
