@@ -569,3 +569,32 @@ nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-in
 .ob-cep { display: flex; flex-direction: column; align-items: center; width: 100%; flex: 1; }
 .ob-pino { font-size: 4rem; line-height: 1; margin-top: 24px; }
 .ob-campos { width: 100%; display: flex; flex-direction: column; gap: 12px; margin-top: 20px; text-align: left; }
+
+/* Caixa de opiniões (R7) */
+.menu-opiniao { font: inherit; font-weight: 700; text-align: left; padding: 4px 0; border: 0; background: none; color: var(--accent); cursor: pointer; }
+dialog.opiniao {
+  width: min(460px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 18px;
+  background: var(--surface); color: var(--ink);
+}
+dialog.opiniao::backdrop { background: color-mix(in srgb, #000 45%, transparent); }
+dialog.opiniao h2 { margin: 0; }
+dialog.opiniao textarea { resize: vertical; min-height: 110px; font: inherit; }
+
+/* Card de primeiros passos (R2) */
+.passos { display: grid; gap: 10px; }
+.passos-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.passos-topo h2 { margin: 0; font-size: 1.05rem; }
+.passos-fechar { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.3rem; cursor: pointer; }
+.passos-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.passos-lista li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
+.passos-lista a { display: grid; gap: 2px; color: var(--ink); text-decoration: none; }
+.passos-lista a span { color: var(--muted); font-size: .85rem; }
+.passos-lista li[data-feito="true"] b { color: var(--muted); text-decoration: line-through; }
+.passos-marca { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 800; color: var(--surface); }
+.passos-lista li[data-feito="true"] .passos-marca { background: var(--good); border-color: var(--good); }
+.passos-nota { margin: 0; font-size: .85rem; }
+
+/* Painel admin: precisa de ajuda (R3) e opiniões (R7) */
+.adm-ajuda li, .adm-opinioes li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.adm-opinioes p { margin: 4px 0 0; white-space: pre-wrap; }
+.adm-tabela > .adm-conv { grid-template-columns: 110px minmax(140px, 2fr) 110px 120px 130px; }

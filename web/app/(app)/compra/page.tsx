@@ -6,6 +6,8 @@ import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
 import { fmtKm, km, useLocais } from '@/lib/locais';
 import Enderecos from './enderecos';
+import { registrar } from '@/lib/eventos';
+import { CHAVE_CESTA } from '../primeiros-passos';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
@@ -121,7 +123,11 @@ export default function MinhaCompra() {
     try { setMarcas(JSON.parse(localStorage.getItem('cesta-marca') || '{}')); } catch {}
     try { setExtras(JSON.parse(localStorage.getItem('cesta-extra') || '[]')); } catch {}
   }, []);
-  const mudar = (novo: Record<string, number>) => { setSel(novo); try { localStorage.setItem('cesta-sel', JSON.stringify(novo)); } catch {} };
+  const mudar = (novo: Record<string, number>) => {
+    setSel(novo); try { localStorage.setItem('cesta-sel', JSON.stringify(novo)); } catch {}
+    // 1º item na Cesta: registra uma vez (card de primeiros passos e lista "precisa de ajuda" do painel)
+    if (Object.keys(novo).length) { try { if (!localStorage.getItem(CHAVE_CESTA)) { localStorage.setItem(CHAVE_CESTA, '1'); registrar('cesta_montada'); } } catch {} }
+  };
   const fixarMarca = (id: string, marca: string) => {
     const n = { ...marcas }; if (marca) n[id] = marca; else delete n[id];
     setMarcas(n); try { localStorage.setItem('cesta-marca', JSON.stringify(n)); } catch {}

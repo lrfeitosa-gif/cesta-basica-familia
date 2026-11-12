@@ -8,6 +8,7 @@ import { useSessao } from '@/lib/sessao';
 import { useDistTexto } from '@/lib/locais';
 import Fontes from '../fontes';
 import BoasVindas from '../boas-vindas';
+import PrimeirosPassos from '../primeiros-passos';
 
 // Fora das oportunidades: ração e destilados (bebidas do dia a dia, como cerveja, continuam)
 const RUIDO = /racao|caes|gatos|whisky|vodka|gin /;
@@ -22,6 +23,7 @@ export default function Oportunidades() {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('Todas');
   const [semNotas, setSemNotas] = useState(false);
+  const [bvFechou, setBvFechou] = useState(0);   // boas-vindas fechadas agora: mostra os primeiros passos
 
   useEffect(() => {
     supabase.from('compra').select('id', { count: 'exact', head: true }).then(({ count }) => setSemNotas(!count));
@@ -72,7 +74,7 @@ export default function Oportunidades() {
 
   return (
     <>
-      <BoasVindas familiaId={familiaId} />
+      <BoasVindas familiaId={familiaId} aoFechar={() => setBvFechou((n) => n + 1)} />
       <div>
         <h1>Oportunidades de hoje</h1>
         <p className="lead">
@@ -98,6 +100,7 @@ export default function Oportunidades() {
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando &quot;{q.trim()}&quot; em todos os preços de hoje…</p>
       )}
       {dados && !q && <Fontes dados={dados} />}
+      {!q && <PrimeirosPassos familiaId={familiaId} versao={bvFechou} />}
 
       {semNotas && !q && (
         <Link href="/notas" className="convite">

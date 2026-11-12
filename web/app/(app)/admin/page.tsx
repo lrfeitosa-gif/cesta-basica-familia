@@ -7,11 +7,12 @@ import Link from 'next/link';
 
 type Usuario = {
   id: string; email: string; criado_em: string; confirmado_em: string | null; ultimo_login: string | null; convite: string | null;
-  notas: number; itens_nota: number; alertas: number; enderecos: number; bytes: number;
+  notas: number; itens_nota: number; alertas: number; enderecos: number; cesta: number; opinioes: number; bytes: number;
 };
 type Convite = { codigo: string; descricao: string | null; usos_max: number; usos: number; valido_ate: string | null };
 type Resumo = { banco_bytes: number; ofertas: number; ofertas_bytes: number; produtos: number; max_contas: number; convites: Convite[] };
 type Evento = { id: number; user_id: string | null; tipo: string; detalhe: string | null; criado_em: string };
+type Opiniao = { id: number; user_id: string; texto: string; tela: string | null; criado_em: string };
 
 const kb = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 const dia = (iso: string) => new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
@@ -19,7 +20,11 @@ const diasAtras = (iso: string | null) => (iso ? (Date.now() - new Date(iso).get
 const ROTULO: Record<string, string> = {
   login_ok: 'Entrou', login_erro: 'Erro ao entrar', cadastro_inicio: 'Começou o cadastro', cadastro_erro: 'Erro no cadastro',
   cadastro_ok: 'Cadastro enviado', tela: 'Abriu tela', erro_app: 'Erro na tela',
+  cesta_montada: 'Montou a cesta', primeiros_passos: 'Primeiros passos',
 };
+// Ação de valor (spec do piloto): alerta, endereço de interesse ou compra montada na Cesta. Nota fiscal também conta.
+const usou = (u: Usuario) => u.alertas > 0 || u.enderecos > 0 || u.cesta > 0 || u.notas > 0;
+const DIAS_AJUDA = 3;
 
 // Painel de administração: contas, uso, volume, convites, eventos e previsão de novos usuários.
 // Os dados vêm de funções do banco que só respondem para quem está na tabela "administrador".
@@ -29,25 +34,34 @@ export default function Admin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [eventos, setEventos] = useState<Evento[]>([]);
+  const [opinioes, setOpinioes] = useState<Opiniao[]>([]);
   const [filtro, setFiltro] = useState('');
   const [novo, setNovo] = useState({ codigo: '', descricao: '', usos: '10' });
   const [msg, setMsg] = useState('');
 
   const carregar = async () => {
-    const [u, r, e] = await Promise.all([
+    const [u, r, e, o] = await Promise.all([
       supabase.rpc('admin_usuarios'),
       supabase.rpc('admin_resumo'),
       supabase.from('evento').select('id,user_id,tipo,detalhe,criado_em').order('criado_em', { ascending: false }).limit(500),
+      supabase.from('opiniao').select('id,user_id,texto,tela,criado_em').order('criado_em', { ascending: false }).limit(300),
     ]);
     if (u.error) return setPermitido(false);
     setPermitido(true);
     setUsuarios((u.data ?? []) as Usuario[]);
     setResumo(r.data as Resumo);
     setEventos((e.data ?? []) as Evento[]);
+    setOpinioes((o.data ?? []) as Opiniao[]);
   };
   useEffect(() => { if (sessao) carregar(); }, [sessao]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const emailDe = useMemo(() => new Map(usuarios.map((u) => [u.id, u.email])), [usuarios]);
+
+  // R1: resultado de cada código de convite (grupo de origem)
+  const porConvite = useMemo(() => (resumo?.convites ?? []).map((c) => {
+    const contas = usuarios.filter((u) => u.convite === c.codigo.toUpperCase());
+    return { ...c, contas: contas.length, ativas: contas.filter(usou).length, entraram7: contas.filter((u) => diasAtras(u.ultimo_login) <= 7).length };
+  }), [usuarios, resumo]);
 
   // Novas contas por dia e projeção: média diária das últimas 2 semanas, limitada pelas vagas do piloto.
   const previsao = useMemo(() => {
@@ -77,7 +91,10 @@ export default function Admin() {
   const confirmados = usuarios.filter((u) => u.confirmado_em).length;
   const ativos7 = usuarios.filter((u) => diasAtras(u.ultimo_login) <= 7).length;
   const naoConfirmaram = usuarios.filter((u) => !u.confirmado_em);
-  const semUso = usuarios.filter((u) => u.confirmado_em && !u.notas && !u.alertas && !u.enderecos);
+  // R3: 3 dias ou mais de cadastro e nenhuma ação de valor (sai da lista assim que faz qualquer uma)
+  const precisaAjuda = usuarios.filter((u) => diasAtras(u.criado_em) >= DIAS_AJUDA && !usou(u))
+    .sort((a, b) => a.criado_em.localeCompare(b.criado_em));
+  const ativas = usuarios.filter(usou).length;
   const errosLogin = eventos.filter((e) => e.tipo === 'login_erro');
   // desistência no cadastro: começou e não terminou (mesmo domínio de e-mail, sem "cadastro_ok" depois)
   const desistencias = eventos.filter((e) => e.tipo === 'cadastro_inicio'
@@ -97,6 +114,9 @@ export default function Admin() {
         <div><b>{usuarios.length}</b><span>contas (máx. {resumo?.max_contas})</span></div>
         <div><b>{confirmados}</b><span>confirmaram o e-mail</span></div>
         <div><b>{ativos7}</b><span>entraram nos últimos 7 dias</span></div>
+        <div><b>{ativas}</b><span>fizeram ao menos 1 ação de valor</span></div>
+        <div><b>{precisaAjuda.length}</b><span>precisam de ajuda</span></div>
+        <div><b>{opinioes.length}</b><span>opiniões recebidas</span></div>
         <div><b>{naoConfirmaram.length}</b><span>não confirmaram</span></div>
         <div><b>{desistencias}</b><span>começaram o cadastro e desistiram</span></div>
         <div><b>{errosLogin.length}</b><span>erros ao entrar</span></div>
@@ -127,11 +147,19 @@ export default function Admin() {
 
       <section className="card stack">
         <h2>Convites</h2>
-        <ul className="dados-lista">
-          {resumo?.convites.map((c) => (
-            <li key={c.codigo}><b>{c.codigo}</b> · {c.usos} de {c.usos_max} usados{c.descricao ? ` · ${c.descricao}` : ''}</li>
+        <p className="muted">Resultado por grupo de origem. Ativas: fizeram ao menos uma ação de valor (alerta, endereço, cesta montada ou nota).</p>
+        <div className="adm-tabela" role="table">
+          <div role="row" className="cab adm-conv"><span>Código</span><span>Grupo</span><span>Vagas usadas</span><span>Ativas</span><span>Entraram em 7 dias</span></div>
+          {porConvite.map((c) => (
+            <div role="row" className="adm-conv" key={c.codigo}>
+              <span><b>{c.codigo}</b></span>
+              <span>{c.descricao || '—'}</span>
+              <span>{c.usos} de {c.usos_max}</span>
+              <span>{c.ativas} de {c.contas}{c.contas ? ` (${Math.round((c.ativas / c.contas) * 100)}%)` : ''}</span>
+              <span>{c.entraram7}</span>
+            </div>
           ))}
-        </ul>
+        </div>
         <form className="row" onSubmit={criarConvite} style={{ alignItems: 'flex-end' }}>
           <div className="field" style={{ flex: '1 1 110px' }}><label htmlFor="cv-cod">Código</label>
             <input id="cv-cod" className="input" value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value })} /></div>
@@ -144,27 +172,55 @@ export default function Admin() {
         {msg && <div className="alert alert-ok" role="status">{msg}</div>}
       </section>
 
+      <section className="card stack">
+        <h2>Precisa de ajuda</h2>
+        <p className="muted">Contas com {DIAS_AJUDA} dias ou mais de cadastro e nenhuma ação de valor (zero alertas, endereços, cesta montada e notas).</p>
+        {precisaAjuda.length ? (
+          <ul className="adm-ajuda dados-lista">
+            {precisaAjuda.map((u) => (
+              <li key={u.id}>
+                <b>{u.email}</b> · há {Math.floor(diasAtras(u.criado_em))} dias{u.convite ? ` · convite ${u.convite}` : ''}
+                {' '}· último acesso: {u.ultimo_login ? horaBr(u.ultimo_login) : 'nunca'}
+              </li>
+            ))}
+          </ul>
+        ) : <p>Ninguém por enquanto.</p>}
+      </section>
+
       <section className="stack">
         <h2>Pessoas</h2>
         <div className="adm-tabela" role="table">
-          <div role="row" className="cab"><span>E-mail</span><span>Criada</span><span>Último acesso</span><span>Notas · alertas · end.</span><span>Volume</span></div>
+          <div role="row" className="cab"><span>E-mail</span><span>Criada</span><span>Último acesso</span><span>Notas · alertas · end. · cesta</span><span>Volume</span></div>
           {usuarios.map((u) => (
             <div role="row" key={u.id}>
               <span>{u.email}{!u.confirmado_em && <em className="cond"> não confirmou</em>}</span>
               <span>{horaBr(u.criado_em)}</span>
               <span>{u.ultimo_login ? horaBr(u.ultimo_login) : '—'}</span>
-              <span>{u.notas} ({u.itens_nota} itens) · {u.alertas} · {u.enderecos}</span>
+              <span>{u.notas} ({u.itens_nota} itens) · {u.alertas} · {u.enderecos} · {u.cesta ? 'sim' : 'não'}</span>
               <span>{kb(u.bytes)}</span>
             </div>
           ))}
         </div>
-        {semUso.length > 0 && <p className="muted">Confirmaram mas ainda não usaram (sem notas, alertas ou endereços): {semUso.map((u) => u.email).join(', ')}.</p>}
         {resumo && (
           <p className="muted">
             Banco inteiro: {kb(resumo.banco_bytes)} (limite do plano grátis: 500 MB). Preços coletados: {resumo.ofertas.toLocaleString('pt-BR')} linhas,
             {' '}{kb(resumo.ofertas_bytes)}; produtos: {resumo.produtos.toLocaleString('pt-BR')}.
           </p>
         )}
+      </section>
+
+      <section className="card stack">
+        <h2>Opiniões</h2>
+        {opinioes.length ? (
+          <ul className="adm-opinioes dados-lista">
+            {opinioes.map((o) => (
+              <li key={o.id}>
+                <span className="muted">{horaBr(o.criado_em)} · {emailDe.get(o.user_id) ?? 'conta excluída'}{o.tela ? ` · tela ${o.tela}` : ''}</span>
+                <p>{o.texto}</p>
+              </li>
+            ))}
+          </ul>
+        ) : <p>Nenhuma opinião ainda.</p>}
       </section>
 
       <section className="stack">
