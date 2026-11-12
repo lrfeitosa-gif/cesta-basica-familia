@@ -88,10 +88,15 @@ def vale_no_dia(condicao: str | None, dia: str) -> bool:
     toks = re.findall(r"(\d{1,2})(?:/(\d{1,2}))?", m.group(1)) if m else []
     if not any(mes for _, mes in toks):
         return True
-    dias, mes = set(), ""
-    for d, ms in reversed(toks):   # "09 e 10/11": o mês vem no último
-        mes = ms or mes
-        dias.add(f"{int(d):02d}/{int(mes):02d}")
+    # dia sem mês pega o mês da data mais próxima depois dele ("09 e 10/11") ou, se não houver, antes ("09/11 e 10")
+    meses = [ms for _, ms in toks]
+    seguinte = ""
+    for i in range(len(meses) - 1, -1, -1):
+        seguinte = meses[i] = meses[i] or seguinte
+    anterior = ""
+    for i in range(len(meses)):
+        anterior = meses[i] = meses[i] or anterior
+    dias = {f"{int(d):02d}/{int(ms):02d}" for (d, _), ms in zip(toks, meses)}
     return f"{dia[8:10]}/{dia[5:7]}" in dias
 
 
