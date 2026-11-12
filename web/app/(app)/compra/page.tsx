@@ -403,12 +403,13 @@ export default function MinhaCompra() {
       const o = porItem[c.id][m];
       if (o) { total += v(c, o) * sel[c.id]; escolhas.push({ c, o }); }
       else {
-        // marca fixada e ausente aqui: estima pela mediana das outras marcas deste mercado, se houver
-        const outras = marcas[c.id] ? candidatos[c.id].filter((x) => x.mercado === m) : [];
-        const un = outras.length ? mediana(outras.map((x) => v(c, x))) : (media[c.id] ?? 0);
+        // Sem preço aqui: estima pela mediana dos mercados que têm o item (com marca fixada, só essa marca).
+        // Antes, com marca fixada, usava as outras marcas deste mercado, mais baratas: o mercado parecia mais barato
+        // que comprar cada item no mais barato (12/11: Covabra R$ 119,85 com o leite Ninho estimado por outras marcas).
+        const un = media[c.id] ?? 0;
         falta.push(c.rotulo);
         estimado += un * sel[c.id];
-        estimados.push({ c, valor: un * sel[c.id], outrasMarcas: outras.length > 0 });
+        estimados.push({ c, valor: un * sel[c.id], outrasMarcas: false });
       }
     }
     return { m, total, estimado, falta, escolhas, estimados, valor: total + estimado };
