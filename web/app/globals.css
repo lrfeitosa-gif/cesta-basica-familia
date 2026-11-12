@@ -616,3 +616,26 @@ dialog.opiniao textarea { resize: vertical; min-height: 110px; font: inherit; }
 /* Fim da lista da Cesta: confirmação de que está salva + limpar */
 .lista-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 2px 4px; font-size: .85rem; color: var(--muted); }
 .lista-rodape .erro { color: var(--danger); }
+
+/* Alertas: como avisar (celular e e-mail) */
+.avisar h2 { margin: 0; }
+.avisar p { margin: 2px 0 0; }
+.avisar-linha { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 10px; border-top: 1px solid var(--line); cursor: pointer; }
+.avisar-linha > span { display: grid; gap: 2px; }
+.avisar-linha small { color: var(--muted); font-size: .82rem; }
+.chave { appearance: none; flex: none; width: 46px; height: 28px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; transition: background .15s; margin: 0; }
+.chave::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.chave:checked { background: var(--good); }
+.chave:checked::after { transform: translateX(18px); }
+.chave:disabled { opacity: .5; cursor: default; }
+.chave:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .chave, .chave::after { transition: none; } }
+.avisar-enviados summary { cursor: pointer; font-weight: 700; font-size: .9rem; }
+.avisar-enviados ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; font-size: .88rem; }
+
+/* Comparação: cada item no mercado mais barato (roteiro) */
+.ideal { display: grid; gap: 6px; padding: 16px; border-radius: 14px; border: 2px dashed var(--line); background: var(--surface); }
+.ideal .grande { font-size: 1.6rem; font-weight: 800; }
+.ideal-mercados { list-style: none; margin: 4px 0; padding: 0; display: grid; }
+.ideal-mercados > li { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.ideal-mercados details ul { margin: 6px 0 0; padding-left: 18px; font-size: .85rem; }

@@ -5,12 +5,14 @@ import { useSessao } from '@/lib/sessao';
 import { brl, filtrarFoco, norm, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useDistTexto } from '@/lib/locais';
+import ComoAvisar from './avisos';
 
 type Alerta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
 const VERSOES = [/zero alcool|sem alcool|0,0%|0.0%/, /zero lactose|sem lactose/, /diet/, /light/, /zero/];
 const DESCONTO_MIN = 0.15;   // mesmo ponto de partida do motor de regras: 15% abaixo do preço normal
 
-// Situação de cada alerta com os preços de hoje. O aviso no celular (push) vem na próxima etapa.
+// Situação de cada alerta com os preços de hoje. O aviso automático (celular e e-mail) sai do worker/avisos.py,
+// que usa as mesmas regras e também compara com o menor preço típico do último mês.
 function avaliar(a: Alerta, lista: Oferta[]) {
   let achados = filtrarFoco(lista, a.termo);
   if (a.marca) achados = achados.filter((o) => marcaCasa(o.marca, a.marca!));
@@ -81,8 +83,10 @@ export default function Alertas() {
     <>
       <div>
         <h1>Meus alertas</h1>
-        <p className="lead">Cadastre o que quer acompanhar. Avisamos quando o preço ficar abaixo do seu alvo ou {DESCONTO_MIN * 100}% abaixo do normal.</p>
+        <p className="lead">Cadastre o que quer acompanhar. Avisamos quando o preço ficar abaixo do seu alvo, {DESCONTO_MIN * 100}% abaixo do normal ou do menor preço típico do último mês.</p>
       </div>
+
+      <ComoAvisar familiaId={sessao.user.id} />
 
       <form className="card stack" onSubmit={criar} noValidate>
         <div className="field">

@@ -77,6 +77,16 @@ jobs:
             echo
             sleep 20
           done
+      - name: Avisos dos alertas (celular e e-mail)
+        # uma vez por dia, depois da coleta completa das 7h e da lista do dia pronta no app (ou ao rodar à mão)
+        if: always() && (github.event.schedule == '0 10 * * *' || github.event_name == 'workflow_dispatch')
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          AVISO_EMAIL_REMETENTE: ${{ vars.AVISO_EMAIL_REMETENTE }}
+        run: python avisos.py
       - name: Resumo do banco
         if: always()
         env:
