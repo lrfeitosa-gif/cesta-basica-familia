@@ -126,7 +126,7 @@ ${JSON.stringify(SCHEMA)}` },
   const total = lida.total ?? lida.itens.reduce((s, i) => s + i.quantidade * i.preco_unitario, 0);
 
   const linha = {
-    familia_id: u.user.id, mercado_id: mercado?.id ?? null, data, total, origem: 'nota', chave_nfce: chaveValida,
+    familia_id: u.user.id, mercado_id: mercado?.id ?? null, data, total, origem: 'foto', chave_nfce: chaveValida,
   };
   const lojaNota = mercado ? null : lida.loja?.slice(0, 80) ?? null;
   // loja_nota vem da migração 0009; enquanto ela não roda, grava sem o nome da loja

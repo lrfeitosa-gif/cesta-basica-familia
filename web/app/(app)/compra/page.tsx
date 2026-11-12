@@ -378,11 +378,29 @@ export default function MinhaCompra() {
     return d ? `${fmtKm(d.km)} de ${d.ref.rotulo}` : null;
   };
 
+  // Cada item no mercado mais barato (item 5 de 12/11): total, mercados do roteiro e o percurso aproximado
+  // a partir do endereço cadastrado (linha reta, casa → lojas → casa, sempre indo para a loja mais perto).
   let ideal = 0; let idealOk = true;
+  const porMercadoIdeal = new Map<string, { c: ItemCesta; o: Oferta; valor: number }[]>();
   for (const c of itens) {
     const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
-    if (menor) ideal += v(c, menor) * sel[c.id]; else idealOk = false;
+    if (!menor) { idealOk = false; continue; }
+    const valor = v(c, menor) * sel[c.id];
+    ideal += valor;
+    porMercadoIdeal.set(menor.mercado, [...(porMercadoIdeal.get(menor.mercado) ?? []), { c, o: menor, valor }]);
   }
+  const roteiro = [...porMercadoIdeal.entries()].map(([m, l]) => ({ m, l, total: l.reduce((t, x) => t + x.valor, 0), d: locais.distancia(m) }))
+    .sort((a, b) => b.total - a.total);
+  const percurso = (() => {
+    const casa = locais.refs[0];
+    if (!casa || roteiro.some((r) => !r.d)) return null;
+    let aqui: { lat: number; lng: number } = casa; let total = 0; const falta = roteiro.map((r) => r.d!.loja);
+    while (falta.length) {
+      falta.sort((a, b) => km(aqui, a) - km(aqui, b));
+      const prox = falta.shift()!; total += km(aqui, prox); aqui = prox;
+    }
+    return { km: total + km(aqui, casa), de: casa.rotulo };
+  })();
 
   return (
     <>
@@ -425,7 +443,7 @@ export default function MinhaCompra() {
           {pior && pior !== segundo && pior !== top && (
             <span className="muted">Até {brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m})</span>
           )}
-          {idealOk && <span className="muted">Comprando cada item no mais barato: {brl(ideal)}</span>}
+          {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} (veja o roteiro no fim)</span>}
         </div>
       ) : null}
 
@@ -505,6 +523,27 @@ export default function MinhaCompra() {
           ))}
         </div>
       )}
+      {idealOk && roteiro.length > 1 && top && (
+        <section className="ideal">
+          <span className="muted">Comprando cada item no mercado mais barato</span>
+          <span className="grande">{brl(ideal)}</span>
+          <span><b>{brl(top.valor - ideal)} a menos</b> que tudo no {top.m}, passando por {roteiro.length} mercados</span>
+          <ul className="ideal-mercados">
+            {roteiro.map((r) => (
+              <li key={r.m}>
+                <span><b>{r.m}</b>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{r.d && <span className="dist"> · 📍 {fmtKm(r.d.km)} de {r.d.ref.rotulo}</span>}</span>
+                <span>{r.l.length} {r.l.length === 1 ? 'item' : 'itens'} · {brl(r.total)}</span>
+                <details><summary>Ver itens</summary>
+                  <ul>{r.l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(valor)}</li>)}</ul>
+                </details>
+              </li>
+            ))}
+          </ul>
+          {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta, saindo de {percurso.de} e voltando.</span>
+            : <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span>}
+        </section>
+      )}
+
       <p className="muted">
         Roldão, Sumerbol, Assaí, Sonda, Revolução e Cato entram só com os itens em promoção nos encartes. Quando falta preço,
         o total usa o preço do meio (mediana) dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
