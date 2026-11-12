@@ -110,6 +110,8 @@ FORMATO_GROQ = ('Responda só com JSON neste formato: {"valido_de":null,"valido_
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
 GEMINI_MODELO = os.environ.get("GEMINI_MODELO", "gemini-3.8-flash")
+# raciocínio do Gemini 3: o padrão da API é "high", lento demais para encarte (estourava o tempo de espera)
+GEMINI_RACIOCINIO = os.environ.get("GEMINI_RACIOCINIO", "low")
 
 
 class FalhaLeitura(Exception):
@@ -197,13 +199,20 @@ def _gemini_pagina(dados: bytes, tipo: str, http: httpx.Client) -> Encarte:
             {"text": "Extraia as ofertas deste encarte."},
             {"inline_data": {"mime_type": tipo, "data": base64.standard_b64encode(dados).decode()}},
         ]}],
-        "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1, "maxOutputTokens": 32000},
+        "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1, "maxOutputTokens": 32000,
+                             "thinkingConfig": {"thinkingLevel": GEMINI_RACIOCINIO}},
     }
     url = GEMINI_URL.format(modelo=GEMINI_MODELO)
-    for tentativa in range(2):
-        resp = http.post(url, params={"key": os.environ["GEMINI_API_KEY"]}, json=pedido, timeout=180)
-        if resp.status_code in (429, 503) and tentativa == 0:   # limite ou sobrecarga: espera e tenta de novo
-            time.sleep(min(float(resp.headers.get("retry-after") or 30), 60))
+    for tentativa in range(3):   # limite, sobrecarga (503) ou demora: espera e tenta de novo, até 3 vezes
+        ultima = tentativa == 2
+        try:
+            resp = http.post(url, params={"key": os.environ["GEMINI_API_KEY"]}, json=pedido, timeout=300)
+        except httpx.TimeoutException:
+            if ultima:
+                raise FalhaLeitura("o Gemini demorou demais")
+            continue
+        if resp.status_code in (429, 500, 503) and not ultima:
+            time.sleep(min(float(resp.headers.get("retry-after") or 20 * (tentativa + 1)), 60))
             continue
         if resp.status_code != 200:
             raise FalhaLeitura(f"HTTP {resp.status_code}: {resp.text[:200]}")

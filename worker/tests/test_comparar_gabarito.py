@@ -32,3 +32,27 @@ def test_tabela_markdown():
     r = comparar(G, [lido("Bóris", "Alimento para gatos premium", 58.90, "10.1 kg")])
     md = tabela(G, {"Modelo X": r})
     assert "| Modelo X | 1/4 |" in md and "❌ R$ 58,90" in md and "❌ não achou" in md
+
+
+def test_linha_do_produto_na_marca_ainda_e_a_mesma_marca():
+    g = [{"marca": "Ana Maria", "produto": "Bolinho Pullman", "preco": 2.79, "preco_de": 3.19, "quantidade": 70, "unidade": "g"},
+         {"marca": "Kellogg's", "produto": "Cereal matinal Sucrilhos", "preco": 6.49, "preco_de": None, "quantidade": 280, "unidade": "g"},
+         {"marca": "Maggi", "produto": "Tempero Meu Segredo", "preco": 2.59, "preco_de": 2.89, "quantidade": 49, "unidade": "g"}]
+    extraido = [lido("Ana Maria Pullman", "Bolinho", 2.79, "70 g", 3.19),
+                lido("Kellogg's Sucrilhos", "Cereal matinal", 6.49, "280 g"),
+                lido("Maggi Meu Segredo", "Tempero", 2.59, "49 g", 2.89)]
+    r = comparar(g, extraido)
+    assert r["encontrados"] == 3 and r["sobras"] == 0 and r["acertos"]["preco"] == 3
+
+
+def test_marca_parecida_mas_diferente_nao_casa():
+    g = [{"marca": "Seara", "produto": "Lasanha congelada", "preco": 11.90, "preco_de": None, "quantidade": 600, "unidade": "g"}]
+    r = comparar(g, [lido("Sadia", "Lasanha congelada bolonhesa", 12.90, "600 g")])
+    assert r["itens"][0]["veio"] is None      # outra marca: não é o mesmo produto
+
+
+def test_marca_com_erro_de_leitura_e_marca_nao_lida():
+    g = [{"marca": "Agifácil", "produto": "Água sanitária", "preco": 3.69, "preco_de": None, "quantidade": 2, "unidade": "l"},
+         {"marca": "Camil", "produto": "Macarrão com ovos", "preco": 2.39, "preco_de": 2.89, "quantidade": 500, "unidade": "g"}]
+    r = comparar(g, [lido("Agiifácil", "Água sanitária", 3.69, "2 l"), lido(None, "Macarrão com ovos Camil", 2.39, "500 g", 2.89)])
+    assert r["encontrados"] == 2 and r["acertos"]["preco"] == 2
