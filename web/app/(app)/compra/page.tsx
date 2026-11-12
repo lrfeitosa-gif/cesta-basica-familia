@@ -134,20 +134,13 @@ export default function MinhaCompra() {
   };
 
   const salvarExtras = (l: Extra[]) => { setExtras(l); try { localStorage.setItem('cesta-extra', JSON.stringify(l)); } catch {} };
-  // A lista já é gravada a cada mudança (neste aparelho); o botão grava de novo e confirma para a pessoa.
+  // A lista é gravada neste aparelho a cada mudança (mudar, fixarMarca, salvarExtras). Aqui só se confere
+  // se o navegador deixa gravar (o modo anônimo pode bloquear), sem regravar a lista.
   const [salvo, setSalvo] = useState('');
-  const salvarLista = () => {
-    try {
-      localStorage.setItem('cesta-sel', JSON.stringify(sel));
-      localStorage.setItem('cesta-extra', JSON.stringify(extras));
-      localStorage.setItem('cesta-marca', JSON.stringify(marcas));
-      const n = Object.keys(sel).length;
-      setSalvo(`Lista salva neste aparelho: ${n} ${n === 1 ? 'item' : 'itens'}.`);
-    } catch {
-      setSalvo('Não foi possível salvar: o navegador está bloqueando o armazenamento (modo anônimo?).');
-    }
-  };
-  useEffect(() => { setSalvo(''); }, [sel, extras, marcas]);
+  useEffect(() => {
+    try { localStorage.setItem('cesta-teste', '1'); localStorage.removeItem('cesta-teste'); setSalvo(''); }
+    catch { setSalvo('Não foi possível salvar: o navegador está bloqueando o armazenamento (modo anônimo?).'); }
+  }, [sel, extras, marcas]);
   const pareceHorti = (t: string) => PADRAO_KG.test(t) || HORTIFRUTI.has(primeiraPalavra(t.replace(PADRAO_KG, ' ')));
   const novoEhHorti = novoHorti ?? pareceHorti(novo);
   const adicionar = (e: FormEvent) => {
@@ -534,17 +527,6 @@ export default function MinhaCompra() {
           {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
         </div>
       )}
-      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-        <button type="button" className="btn btn-primary" onClick={salvarLista}>Salvar lista</button>
-        {itens.length > 0 && (
-          <button type="button" className="btn btn-link" onClick={() => {
-            if (!window.confirm('Limpar a lista? Os itens adicionados saem e os da cesta ficam desmarcados.')) return;
-            salvarExtras([]); mudar({}); setMarcas({}); setAvisoNota(''); setSalvo('');
-            try { localStorage.setItem('cesta-marca', '{}'); } catch {}
-          }}>Limpar lista</button>
-        )}
-      </div>
-      {salvo && <div className={`alert ${salvo.startsWith('Não') ? 'alert-error' : 'alert-ok'}`} role="status">{salvo}</div>}
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>
@@ -617,6 +599,19 @@ export default function MinhaCompra() {
         })}
       </div>
 
+      {/* A lista grava sozinha a cada mudança: no fim dela fica só a confirmação, sem botão de salvar no caminho */}
+      <div className="lista-rodape">
+        <span className={salvo.startsWith('Não') ? 'erro' : ''} role="status">
+          {salvo || (itens.length ? `Salva neste aparelho: ${itens.length} ${itens.length === 1 ? 'item' : 'itens'}.` : 'Sua lista fica salva neste aparelho.')}
+        </span>
+        {itens.length > 0 && (
+          <button type="button" className="btn btn-link" onClick={() => {
+            if (!window.confirm('Limpar a lista? Os itens adicionados saem e os da cesta ficam desmarcados.')) return;
+            salvarExtras([]); mudar({}); setMarcas({}); setAvisoNota(''); setSalvo('');
+            try { localStorage.setItem('cesta-marca', '{}'); } catch {}
+          }}>Limpar lista</button>
+        )}
+      </div>
       </>}
     </>
   );

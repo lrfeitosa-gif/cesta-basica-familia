@@ -25,6 +25,7 @@ const ROTULO: Record<string, string> = {
 // Ação de valor (spec do piloto): alerta, endereço de interesse ou compra montada na Cesta. Nota fiscal também conta.
 const usou = (u: Usuario) => u.alertas > 0 || u.enderecos > 0 || u.cesta > 0 || u.notas > 0;
 const DIAS_AJUDA = 3;
+const CODIGO_TESTE = 'TESTE';
 const ABAS = [
   { id: 'resumo', rotulo: 'Resumo' }, { id: 'convites', rotulo: 'Convites' }, { id: 'ajuda', rotulo: 'Precisa de ajuda' },
   { id: 'opinioes', rotulo: 'Opiniões' }, { id: 'pessoas', rotulo: 'Pessoas' }, { id: 'eventos', rotulo: 'Eventos' },
@@ -65,6 +66,8 @@ export default function Admin() {
   useEffect(() => { if (sessao) carregar(); }, [sessao]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const emailDe = useMemo(() => new Map(usuarios.map((u) => [u.id, u.email])), [usuarios]);
+  // contas do código TESTE ficam fora das vagas e dos números do piloto (aparecem só em Convites e Pessoas)
+  const piloto = useMemo(() => usuarios.filter((u) => u.convite !== CODIGO_TESTE), [usuarios]);
 
   // R1: resultado de cada código de convite (grupo de origem)
   const porConvite = useMemo(() => (resumo?.convites ?? []).map((c) => {
@@ -74,17 +77,17 @@ export default function Admin() {
 
   // Novas contas por dia e projeção: média diária das últimas 2 semanas, limitada pelas vagas do piloto.
   const previsao = useMemo(() => {
-    if (!usuarios.length || !resumo) return null;
+    if (!piloto.length || !resumo) return null;
     const porDia = new Map<string, number>();
-    for (const u of usuarios) porDia.set(dia(u.criado_em), (porDia.get(dia(u.criado_em)) ?? 0) + 1);
-    const ultimas2sem = usuarios.filter((u) => diasAtras(u.criado_em) <= 14).length;
+    for (const u of piloto) porDia.set(dia(u.criado_em), (porDia.get(dia(u.criado_em)) ?? 0) + 1);
+    const ultimas2sem = piloto.filter((u) => diasAtras(u.criado_em) <= 14).length;
     const ritmo = ultimas2sem / 14;
-    const vagasConvite = resumo.convites.reduce((t, c) => t + Math.max(0, c.usos_max - c.usos), 0);
-    const teto = Math.min(resumo.max_contas, usuarios.length + vagasConvite);
-    const em = (d: number) => Math.min(teto, Math.round(usuarios.length + ritmo * d));
-    const diasAteTeto = ritmo > 0 ? Math.ceil((teto - usuarios.length) / ritmo) : null;
+    const vagasConvite = resumo.convites.filter((c) => c.codigo !== CODIGO_TESTE).reduce((t, c) => t + Math.max(0, c.usos_max - c.usos), 0);
+    const teto = Math.min(resumo.max_contas, piloto.length + vagasConvite);
+    const em = (d: number) => Math.min(teto, Math.round(piloto.length + ritmo * d));
+    const diasAteTeto = ritmo > 0 ? Math.ceil((teto - piloto.length) / ritmo) : null;
     return { porDia: [...porDia.entries()].sort(), ritmo, teto, em7: em(7), em30: em(30), diasAteTeto, vagasConvite };
-  }, [usuarios, resumo]);
+  }, [piloto, resumo]);
 
   const criarConvite = async (e: FormEvent) => {
     e.preventDefault();
@@ -97,12 +100,12 @@ export default function Admin() {
   if (!sessao || permitido === null) return <h1>Administração</h1>;
   if (!permitido) return <><h1>Administração</h1><div className="empty">Esta área é só para administradores.</div></>;
 
-  const ativos7 = usuarios.filter((u) => diasAtras(u.ultimo_login) <= 7).length;
+  const ativos7 = piloto.filter((u) => diasAtras(u.ultimo_login) <= 7).length;
   const naoConfirmaram = usuarios.filter((u) => !u.confirmado_em);
   // R3: 3 dias ou mais de cadastro e nenhuma ação de valor (sai da lista assim que faz qualquer uma)
-  const precisaAjuda = usuarios.filter((u) => diasAtras(u.criado_em) >= DIAS_AJUDA && !usou(u))
+  const precisaAjuda = piloto.filter((u) => diasAtras(u.criado_em) >= DIAS_AJUDA && !usou(u))
     .sort((a, b) => a.criado_em.localeCompare(b.criado_em));
-  const ativas = usuarios.filter(usou).length;
+  const ativas = piloto.filter(usou).length;
   const errosLogin = eventos.filter((e) => e.tipo === 'login_erro');
   // desistência no cadastro: começou e não terminou (mesmo domínio de e-mail, sem "cadastro_ok" depois)
   const desistencias = eventos.filter((e) => e.tipo === 'cadastro_inicio'
@@ -134,7 +137,7 @@ export default function Admin() {
       <div id="adm-painel" role="tabpanel" aria-labelledby={`aba-${aba}`} className="stack">
         {aba === 'resumo' && <>
           <section className="adm-numeros">
-            <div><b>{usuarios.length}</b><span>contas de {resumo?.max_contas} no piloto</span></div>
+            <div><b>{piloto.length}</b><span>contas de {resumo?.max_contas} no piloto</span></div>
             <div><b>{ativas}</b><span>fizeram ao menos 1 ação de valor</span></div>
             <div><b>{ativos7}</b><span>entraram nos últimos 7 dias</span></div>
             <div><b>{desistencias + errosLogin.length}</b><span>{desistencias} desistências no cadastro, {errosLogin.length} erros ao entrar</span></div>
@@ -169,7 +172,7 @@ export default function Admin() {
         </>}
 
         {aba === 'convites' && <>
-          <p className="muted">Resultado por grupo de origem. Ativas: fizeram ao menos uma ação de valor (alerta, endereço, cesta montada ou nota).</p>
+          <p className="muted">Resultado por grupo de origem. O código TESTE não conta nas vagas do piloto. Ativas: fizeram ao menos uma ação de valor (alerta, endereço, cesta montada ou nota).</p>
           <div className="adm-tabela" role="table">
             <div role="row" className="cab adm-conv"><span>Código</span><span>Grupo</span><span>Vagas usadas</span><span>Ativas</span><span>Entraram em 7 dias</span></div>
             {porConvite.map((c) => (

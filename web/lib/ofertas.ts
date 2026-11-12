@@ -210,8 +210,12 @@ export async function buscarOfertas(): Promise<Ofertas> {
 // Chave da marca: ignora maiúsculas, acentos, pontuação e número escrito em algarismo ou por extenso
 // ("LIZA" = "Liza"; "3 Corações" = "Três Corações" = "TRES - 3 Coracoes").
 const NUMEROS: Record<string, string> = { 1: 'um', 2: 'dois', 3: 'tres', 4: 'quatro', 5: 'cinco', 6: 'seis', 7: 'sete', 8: 'oito', 9: 'nove', 10: 'dez' };
-export const chaveMarca = (m: string) => norm(m).replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+// Linhas de produto que os sites cadastram como se fossem marca: contam como a marca dona
+// (as cápsulas "Três" são da 3 Corações; Covabra, São Vicente, Savegnago e outros gravam só "Três").
+const MESMA_MARCA: Record<string, string> = { tres: 'tres coracoes' };
+const chaveBruta = (m: string) => norm(m).replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
   .map((w) => NUMEROS[w] ?? w).filter((w, i, ws) => w !== ws[i - 1]).join(' ');
+export const chaveMarca = (m: string) => { const k = chaveBruta(m); return MESMA_MARCA[k] ?? k; };
 
 const titulo = (m: string) => m.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
 
@@ -228,7 +232,9 @@ function padronizarMarcas(lista: Oferta[]) {
   }
   const exibir = new Map<string, string>();
   for (const [k, grafias] of contagem) {
-    const nota = (g: string) => (/\p{Diacritic}/u.test(g.normalize('NFD')) && g !== g.toUpperCase() ? 2 : 0) + (/\d/.test(g) && /[a-z]{3}/i.test(g) ? -1 : 0);
+    // o nome completo da marca vem antes da linha de produto ("Três Corações" e não "Três")
+    const nota = (g: string) => (chaveBruta(g) === k ? 4 : 0)
+      + (/\p{Diacritic}/u.test(g.normalize('NFD')) && g !== g.toUpperCase() ? 2 : 0) + (/\d/.test(g) && /[a-z]{3}/i.test(g) ? -1 : 0);
     const ordem = [...grafias.entries()].sort((a, b) => nota(b[0]) - nota(a[0]) || b[1] - a[1]).map(([g]) => g);
     const mista = ordem.find((g) => g !== g.toUpperCase() || g.length <= 3);
     exibir.set(k, mista ?? titulo(ordem[0]));

@@ -32,15 +32,27 @@ export function useLocais(familiaId: string | undefined) {
 
   const adicionar = async (rotulo: string, cep: string): Promise<string | null> => {
     if (!familiaId) return 'Entre na sua conta.';
-    if (refs.length >= MAX_REFERENCIAS) return `Você já tem ${MAX_REFERENCIAS} endereços. Remova um para incluir outro.`;
     const resp = await fetch(`/api/cep?cep=${encodeURIComponent(cep)}`);
     const j = await resp.json().catch(() => ({ erro: 'Não conseguimos consultar o CEP agora.' }));
     if (!resp.ok) return j.erro;
+    const nome = rotulo.trim() || j.bairro || 'Endereço';
+    const chave = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLowerCase();
+    // Sem duplicar: mesmo nome atualiza o endereço que já existe; mesma região com outro nome não entra de novo.
+    const mesmoNome = refs.find((r) => chave(r.rotulo) === chave(nome));
+    const mesmaRegiao = refs.find((r) => r !== mesmoNome && Number(r.lat) === Number(j.lat) && Number(r.lng) === Number(j.lng));
+    if (mesmaRegiao) return `Este CEP já está salvo como "${mesmaRegiao.rotulo}".`;
+    if (mesmoNome) {
+      const { error } = await supabase.from('regiao_interesse').update({ lat: j.lat, lng: j.lng }).eq('id', mesmoNome.id);
+      if (error) return 'Não foi possível atualizar o endereço. Tente de novo.';
+      await carregar();
+      return `Salvo: o endereço "${mesmoNome.rotulo}" foi atualizado.`;
+    }
+    if (refs.length >= MAX_REFERENCIAS) return `Você já tem ${MAX_REFERENCIAS} endereços. Remova um para incluir outro.`;
     await supabase.rpc('garantir_familia');
     const { error } = await supabase.from('regiao_interesse').insert({
-      familia_id: familiaId, rotulo: rotulo.trim() || j.bairro || 'Endereço', lat: j.lat, lng: j.lng, principal: refs.length === 0,
+      familia_id: familiaId, rotulo: nome, lat: j.lat, lng: j.lng, principal: refs.length === 0,
     });
-    if (error) return 'Não foi possível salvar o endereço. Tente de novo.';
+    if (error) return /duplicate|unique/i.test(error.message) ? `Você já tem um endereço chamado "${nome}".` : 'Não foi possível salvar o endereço. Tente de novo.';
     await carregar();
     return j.precisao === 'cidade' ? 'Salvo, mas só achamos a cidade deste CEP: a distância fica aproximada.' : null;
   };
