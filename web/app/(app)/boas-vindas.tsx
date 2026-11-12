@@ -27,12 +27,12 @@ export const CHAVE = 'boas-vindas-vista';
 
 // Mostrada uma vez, no primeiro acesso após o cadastro. Depois dos passos de apresentação, pede o CEP
 // (opcional) para mostrar a distância até cada mercado; dá para mudar depois na Cesta.
-export default function BoasVindas({ familiaId }: { familiaId?: string }) {
+export default function BoasVindas({ familiaId, aoFechar }: { familiaId?: string; aoFechar?: () => void }) {
   const [passo, setPasso] = useState<number | null>(null);
   useEffect(() => {
     try { if (!localStorage.getItem(CHAVE)) setPasso(0); } catch { /* sem armazenamento: não mostra */ }
   }, []);
-  const fechar = () => { try { localStorage.setItem(CHAVE, '1'); } catch {} setPasso(null); };
+  const fechar = () => { try { localStorage.setItem(CHAVE, '1'); } catch {} setPasso(null); aoFechar?.(); };
   if (passo === null) return null;
   const total = PASSOS.length + 1;
 

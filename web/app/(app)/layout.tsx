@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import Logo from '@/app/logo';
 import Avisos from './aviso';
 import { registrar } from '@/lib/eventos';
+import CaixaOpiniao from './opiniao';
 
 const ABAS = [
   { href: '/ofertas', rotulo: 'Ofertas do dia', icone: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></> },
@@ -24,6 +25,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [admin, setAdmin] = useState<boolean | null>(null);   // null: ainda conferindo
   const menu = useRef<HTMLDetailsElement>(null);
+  const [opiniao, setOpiniao] = useState(false);
   useEncerrarSemUso(sessao, admin);
   // menu da conta: fecha ao trocar de tela, ao tocar fora dele ou com Esc
   useEffect(() => { if (menu.current) menu.current.open = false; }, [rota]);
@@ -61,6 +63,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
           <div className="menu-conta-caixa">
             <span className="muted">{sessao.user.email}</span>
             {/* fecha também ao tocar no link da tela em que já está (a rota não muda) */}
+            <button type="button" className="menu-opiniao" onClick={() => { fecharMenu(); setOpiniao(true); }}>Dar opinião</button>
             <Link href="/conta" onClick={fecharMenu}>Meus dados</Link>
             {admin && <Link href="/admin" onClick={fecharMenu}>Administração</Link>}
             <Link href="/indicar" onClick={fecharMenu}>Indicar um mercado</Link>
@@ -71,6 +74,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
       </header>
       {children}
       <Avisos />
+      <CaixaOpiniao tela={rota} aberta={opiniao} fechar={() => setOpiniao(false)} />
       <nav className="abas" aria-label="Seções">
         <div>
           {ABAS.map((a) => (
