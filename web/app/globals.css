@@ -580,21 +580,35 @@ dialog.opiniao::backdrop { background: color-mix(in srgb, #000 45%, transparent)
 dialog.opiniao h2 { margin: 0; }
 dialog.opiniao textarea { resize: vertical; min-height: 110px; font: inherit; }
 
-/* Card de primeiros passos (R2) */
-.passos { display: grid; gap: 10px; }
-.passos-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.passos-topo h2 { margin: 0; font-size: 1.05rem; }
-.passos-fechar { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.3rem; cursor: pointer; }
-.passos-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.passos-lista li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
-.passos-lista a { display: grid; gap: 2px; color: var(--ink); text-decoration: none; }
-.passos-lista a span { color: var(--muted); font-size: .85rem; }
-.passos-lista li[data-feito="true"] b { color: var(--muted); text-decoration: line-through; }
-.passos-marca { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 800; color: var(--surface); }
-.passos-lista li[data-feito="true"] .passos-marca { background: var(--good); border-color: var(--good); }
-.passos-nota { margin: 0; font-size: .85rem; }
+/* Primeiros passos (R2): uma linha com o progresso e o próximo passo */
+.passo { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.passo-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 14px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: .92rem; line-height: 1.25; }
+.passo-link > svg, .passo-fechar svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.passo-link > svg { color: var(--muted); }
+.passo-texto { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.passo-texto small { font-weight: 600; font-size: .75rem; color: var(--muted); }
+.passo-barra { flex: none; display: flex; flex-direction: column-reverse; gap: 3px; }   /* enche de baixo para cima */
+.passo-barra i { display: block; width: 5px; height: 9px; border-radius: 3px; background: var(--line); }
+.passo-barra i[data-feito="true"] { background: var(--good); }
+.passo-fechar { flex: none; width: 44px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.passo-link:focus-visible, .passo-fechar:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-/* Painel admin: precisa de ajuda (R3) e opiniões (R7) */
-.adm-ajuda li, .adm-opinioes li { padding: 8px 0; border-bottom: 1px solid var(--line); }
-.adm-opinioes p { margin: 4px 0 0; white-space: pre-wrap; }
+/* Painel admin em abas */
+.adm-cab { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.adm-cab h1 { margin: 0; }
+.adm-atalhos { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .88rem; font-weight: 600; }
+.adm-atalhos a { color: var(--accent); }
+.adm-abas { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); margin: 0 -2px; padding: 0 2px; scrollbar-width: none; }
+.adm-abas button {
+  flex: none; font: inherit; font-size: .9rem; font-weight: 700; padding: 10px 10px 9px; border: 0; border-bottom: 3px solid transparent;
+  background: none; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.adm-abas button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.adm-abas button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.adm-conta { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--tag); color: var(--tag-ink); font-size: .75rem; text-align: center; }
+.adm-linhas { list-style: none; margin: 0; padding: 0; display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.adm-linhas li { display: grid; gap: 3px; padding: 12px 14px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.adm-linhas li:first-child { border-top: 0; }
+.adm-linhas p { margin: 0; white-space: pre-wrap; }
+.adm-linhas .muted { font-size: .82rem; }
 .adm-tabela > .adm-conv { grid-template-columns: 110px minmax(140px, 2fr) 110px 120px 130px; }
