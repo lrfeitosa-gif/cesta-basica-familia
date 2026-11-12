@@ -53,7 +53,7 @@ export default function Indicar() {
           <input id="nome" className="input" placeholder="Ex.: Supermercado Bom Preço" value={nome} onChange={(e) => setNome(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="onde">Bairro ou cidade (opcional)</label>
+          <label htmlFor="onde">Bairro (opcional)</label>
           <input id="onde" className="input" placeholder="Ex.: Jardim Morada do Sol" value={onde} onChange={(e) => setOnde(e.target.value)} />
         </div>
         <div className="field">

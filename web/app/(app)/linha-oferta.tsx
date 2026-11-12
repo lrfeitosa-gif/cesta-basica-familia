@@ -5,9 +5,12 @@ import { mostrarAviso } from './aviso';
 
 export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: ReactNode; dist?: string | null }) {
   const comMarca = o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} ` : '';
+  // o tamanho já está no nome ("Biscoito 90G")? então não repete ao lado
+  const nomeJunto = norm(o.nome).replace(/\s/g, '');
+  const tamNoNome = [String(o.q), String(o.q).replace('.', ',')].some((q) => nomeJunto.includes(`${q}${o.u}`));
   return (
     <div className="item">
-      <div className="nome">{comMarca}{o.nome} <small>{emb(o)}</small></div>
+      <div className="nome">{comMarca}{o.nome}{!tamNoNome && <> <small>{emb(o)}</small></>}</div>
       <div className="etiqueta-preco">
         <b>{brl(o.preco)}</b>
         {o.de > o.preco && <s>de {brl(o.de)}</s>}
@@ -28,7 +31,7 @@ export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: Rea
               {o.fonte === 'site' ? `Comprar no site do ${o.mercado}` : 'Ver encarte'} ↗
             </a>
           )}
-          <button type="button" className="btn-acabou" onClick={() => avisarEsgotado(o)}>Acabou na loja</button>
+          <button type="button" className="btn-acabou" onClick={() => avisarEsgotado(o)}>Avisar que acabou</button>
         </span>
       </div>
     </div>

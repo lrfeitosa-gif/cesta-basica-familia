@@ -111,7 +111,7 @@ def achar(alerta: dict, lista: list[dict]) -> list[dict]:
     achados = filtrar_foco(lista, alerta["termo"])
     if alerta.get("marca"):
         d = chave_marca(alerta["marca"])
-        achados = [o for o in achados if d in chave_marca(o["marca"])]
+        achados = [o for o in achados if chave_marca(o["marca"]) == d or chave_marca(o["marca"]).startswith(f"{d} ")]
     t = norm(f"{alerta['termo']} {alerta.get('marca') or ''}")
     achados = [o for o in achados if all(not re.search(v, norm(o["nome"])) or re.search(v, t) for v in VERSOES)]
     return sorted(achados, key=lambda o: o["preco"])

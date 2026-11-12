@@ -87,10 +87,20 @@ export default function Conta() {
         <p className="muted">
           Apaga sua conta, notas e alertas. Não dá para desfazer. Para confirmar, digite EXCLUIR{temSenha ? ' e sua senha' : ''}.
         </p>
-        <input className="input" aria-label="Digite EXCLUIR para confirmar" value={confirma} onChange={(e) => setConfirma(e.target.value)} />
+        {/* O Chrome preenchia o e-mail no campo EXCLUIR (revisão de 12/11): o campo de usuário escondido abaixo recebe
+            o e-mail, e o campo de confirmação não aceita preenchimento automático. */}
+        <input type="email" autoComplete="username" value={sessao?.user.email ?? ''} readOnly hidden aria-hidden="true" tabIndex={-1} />
+        <div className="field">
+          <label htmlFor="exc-confirma">Digite EXCLUIR</label>
+          <input id="exc-confirma" name="confirmar-exclusao" className="input" autoComplete="off" autoCapitalize="characters" spellCheck={false}
+            value={confirma} onChange={(e) => setConfirma(e.target.value)} />
+        </div>
         {temSenha && (
-          <input className="input" type="password" autoComplete="current-password" placeholder="Sua senha" aria-label="Sua senha"
-            value={senha} onChange={(e) => setSenha(e.target.value)} />
+          <div className="field">
+            <label htmlFor="exc-senha">Sua senha</label>
+            <input id="exc-senha" className="input" type="password" autoComplete="current-password"
+              value={senha} onChange={(e) => setSenha(e.target.value)} />
+          </div>
         )}
         {erro === 'reentrar' ? (
           <div className="alert alert-error" role="alert">

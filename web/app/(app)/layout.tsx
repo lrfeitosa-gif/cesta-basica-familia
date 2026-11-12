@@ -10,7 +10,7 @@ import { registrar } from '@/lib/eventos';
 import CaixaOpiniao from './opiniao';
 
 const ABAS = [
-  { href: '/ofertas', rotulo: 'Ofertas do dia', icone: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></> },
+  { href: '/ofertas', rotulo: 'Ofertas', icone: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></> },
   { href: '/compra', rotulo: 'Cesta', icone: <><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6" /><circle cx="10" cy="20" r="1.3" /><circle cx="17" cy="20" r="1.3" /></> },
   { href: '/comparar', rotulo: 'Comparar', icone: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></> },
   { href: '/notas', rotulo: 'Notas', icone: <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z" /><path d="M9 7h6M9 11h6M9 15h4" /></> },
@@ -63,11 +63,11 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
           <div className="menu-conta-caixa">
             <span className="muted">{sessao.user.email}</span>
             {/* fecha também ao tocar no link da tela em que já está (a rota não muda) */}
-            <button type="button" className="menu-opiniao" onClick={() => { fecharMenu(); setOpiniao(true); }}>Dar opinião</button>
             <Link href="/conta" onClick={fecharMenu}>Meus dados</Link>
-            {admin && <Link href="/admin" onClick={fecharMenu}>Administração</Link>}
             <Link href="/indicar" onClick={fecharMenu}>Indicar um mercado</Link>
+            <button type="button" className="menu-opiniao" onClick={() => { fecharMenu(); setOpiniao(true); }}>Dar opinião</button>
             <Link href="/privacidade" onClick={fecharMenu}>Privacidade</Link>
+            {admin && <Link href="/admin" onClick={fecharMenu}>Administração</Link>}
             <button type="button" className="btn btn-secondary" onClick={sair}>Sair</button>
           </div>
         </details>
