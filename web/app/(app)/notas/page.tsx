@@ -9,6 +9,11 @@ import { useSessao } from '@/lib/sessao';
 // A câmera só existe no navegador: o leitor não é renderizado no servidor.
 const Scanner = dynamic(() => import('@yudiel/react-qr-scanner').then((m) => m.Scanner), { ssr: false });
 
+// "PAO DE ACUCAR LTDA" → "Pão De Açúcar": nome da loja como vem na nota, só sem a caixa alta
+const ACENTOS: Record<string, string> = { pao: 'Pão', acucar: 'Açúcar', sao: 'São', joao: 'João', jose: 'José', comercio: 'Comércio', alimentacao: 'Alimentação' };
+const nomeLoja = (n: string) => n.toLowerCase().replace(/\b(ltda|eireli|me|epp|s\/?a)\b\.?/g, '').trim()
+  .split(/\s+/).map((w) => ACENTOS[w] ?? (['de', 'da', 'do', 'das', 'dos', 'e'].includes(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+
 type Compra = { id: number; data: string; total: number | null; loja_nota?: string | null; mercado: { rede: string } | null; itens: { count: number }[] };
 const META = 3;
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -127,8 +132,7 @@ function Notas() {
             disabled={status?.tipo === 'lendo'}
             onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
           <p className="muted">
-            Fotografe o cupom inteiro, reto e bem iluminado. Nota comprida: fotografe a parte dos itens. Também vale o print da página da nota que abre pelo QR Code no celular.
-            A foto não é guardada; só itens, preços, loja e data.
+            Fotografe a nota inteira, reto e bem iluminado. Nota comprida: fotografe a parte dos itens. Também vale o print da página da nota que abre pelo QR Code no celular.
           </p>
         </div>
       ) : modo === 'camera' ? (
@@ -169,7 +173,7 @@ function Notas() {
           <div className="nota-lista">
             {compras.map((c) => (
               <div key={c.id}>
-                <b>{c.mercado?.rede ?? c.loja_nota ?? 'Supermercado'}</b>
+                <b>{c.mercado?.rede ?? (c.loja_nota ? nomeLoja(c.loja_nota) : 'Mercado não identificado')}</b>
                 {c.total != null && <span className="etiqueta">{brl(c.total)}</span>}
                 <span className="muted" style={{ gridColumn: '1 / -1' }}>{dataBr(c.data)} · {c.itens[0]?.count ?? 0} itens</span>
                 <details style={{ gridColumn: '1 / -1' }} onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) verItens(c.id); }}>
@@ -183,7 +187,7 @@ function Notas() {
                   ) : <span className="muted">Carregando…</span>}
                 </details>
                 <Link href={`/compra?nota=${c.id}`} className="btn btn-link" style={{ gridColumn: '1 / -1', justifySelf: 'start', padding: 0 }}>
-                  Usar estes itens na Minha compra →
+                  Usar na cesta →
                 </Link>
               </div>
             ))}
@@ -191,7 +195,7 @@ function Notas() {
         </section>
       )}
 
-      <p className="aviso-nota">Da nota guardamos só itens, quantidades, preços, loja e data. CPF e dados pessoais nunca são gravados.</p>
+      <p className="aviso-nota">A foto não é guardada. Da nota ficam só itens, quantidades, preços, loja e data; CPF e dados pessoais nunca são gravados.</p>
 
       {onboarding && (
         <div className="stack" style={{ marginTop: 'auto' }}>
@@ -200,7 +204,7 @@ function Notas() {
           </Link>
         </div>
       )}
-      {!onboarding && compras.length > 0 && <Link href="/lista" className="btn btn-secondary btn-block">Ver itens das minhas notas</Link>}
+      {!onboarding && compras.length > 0 && <Link href="/lista" className="btn btn-secondary btn-block">Ver todos os itens comprados</Link>}
     </>
   );
 }

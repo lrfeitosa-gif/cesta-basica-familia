@@ -23,6 +23,13 @@ export default function Oportunidades() {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('Todas');
   const [semNotas, setSemNotas] = useState(false);
+  // a carga completa às vezes trava (banco ocupado durante a coleta): depois de 25 s, oferece tentar de novo
+  const [demorou, setDemorou] = useState(false);
+  useEffect(() => {
+    if (dados || erro) { setDemorou(false); return; }
+    const t = setTimeout(() => setDemorou(true), 25_000);
+    return () => clearTimeout(t);
+  }, [dados, erro]);
   const [bvFechou, setBvFechou] = useState(0);   // boas-vindas fechadas agora: mostra os primeiros passos
 
   useEffect(() => {
@@ -76,9 +83,9 @@ export default function Oportunidades() {
     <>
       <BoasVindas familiaId={familiaId} aoFechar={() => setBvFechou((n) => n + 1)} />
       <div>
-        <h1>Oportunidades de hoje</h1>
+        <h1>Ofertas de hoje</h1>
         <p className="lead">
-          Maiores descontos sobre o preço normal de cada mercado
+          Os maiores descontos de hoje, comparados ao preço normal de cada mercado
           {dados && <> · {dados.lista.length.toLocaleString('pt-BR')} preços de {dados.mercados.length} mercados em {dataBr(dados.dia)}</>}.
         </p>
       </div>
@@ -86,7 +93,7 @@ export default function Oportunidades() {
         <label htmlFor="busca" className="visually-hidden">Buscar produto</label>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input id="busca" className="input" type="search" autoComplete="off" enterKeyHint="search"
-          placeholder="Buscar e comparar: café pilão, arroz 5kg, Pague Menos"
+          placeholder="Buscar produto ou mercado"
           value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); }} />
       </div>
       {sugestoes.length > 0 && (
@@ -119,7 +126,11 @@ export default function Oportunidades() {
           </div>
           {erro ? (
             <button type="button" className="btn btn-secondary btn-block" onClick={tentarDeNovo}>Carregar todos os preços</button>
-          ) : <p className="muted" role="status">Carregando a busca e os filtros…</p>}
+          ) : demorou ? (
+            <button type="button" className="btn btn-secondary btn-block" onClick={() => { setDemorou(false); tentarDeNovo(); }}>
+              Está demorando. Tentar carregar todos os preços de novo
+            </button>
+          ) : <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Carregando todos os preços para a busca e os filtros…</p>}
         </>
       ) : !erro && <Carregando />)}
       {dados && (

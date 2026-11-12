@@ -46,7 +46,7 @@ function tamanhoReferencia(l: Oferta[]): { base: number; ub: string } | null {
   return { base: Number(base), ub };
 }
 const fmtTam = (r: { base: number; ub: string }) =>
-  r.ub === 'un' ? `${r.base} un` : r.base < 1 ? `${Math.round(r.base * 1000)} ${r.ub === 'l' ? 'ml' : 'g'}` : `${String(r.base).replace('.', ',')} ${r.ub}`;
+  r.ub === 'un' ? `${r.base}\u00a0un` : r.base < 1 ? `${Math.round(r.base * 1000)}\u00a0${r.ub === 'l' ? 'ml' : 'g'}` : `${String(r.base).replace('.', ',')}\u00a0${r.ub}`;
 // Itens contados por unidade mesmo quando o site informa o peso (cápsulas: "10 Cápsulas 110g", "18x4,4g").
 const POR_UNIDADE = /(^|\s)capsulas?(\s|$)/;
 const contagem = (o: Oferta) => {
@@ -87,6 +87,10 @@ type Extra = { id: string; termo: string; horti?: boolean };   // horti: escolhi
 const PROCESSADO = /triturad|picad|frit|desidrat|pasta|conserva|em po|chips|passa|polpa|congelad|molho|tempero|doce de|geleia|suco|creme|farinha|palha/;
 
 // Cesta básica de referência. Próxima etapa: montar a partir da lista de interesse da família.
+const PET = /racao|pet\b|caes|gatos|pedigree|baw waw|whiskas|golden formula|premier pet|petisco|dog\b|cat\b/;
+// marca sem espaços: "La Sante" = "Lasante"
+const marcaCompacta = (m: string) => chaveMarca(m).replace(/ /g, '');
+
 const CESTA: ItemCesta[] = [
   { id: 'arroz', rotulo: 'Arroz branco 5 kg', inc: ['arroz'], q: 5, u: 'kg', exc: /integral|parboil|racao|arboreo|basmati|cateto|japon|7 graos|negro|vermelho/ },
   { id: 'feijao', rotulo: 'Feijão carioca 1 kg', inc: ['feijao', 'carioca'], q: 1, u: 'kg', exc: /pronto|cozido|caldo/ },
@@ -279,6 +283,12 @@ export default function MinhaCompra() {
         refs[c.id] = { base: c.u === 'g' || c.u === 'ml' ? c.q! / 1000 : c.q!, ub: c.u === 'g' ? 'kg' : c.u === 'ml' ? 'l' : c.u! };
       }
     }
+    // ração e petiscos (Pedigree, Baw Waw…) têm "arroz", "carne", "frango" no nome: ficam fora dos itens da casa,
+    // a menos que a pessoa esteja procurando produto de pet (revisão de 12/11)
+    for (const c of todos) {
+      const busca = norm(`${c.rotulo} ${c.termo ?? ''}`);
+      if (!PET.test(busca)) r[c.id] = r[c.id].filter((o) => grupo(o.categoria) !== 'Pet' && !PET.test(o.busca));
+    }
     return { candidatos: r, kgs, unis, refs };
   }, [dados, todos]);
   // preço usado na comparação: por kg (hortifruti), pelo tamanho de referência (sem tamanho) ou o da etiqueta
@@ -290,11 +300,13 @@ export default function MinhaCompra() {
   const unTxt = (c: ItemCesta) => (unis.has(c.id) ? 'cápsula' : kgs.has(c.id) ? 'kg' : refs[c.id]?.ub ?? '');
   const novoPrevia = useMemo(() => (dados && novo.trim() ? filtrarFoco(dados.lista, novo).length : null), [dados, novo]);
   // marcas do item, sem repetir grafias e mostrando quantos mercados têm cada uma
+  // "Farinha" como marca da farinha de trigo não é marca: fica de fora; "La Sante" e "Lasante" viram uma só
   const marcasDe = (id: string) => {
     const m = new Map<string, { nome: string; mercados: Set<string> }>();
+    const palavrasDoItem = new Set(norm(todos.find((c) => c.id === id)?.rotulo).split(/[^a-z0-9]+/));
     for (const o of candidatos[id]) {
-      const k = chaveMarca(o.marca);
-      if (!k) continue;
+      const k = marcaCompacta(o.marca);
+      if (!k || chaveMarca(o.marca).split(' ').every((w) => palavrasDoItem.has(w))) continue;
       const v = m.get(k) ?? { nome: o.marca, mercados: new Set<string>() };
       v.mercados.add(o.mercado);
       m.set(k, v);
@@ -308,16 +320,16 @@ export default function MinhaCompra() {
     const r: Record<string, Record<string, Oferta>> = {};
     for (const c of todos) {
       r[c.id] = {};
-      const marca = chaveMarca(marcas[c.id] ?? '');
+      const marca = marcaCompacta(marcas[c.id] ?? '');
       for (const o of candidatos[c.id]) {
-        if (marca && chaveMarca(o.marca) !== marca) continue;
+        if (marca && marcaCompacta(o.marca) !== marca) continue;
         if (!r[c.id][o.mercado] || v(c, o) < v(c, r[c.id][o.mercado])) r[c.id][o.mercado] = o;
       }
     }
     return r;
   }, [candidatos, kgs, unis, refs, marcas, todos]);
 
-  if (erro) return <><h1>Minha compra</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
+  if (erro) return <><h1>Minha cesta</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
 
   const itens = todos.filter((c) => sel[c.id]);
   // mediana do item entre os mercados que têm preço: estimativa para quem não tem
@@ -405,12 +417,12 @@ export default function MinhaCompra() {
   return (
     <>
       <div>
-        <h1>Minha compra</h1>
+        <h1>Minha cesta</h1>
         <p className="lead">Monte a lista e veja em qual mercado ela sai mais barata.</p>
       </div>
       <div className="choice" role="radiogroup" aria-label="Ver">
-        <label><input type="radio" name="aba" checked={aba === 'lista'} onChange={() => setAba('lista')} /><span>Lista ({itens.length})</span></label>
-        <label><input type="radio" name="aba" checked={aba === 'comparar'} onChange={() => setAba('comparar')} /><span>Comparação</span></label>
+        <label><input type="radio" name="aba" checked={aba === 'lista'} onChange={() => setAba('lista')} /><span>Lista ({itens.length} de {todos.length})</span></label>
+        <label><input type="radio" name="aba" checked={aba === 'comparar'} onChange={() => setAba('comparar')} /><span>Onde comprar</span></label>
       </div>
 
       {aba === 'lista' && !dados && !erro && (
@@ -428,22 +440,22 @@ export default function MinhaCompra() {
 
       {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : top ? (
         <div className="destaque">
-          <span className="muted">Melhor mercado único para esta compra</span>
+          <span className="muted">Mais barato para comprar tudo num lugar só</span>
           <span className="grande">{fmt(top)}</span>
           <span><b>{top.m}</b>{SO_SOCIOS.has(top.m) && <> <TagSocios /></>}{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
           {(() => { const d = locais.distancia(top.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
           {top.falta.length > 0 && (
             <span className="cond">
-              Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pelo preço do meio dos outros mercados).
+              Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pelo preço mediano dos outros mercados).
             </span>
           )}
           {melhorCompleto && (
             <span className="muted">Melhor com todos os itens: <b>{melhorCompleto.m}</b>, {brl(melhorCompleto.valor)}</span>
           )}
           {pior && pior !== segundo && pior !== top && (
-            <span className="muted">Até {brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m})</span>
+            <span className="muted">{brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m}{pior.falta.length ? ', total estimado' : ''})</span>
           )}
-          {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} (veja o roteiro no fim)</span>}
+          {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} (vários mercados, veja o roteiro no fim)</span>}
         </div>
       ) : null}
 
@@ -456,7 +468,7 @@ export default function MinhaCompra() {
         const entre = da && db ? km(da.loja, db.loja) : locais.entre(dupla.a, dupla.b);
         return (
           <div className="dupla">
-            <span className="muted">Dividindo a compra em 2 mercados</span>
+            <span className="muted">Dividindo em 2 mercados</span>
             <span className="grande">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
             <span><b>{brl(economiaDupla)} a menos</b> que comprar tudo no {top!.m}</span>
             <div className="dupla-lados">
@@ -489,8 +501,7 @@ export default function MinhaCompra() {
               {r.falta.length > 0 && (
                 <span className="falta">
                   Sem preço hoje: {r.falta.join(', ')}.{' '}
-                  {ENCARTE.has(r.m) ? 'Este mercado só entra com os itens do encarte. ' : ''}
-                  Estimado pelo preço do meio dos outros mercados.
+                  Estimado pelo preço mediano dos outros mercados.
                 </span>
               )}
               {r.escolhas.length > 0 && (
@@ -505,7 +516,7 @@ export default function MinhaCompra() {
                     {r.estimados.map(({ c, valor, outrasMarcas }) => (
                       <li key={c.id} className="estimado">
                         {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{tamTxt(c)}: {!marcas[c.id] ? 'sem preço neste mercado'
-                          : 'sem preço para esta marca'}, estimado pelo preço do meio {outrasMarcas ? 'das outras marcas deste mercado'
+                          : 'sem preço para esta marca'}, estimado pelo preço mediano {outrasMarcas ? 'das outras marcas deste mercado'
                           : `de ${nMedia[c.id] ?? 0} ${nMedia[c.id] === 1 ? 'mercado' : 'mercados'}`}
                         {refs[c.id] && !kgs.has(c.id) && valor > 0 && <> ({brl(valor / sel[c.id] / refs[c.id].base)}/{unTxt(c)} × {fmtTam(refs[c.id])})</>}{' '}
                         <span className="subtotal">≈ {brl(valor)}</span>
@@ -545,8 +556,9 @@ export default function MinhaCompra() {
       )}
 
       <p className="muted">
-        Roldão, Sumerbol, Assaí, Sonda, Revolução e Cato entram só com os itens em promoção nos encartes. Quando falta preço,
-        o total usa o preço do meio (mediana) dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
+        {(() => { const enc = ranking.map((r) => r.m).filter((m) => ENCARTE.has(m));
+          return enc.length ? `${enc.join(', ').replace(/, ([^,]*)$/, ' e $1')} ${enc.length === 1 ? 'entra' : 'entram'} só com os itens em promoção no encarte. ` : ''; })()}
+        Quando falta preço, o total usa o preço mediano dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
       </p>
       </>}
 
@@ -554,7 +566,7 @@ export default function MinhaCompra() {
       {sessao && (
         <div className="card stack">
           <button type="button" className="btn btn-secondary" onClick={() => usarNota()}>Usar os itens da nota mais recente</button>
-          <span className="muted">Junta à sua lista, ou troca a lista, pelos itens e quantidades da nota. Para usar outra nota, vá em Notas e toque em &quot;Usar estes itens&quot;.</span>
+          <span className="muted">Adiciona os itens da sua última nota à lista ou substitui a lista. Para usar outra nota, abra Notas e toque em &quot;Usar na cesta&quot;.</span>
           {notaPendente && (
             <div className="alert stack" role="group" aria-label="Como usar a nota">
               <span>Sua lista já tem {Object.keys(sel).length} itens. O que fazer com eles?</span>
@@ -570,16 +582,16 @@ export default function MinhaCompra() {
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
-            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350ml, alho, sabão em pó omo 1,6kg"
+            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350 ml, alho, sabão em pó omo 1,6 kg"
               value={novo} onChange={(e) => { setNovo(e.target.value); setAvisoNovo(''); }} style={{ flex: 1, minWidth: 0 }} />
             <button className="btn btn-primary" disabled={!novo.trim()}>Adicionar</button>
           </div>
-          <label className="row" style={{ gap: 8, fontWeight: 600 }}>
+          <label className="row" style={{ gap: 8, fontWeight: 600, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
             <input type="checkbox" className="check" checked={novoEhHorti} onChange={(e) => setNovoHorti(e.target.checked)} />
-            É fruta, legume ou verdura (compara pelo preço do quilo, sem marca)
+            <span>Hortifrúti (compara pelo preço do quilo, sem marca)</span>
           </label>
           <span className="help">
-            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (350ml, 1kg). Use - para tirar o que não quer: café -cápsula. A caixa de hortifruti é marcada sozinha quando reconhecemos o nome.'
+            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (350 ml, 1 kg). Use o sinal de menos para excluir: café -cápsula. Marcamos Hortifrúti sozinhos quando reconhecemos o item.'
               : novoPrevia ? `${novoPrevia} preços encontrados hoje.` : 'Nenhum preço hoje com essas palavras. Tente menos palavras.'}
           </span>
           {avisoNovo && <div className="alert alert-error" role="alert">{avisoNovo}</div>}
@@ -608,7 +620,7 @@ export default function MinhaCompra() {
               </div>
               <div className="meta">
                 {menor
-                  ? <span>a partir de <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} ({kgs.has(c.id) ? menor.nome : menor.marca || 'sem marca'}) no <span className="mkt">{menor.mercado}</span></span>
+                  ? <span>{kgs.has(c.id) ? menor.nome : menor.marca || 'Sem marca'} · <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span></span>
                   : !dados ? <span className="esq-texto" aria-hidden="true" />
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 {dados && <span>{Object.keys(porItem[c.id]).length} mercados</span>}
@@ -620,11 +632,11 @@ export default function MinhaCompra() {
                 )}
                 {ativo && !kgs.has(c.id) && (marcasDe(c.id).length > 1 || marcas[c.id]) && (
                   <span className="row" style={{ gap: 6, flexBasis: '100%' }}>
-                    <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={chaveMarca(marcas[c.id] ?? '')}
+                    <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={marcaCompacta(marcas[c.id] ?? '')}
                       onChange={(e) => fixarMarca(c.id, e.target.value)}>
-                      <option value="">Comparar qualquer marca</option>
+                      <option value="">Qualquer marca</option>
                       {marcasDe(c.id).map((m) => (
-                        <option key={m.chave} value={m.chave}>Só {m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
+                        <option key={m.chave} value={m.chave}>{m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
                       ))}
                     </select>
                     {marcas[c.id] && (
@@ -641,7 +653,7 @@ export default function MinhaCompra() {
       {/* A lista grava sozinha a cada mudança: no fim dela fica só a confirmação, sem botão de salvar no caminho */}
       <div className="lista-rodape">
         <span className={salvo.startsWith('Não') ? 'erro' : ''} role="status">
-          {salvo || (itens.length ? `Salva neste aparelho: ${itens.length} ${itens.length === 1 ? 'item' : 'itens'}.` : 'Sua lista fica salva neste aparelho.')}
+          {salvo || (itens.length ? `Lista salva só neste aparelho (${itens.length} ${itens.length === 1 ? 'item' : 'itens'}).` : 'Sua lista fica salva neste aparelho.')}
         </span>
         {itens.length > 0 && (
           <button type="button" className="btn btn-link" onClick={() => {

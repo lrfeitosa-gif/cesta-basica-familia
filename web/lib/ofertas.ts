@@ -48,7 +48,8 @@ export function grupo(categoria: string | null | undefined): string {
 export const norm = (s: string | null | undefined) =>
   (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 export const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-export const emb = (o: Oferta) => `${String(o.q).replace('.', ',')} ${o.u}`;
+// tamanho sempre com espaço que não quebra a linha ("500 g", nunca "500" numa linha e "g" na outra)
+export const emb = (o: Oferta) => `${String(o.q).replace('.', ',')}\u00a0${o.u}`;
 export const dataBr = (iso: string) => iso.split('-').reverse().join('/');
 
 type Linha = {
@@ -187,10 +188,23 @@ export async function buscarOfertas(): Promise<Ofertas> {
     supabase.from('esgotado').select('oferta_id,oferta!inner(valido_de)').eq('oferta.valido_de', dia),
   ]);
   if (conta.error) throw conta.error;
-  const paginas = await Promise.all(Array.from({ length: Math.max(1, Math.ceil((conta.count ?? 0) / 1000)) }, (_, k) =>
-    supabase.from('oferta').select(sel).eq('valido_de', dia).order('id').range(k * 1000, k * 1000 + 999)));
-  const linhas: Linha[] = [];
-  for (const { data, error } of paginas) { if (error) throw error; linhas.push(...(data as unknown as Linha[])); }
+  // ~31 mil linhas = ~32 páginas. Todas de uma vez estouravam o limite de tempo do banco quando a coleta estava
+  // gravando (502 em /api/ofertas, 12/11): no máximo 8 ao mesmo tempo, e cada página tenta de novo até 3 vezes.
+  const total = Math.max(1, Math.ceil((conta.count ?? 0) / 1000));
+  const pagina = async (k: number): Promise<Linha[]> => {
+    for (let t = 0; ; t++) {
+      const { data, error } = await supabase.from('oferta').select(sel).eq('valido_de', dia).order('id').range(k * 1000, k * 1000 + 999);
+      if (!error) return data as unknown as Linha[];
+      if (t >= 2) throw error;
+      await new Promise((r) => setTimeout(r, 800 * (t + 1)));
+    }
+  };
+  const porPagina: Linha[][] = new Array(total);
+  let proxima = 0;
+  await Promise.all(Array.from({ length: Math.min(8, total) }, async () => {
+    while (proxima < total) { const k = proxima++; porPagina[k] = await pagina(k); }
+  }));
+  const linhas: Linha[] = porPagina.flat();
   const esgotadas = new Set((esg.data ?? []).map((e: { oferta_id: number }) => e.oferta_id));
   const lista = paraOfertas(linhas, esgotadas, dia);
   padronizarMarcas(lista);
@@ -248,7 +262,11 @@ function padronizarMarcas(lista: Oferta[]) {
 // Marca digitada pela pessoa ("heine", "3 coracoes") casa com a marca da oferta por parte do nome.
 export const marcaCasa = (marcaOferta: string, digitada: string) => {
   const d = chaveMarca(digitada);
-  return !d || chaveMarca(marcaOferta).includes(d);
+  if (!d) return true;
+  // a marca da oferta precisa COMEÇAR pelo que foi digitado: "heineken" acha "Heineken" e "Heineken Zero",
+  // mas não "Sol (Grupo Heineken)", que é outra marca do mesmo grupo (revisão de 12/11)
+  const k = chaveMarca(marcaOferta);
+  return k === d || k.startsWith(`${d} `);
 };
 
 // Busca com foco no produto: se existem itens cujo nome COMEÇA com a primeira palavra ("azeite" → "Azeite de oliva"),

@@ -28,7 +28,8 @@ export default function Enderecos({ refs, adicionar, remover }: {
     <details className="card enderecos" open={refs.length === 0}>
       <summary>
         <b>Seus endereços</b>
-        <span className="muted">{refs.length ? refs.map((r) => r.rotulo).join(' · ') : 'Informe um CEP para ver a distância até cada mercado'}</span>
+        <span className="muted">{refs.length ? refs.map((r) => r.rotulo).join(', ') : 'Informe um CEP para ver a distância até cada mercado'}</span>
+        <span className="mkt enderecos-acao">{refs.length ? 'Alterar' : 'Adicionar'}</span>
       </summary>
       <div className="stack" style={{ marginTop: 12 }}>
         {refs.map((r) => (

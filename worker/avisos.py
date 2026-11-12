@@ -111,7 +111,7 @@ def achar(alerta: dict, lista: list[dict]) -> list[dict]:
     achados = filtrar_foco(lista, alerta["termo"])
     if alerta.get("marca"):
         d = chave_marca(alerta["marca"])
-        achados = [o for o in achados if d in chave_marca(o["marca"])]
+        achados = [o for o in achados if chave_marca(o["marca"]) == d or chave_marca(o["marca"]).startswith(f"{d} ")]
     t = norm(f"{alerta['termo']} {alerta.get('marca') or ''}")
     achados = [o for o in achados if all(not re.search(v, norm(o["nome"])) or re.search(v, t) for v in VERSOES)]
     return sorted(achados, key=lambda o: o["preco"])
@@ -167,12 +167,18 @@ def brl(v: float) -> str:
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def rotulo(o: dict) -> str:
+    """Nome com a marca quando o encarte não a escreve ("Cerveja lager lata" → "Heineken · Cerveja lager lata")."""
+    m = (o.get("marca") or "").strip()
+    return f"{m} · {o['nome']}" if m and chave_marca(m) not in chave_marca(o["nome"]) else o["nome"]
+
+
 def decidir(db, alerta: dict, lista: list[dict], hoje: date) -> Aviso | None:
     achados = achar(alerta, lista)
     if not achados:
         return None
     melhor = achados[0]
-    nome = f"{melhor['nome']} no {melhor['mercado']}"
+    nome = f"{rotulo(melhor)} no {melhor['mercado']}"
     if alerta.get("preco_alvo") is not None and melhor["preco"] <= float(alerta["preco_alvo"]):
         return Aviso(alerta["familia_id"], alerta, melhor, "preco_alvo", None,
                      f"{nome} por {brl(melhor['preco'])}: chegou no seu preço-alvo de {brl(float(alerta['preco_alvo']))}.")
@@ -186,7 +192,7 @@ def decidir(db, alerta: dict, lista: list[dict], hoje: date) -> Aviso | None:
         pct = round((1 - barato["porUn"] / ref) * 100)
         despensa = "" if grupo(barato["categoria"]) in PERECIVEIS else " Bom momento para abastecer a despensa."
         return Aviso(alerta["familia_id"], alerta, barato, "abaixo_mes", pct,
-                     f"{barato['nome']} no {barato['mercado']} por {brl(barato['preco'])}: "
+                     f"{rotulo(barato)} no {barato['mercado']} por {brl(barato['preco'])}: "
                      f"{pct}% abaixo do menor preço típico do último mês.{despensa}")
     if melhor["de"] and melhor["de"] > melhor["preco"] and 1 - melhor["preco"] / melhor["de"] >= DESCONTO_MIN:
         pct = round((1 - melhor["preco"] / melhor["de"]) * 100)

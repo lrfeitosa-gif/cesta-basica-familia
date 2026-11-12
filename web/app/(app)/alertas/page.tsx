@@ -115,7 +115,7 @@ export default function Alertas() {
         <div className="empty">Nenhum alerta ainda. Crie o primeiro acima, por exemplo &quot;arroz 5kg -integral&quot; com preço-alvo de R$ 20,00.</div>
       ) : (
         <>
-          {disparados.length > 0 && <h2>{disparados.length === 1 ? '1 alerta disparado hoje' : `${disparados.length} alertas disparados hoje`}</h2>}
+          {disparados.length > 0 && <h2>{disparados.length === 1 ? '1 alerta com oferta hoje' : `${disparados.length} alertas com oferta hoje`}</h2>}
           {avaliados.map(({ a, achados, melhor, motivo }) => (
             <section key={a.id} className={`alerta-card ${motivo ? 'alerta-on' : ''}`}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -125,12 +125,23 @@ export default function Alertas() {
                     {a.marca ? `Marca ${a.marca}` : 'Qualquer marca'}{a.preco_alvo != null ? ` · alvo ${brl(a.preco_alvo)}` : ''}
                   </div>
                 </div>
-                <button type="button" className="btn btn-link" onClick={() => remover(a.id)} aria-label={`Excluir alerta ${a.termo}`}>Excluir</button>
+                <button type="button" className="btn-remover" onClick={() => { if (window.confirm(`Excluir o alerta "${a.termo}"?`)) remover(a.id); }}
+                  aria-label={`Excluir alerta ${a.termo}`}>Excluir</button>
               </div>
               {motivo ? <div className="alert alert-ok">Oportunidade: {motivo}</div>
                 : melhor ? <div className="muted">Ainda não chegou{a.preco_alvo != null ? ' no alvo' : ''}. Menor preço hoje: {brl(melhor.preco)} no {melhor.mercado}{a.preco_alvo != null && melhor.preco > a.preco_alvo ? ` (${brl(melhor.preco - a.preco_alvo)} acima do alvo)` : ''}.</div>
                 : <div className="muted">Nenhum preço encontrado hoje com essas palavras.</div>}
-              {melhor && <div className="lista">{achados.slice(0, 3).map((o, i) => <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} />)}</div>}
+              {/* com preço-alvo, separa o que já está no alvo das outras opções (revisão de 12/11) */}
+              {melhor && (() => {
+                const noAlvo = a.preco_alvo != null ? achados.filter((o) => o.preco <= a.preco_alvo!) : [];
+                const outras = achados.filter((o) => !noAlvo.includes(o)).slice(0, noAlvo.length ? 2 : 3);
+                return <>
+                  {noAlvo.length > 0 && <><span className="alerta-grupo">Abaixo do seu alvo</span>
+                    <div className="lista">{noAlvo.slice(0, 3).map((o) => <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} />)}</div></>}
+                  {outras.length > 0 && <>{noAlvo.length > 0 && <span className="alerta-grupo">Outras opções</span>}
+                    <div className="lista">{outras.map((o) => <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} />)}</div></>}
+                </>;
+              })()}
             </section>
           ))}
         </>

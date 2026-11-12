@@ -5,7 +5,14 @@ import { brl, dataBr, emb, filtrarFoco, norm, useOfertas, type Oferta } from '@/
 import { Carregando, ErroCarga } from '../linha-oferta';
 
 const PERIODOS = [[30, '30 dias'], [90, '3 meses'], [365, '1 ano']] as const;
-const CORES = ['#4f7f5c', '#2f6db3', '#c0841a', '#9b4d8f', '#c2493d', '#2a9d8f', '#6b6f2a', '#5b5f97', '#8a5a2b'];
+// Uma cor fixa e diferente por mercado (antes as cores se repetiam a partir do 10º mercado: Assaí e Savegnago
+// quase iguais, Atacadão e Sumerbol iguais). A mesma rede tem sempre a mesma cor em qualquer gráfico.
+const COR_MERCADO: Record<string, string> = {
+  'Assaí': '#d1495b', 'Atacadão': '#1f5fbf', 'Cato': '#7a8b00', 'Covabra': '#2a9d8f', 'Goodbom': '#e07a00',
+  'Pague Menos': '#8e44ad', 'Revolução': '#5d4037', 'Roldão': '#c2185b', "Sam's Club": '#0b7285', 'Savegnago': '#2e7d32',
+  'São Vicente': '#f2a900', 'Sonda': '#455a64', 'Sumerbol': '#6d8cff',
+};
+const CORES_EXTRA = ['#9c27b0', '#00897b', '#ff7043', '#3949ab', '#827717'];
 
 type Ponto = { dia: string; preco: number };
 type Serie = { mercado: string; pontos: Ponto[]; cor: string };
@@ -104,7 +111,7 @@ export default function Evolucao() {
         por.set(l.mercado, m);
       }
       setSeries([...por.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([mercado, m], i) => ({
-        mercado, cor: CORES[i % CORES.length], pontos: [...m.entries()].map(([dia, preco]) => ({ dia, preco })).sort((a, b) => a.dia.localeCompare(b.dia)),
+        mercado, cor: COR_MERCADO[mercado] ?? CORES_EXTRA[i % CORES_EXTRA.length], pontos: [...m.entries()].map(([dia, preco]) => ({ dia, preco })).sort((a, b) => a.dia.localeCompare(b.dia)),
       })));
     };
     const erroCarga = () => setFalha('Não conseguimos carregar o histórico agora.');
@@ -175,16 +182,15 @@ export default function Evolucao() {
                 {itensAchados.map((i) => (
                   <button key={i.id} type="button" className="linha-escolha" onClick={() => setSel({ item: i })}>
                     <span><b>{i.nome}</b></span>
-                    <span className="muted">todas as marcas</span>
                   </button>
                 ))}
               </div>
             </>}
             {dados && grupoDaBusca.produtos.length > 1 && (
               <button type="button" className="linha-escolha linha-grupo" onClick={() => setSel({ grupo: { busca: q.trim(), produtos: grupoDaBusca.produtos } })}>
-                <span><b>Comparar todos os {grupoDaBusca.produtos.length} encontrados</b>
-                  <span className="muted"> · {grupoDaBusca.marcas} {grupoDaBusca.marcas === 1 ? 'marca' : 'marcas'}, pelo preço do {grupoDaBusca.ub === 'un' ? 'item' : grupoDaBusca.ub === 'l' ? 'litro' : 'quilo'}</span></span>
-                <span className="mkt">ver →</span>
+                <span><b>Comparar os {grupoDaBusca.produtos.length} produtos</b>
+                  <span className="muted"> ({grupoDaBusca.marcas} {grupoDaBusca.marcas === 1 ? 'marca' : 'marcas'}), pelo preço do {grupoDaBusca.ub === 'un' ? 'item' : grupoDaBusca.ub === 'l' ? 'litro' : 'quilo'}</span></span>
+                <span className="mkt">Ver</span>
               </button>
             )}
             {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : achados.length > 0 ? <>
@@ -237,7 +243,7 @@ function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
   const dias = [...new Set(series.flatMap((s) => s.pontos.map((p) => p.dia)))].sort();
   const precos = series.flatMap((s) => s.pontos.map((p) => p.preco));
   const min = Math.min(...precos), max = Math.max(...precos);
-  const W = 340, H = 200, E = 44, B = 24, T = 10;
+  const W = 340, H = 200, E = 44, B = 24, T = 20;
   const pad = (max - min) * 0.1 || max * 0.05 || 1;
   const y0 = min - pad, y1 = max + pad;
   const x = (d: string) => E + (dias.length === 1 ? (W - E - 8) / 2 : (dias.indexOf(d) / (dias.length - 1)) * (W - E - 8));
@@ -246,6 +252,7 @@ function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
 
   return (
     <>
+      <p className="muted evol-desde">Dados desde {dataBr(dias[0]).slice(0, 5)}</p>
       <figure className="card evol-grafico" style={{ margin: 0 }}>
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Preço por mercado ao longo do tempo">
           {marcas.map((m) => (
@@ -254,6 +261,7 @@ function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
               <text x={E - 6} y={y(m) + 4} textAnchor="end" className="evol-eixo">{m.toFixed(2).replace('.', ',')}</text>
             </g>
           ))}
+          <text x={4} y={12} className="evol-eixo">R${sufixo || ''}</text>
           <text x={E} y={H - 6} className="evol-eixo">{dataBr(dias[0]).slice(0, 5)}</text>
           {dias.length > 1 && <text x={W - 4} y={H - 6} textAnchor="end" className="evol-eixo">{dataBr(dias[dias.length - 1]).slice(0, 5)}</text>}
           {series.map((s) => (

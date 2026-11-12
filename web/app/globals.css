@@ -296,14 +296,16 @@ h2 { margin-top: 4px; }
 .aviso span { flex: 1; }
 .aviso button { font: inherit; font-weight: 800; color: var(--tag); background: none; border: 0; cursor: pointer; padding: 4px; }
 .ranking .poucos-precos { opacity: .8; }
-.ranking .grupo-ranking { grid-column: 1 / -1; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding-bottom: 4px; }
+.ranking .grupo-ranking { grid-column: 1 / -1; font-size: .82rem; font-weight: 700; color: var(--muted); padding-bottom: 4px; }
 .ranking .subtotal { font-weight: 700; color: var(--ink); white-space: nowrap; }
 .ranking li.estimado { color: var(--warn); }
 .ranking .soma { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: .82rem; color: var(--muted); }
 .ranking .soma b { color: var(--ink); }
 
 /* Endereços de referência, distância e compra dividida em 2 mercados */
-.enderecos summary { display: grid; gap: 2px; cursor: pointer; list-style: none; }
+.enderecos summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; cursor: pointer; list-style: none; }
+.enderecos summary .muted { grid-column: 1; }
+.enderecos-acao { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 700; }
 .enderecos summary::-webkit-details-marker { display: none; }
 .ranking .dist { font-weight: 400; font-size: .82rem; color: var(--muted); }
 .dupla { background: color-mix(in srgb, var(--good) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--line)); border-radius: 14px; padding: 14px; display: grid; gap: 6px; }
@@ -419,7 +421,7 @@ h1 { font-size: 1.6rem; }
 
 /* Fundo da área logada: carrinho em luz azul, fixo atrás do conteúdo */
 body:has(.barra-topo) {
-  background: linear-gradient(rgb(242 248 253 / .55), rgb(242 248 253 / .55)), url('/img/fundo-app.jpg') center bottom / cover no-repeat fixed var(--bg);
+  background: linear-gradient(rgb(242 248 253 / .86), rgb(242 248 253 / .86)), url('/img/fundo-app.jpg') center bottom / cover no-repeat fixed var(--bg);
 }
 @media (prefers-color-scheme: dark) {
   body:has(.barra-topo) { background: linear-gradient(rgb(11 20 36 / .88), rgb(11 20 36 / .88)), url('/img/fundo-app.jpg') center bottom / cover no-repeat fixed var(--bg); }
@@ -571,7 +573,7 @@ nav.abas a { font-size: .66rem; text-align: center; line-height: 1.1; padding-in
 .ob-campos { width: 100%; display: flex; flex-direction: column; gap: 12px; margin-top: 20px; text-align: left; }
 
 /* Caixa de opiniões (R7) */
-.menu-opiniao { font: inherit; font-weight: 700; text-align: left; padding: 4px 0; border: 0; background: none; color: var(--accent); cursor: pointer; }
+.menu-opiniao { font: inherit; font-weight: 600; text-align: left; padding: 4px 0; border: 0; background: none; color: var(--ink); cursor: pointer; }
 dialog.opiniao {
   width: min(460px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 18px;
   background: var(--surface); color: var(--ink);
@@ -639,3 +641,8 @@ dialog.opiniao textarea { resize: vertical; min-height: 110px; font: inherit; }
 .ideal-mercados { list-style: none; margin: 4px 0; padding: 0; display: grid; }
 .ideal-mercados > li { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--line); font-size: .9rem; }
 .ideal-mercados details ul { margin: 6px 0 0; padding-left: 18px; font-size: .85rem; }
+.alerta-grupo { display: block; font-size: .82rem; font-weight: 700; color: var(--muted); margin-top: 4px; }
+.evol-desde { margin: 0; font-size: .82rem; }
+
+/* Revisão de 12/11: a página não "pula" de lado entre telas com e sem barra de rolagem */
+html { scrollbar-gutter: stable; }
