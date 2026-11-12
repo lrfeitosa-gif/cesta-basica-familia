@@ -20,7 +20,7 @@ const diasAtras = (iso: string | null) => (iso ? (Date.now() - new Date(iso).get
 const ROTULO: Record<string, string> = {
   login_ok: 'Entrou', login_erro: 'Erro ao entrar', cadastro_inicio: 'Começou o cadastro', cadastro_erro: 'Erro no cadastro',
   cadastro_ok: 'Cadastro enviado', tela: 'Abriu tela', erro_app: 'Erro na tela',
-  cesta_montada: 'Montou a cesta', primeiros_passos: 'Primeiros passos',
+  cesta_montada: 'Montou a cesta', primeiros_passos: 'Primeiros passos', pergunta_ia: 'Perguntou à IA',
 };
 // Ação de valor (spec do piloto): alerta, endereço de interesse ou compra montada na Cesta. Nota fiscal também conta.
 const usou = (u: Usuario) => u.alertas > 0 || u.enderecos > 0 || u.cesta > 0 || u.notas > 0;
