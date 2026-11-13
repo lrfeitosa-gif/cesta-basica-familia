@@ -28,6 +28,7 @@ const temCesta = () => {
 // "versao" muda quando as boas-vindas fecham, para o card aparecer sem recarregar a tela.
 export default function PrimeirosPassos({ familiaId, versao = 0 }: { familiaId?: string; versao?: number }) {
   const [feito, setFeito] = useState<Feito | null>(null);
+  const [aberto, setAberto] = useState(false);   // lista com os 3 passos
 
   useEffect(() => {
     if (!familiaId) return;
@@ -61,20 +62,34 @@ export default function PrimeirosPassos({ familiaId, versao = 0 }: { familiaId?:
   };
 
   return (
-    <div className="passo">
-      <Link href={proximo.href} className="passo-link">
-        <span className="passo-barra" role="img" aria-label={`${feitos} de 3 primeiros passos feitos`}>
-          {PASSOS.map((p) => <i key={p.chave} data-feito={feito[p.chave]} />)}
-        </span>
-        <span className="passo-texto">
-          <small>Primeiro passo {feitos + 1} de 3</small>
-          {proximo.texto}
-        </span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-      </Link>
-      <button type="button" className="passo-fechar" aria-label="Dispensar primeiros passos" onClick={fechar}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-      </button>
+    <div className="passo-bloco">
+      <div className="passo">
+        <Link href={proximo.href} className="passo-link">
+          <span className="passo-barra" role="img" aria-label={`${feitos} de 3 primeiros passos feitos`}>
+            {PASSOS.map((p) => <i key={p.chave} data-feito={feito[p.chave]} />)}
+          </span>
+          <span className="passo-texto">
+            <small>Primeiros passos: {feitos} de 3 feitos · próximo</small>
+            {proximo.texto}
+          </span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+        </Link>
+        <button type="button" className="passo-fechar" aria-label={aberto ? 'Esconder os 3 passos' : 'Ver os 3 passos'} aria-expanded={aberto}
+          onClick={() => setAberto(!aberto)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" style={{ transform: aberto ? 'rotate(180deg)' : undefined }}><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+      </div>
+      {aberto && (
+        <ol className="passo-lista">
+          {PASSOS.map((p, i) => (
+            <li key={p.chave} data-feito={feito[p.chave]}>
+              <span className="passo-num" aria-hidden="true">{feito[p.chave] ? '✓' : i + 1}</span>
+              {feito[p.chave] ? <span className="passo-feito">{p.texto}</span> : <Link href={p.href}>{p.texto}</Link>}
+            </li>
+          ))}
+          <li className="passo-dispensar"><button type="button" onClick={fechar}>Não mostrar mais</button></li>
+        </ol>
+      )}
     </div>
   );
 }
