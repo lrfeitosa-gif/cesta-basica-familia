@@ -793,3 +793,71 @@ body { font-family: var(--body); }
 .card-btn-secundario { background: transparent; color: var(--muted-foreground); border: 1px solid var(--chip-borda); font-weight: 500; }
 .product-actions .card-btn-secundario:only-child { margin-left: auto; }
 .card-btn-secundario:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Setas de rolagem nas linhas de filtros (13/11): aparecem só quando há itens escondidos daquele lado */
+.rolagem { position: relative; }
+.rolagem-seta { position: absolute; top: 50%; translate: 0 -50%; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; font: inherit; font-size: 22px; font-weight: 700; line-height: 1; padding: 0 0 3px;
+  background: var(--card); color: var(--foreground); border: 1px solid var(--border); box-shadow: 0 2px 8px rgb(0 0 0 / .15); cursor: pointer; }
+.rolagem-seta:hover { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.rolagem-esq { left: -6px; }
+.rolagem-dir { right: -6px; }
+/* esmaecido na ponta com mais itens, para indicar que a linha continua */
+.rolagem[data-dir="true"] .filtro-linha { mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+.rolagem[data-esq="true"] .filtro-linha { mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+.rolagem[data-esq="true"][data-dir="true"] .filtro-linha { mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
+.rolagem .exemplos-ia { margin-top: 0; }
+.rolagem:has(.exemplos-ia) { margin-top: -4px; }
+
+/* ===== Cesta (CSS enviado em 13/11, 10h51): abas, endereço compacto, recomendação e cartões por mercado =====
+   Modo escuro com as cores do CSS; modo claro nos tons do Mercato. */
+:root { --rec-borda: var(--primary); --total-ink: #8A5A00; --aviso-ink: #9A5B00; --aviso-bg: rgb(255 183 77 / .14); --link-ink: var(--primary); }
+@media (prefers-color-scheme: dark) { :root { --total-ink: #FFC107; --aviso-ink: #FFB74D; --aviso-bg: rgb(255 183 77 / .08); --link-ink: #81C784; } }
+
+.tab-container { display: flex; gap: 8px; margin: 4px 0; }
+.tab-button { font: inherit; font-size: 14px; padding: 8px 16px; border-radius: 20px; cursor: pointer;
+  background: var(--chip-bg); color: var(--chip-ink); border: 1px solid var(--chip-borda); }
+.tab-button.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); font-weight: 600; }
+.tab-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.address-compact { background: var(--card); border: 1px solid var(--card-borda); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--muted-foreground); }
+.address-compact summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.address-compact summary::-webkit-details-marker { display: none; }
+.address-texto { min-width: 0; }
+.address-acao { flex: none; color: var(--link-ink); font-weight: 600; }
+.address-compact[open] summary { margin-bottom: 4px; }
+
+.recommendation-card { background: var(--card); border: 2px solid var(--rec-borda); border-radius: 12px; padding: 16px; display: grid; gap: 4px;
+  box-shadow: 0 4px 12px rgb(46 125 50 / .15); }
+.recommendation-price { font-size: 24px; font-weight: 700; color: var(--foreground); margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.btn-action-primary { display: block; width: 100%; margin-top: 12px; padding: 12px; border: 0; border-radius: 8px; font: inherit; font-weight: 600;
+  text-align: center; text-decoration: none; cursor: pointer; background: var(--primary); color: var(--primary-foreground); }
+.btn-action-primary:hover { background: var(--primary-hover); }
+
+.section-header-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
+.section-title { font-size: 18px; font-weight: 700; margin: 0; color: var(--foreground); }
+.btn-filter-toggle { flex: none; display: flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+  background: var(--chip-bg); color: var(--foreground); border: 1px solid var(--chip-borda); }
+.btn-filter-toggle[aria-pressed="true"] { border-color: var(--primary); color: var(--link-ink); }
+
+.market-list { display: grid; gap: 12px; }
+.market-card { background: var(--card); border: 1px solid var(--card-borda); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+  scroll-margin-top: 80px; }
+.market-card.poucos-precos { opacity: .85; }
+.market-card .grupo-ranking { font-size: .82rem; font-weight: 700; color: var(--muted-foreground); }
+.market-card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.market-name { font-size: 15px; font-weight: 600; color: var(--foreground); }
+.market-distance { font-size: 12px; color: var(--muted-foreground); margin-left: 6px; }
+.market-total { flex: none; font-size: 16px; font-weight: 700; color: var(--total-ink); font-variant-numeric: tabular-nums; }
+.market-warning { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--aviso-ink); background: var(--aviso-bg); padding: 6px 10px; border-radius: 6px; }
+.market-expand-link { list-style: none; cursor: pointer; color: var(--link-ink); font-size: 13px; font-weight: 500; padding-top: 4px; }
+.market-expand-link::-webkit-details-marker { display: none; }
+.market-expand-link::after { content: " ▾"; }
+details[open] > .market-expand-link::after { content: " ▴"; }
+.market-expand-link:hover { text-decoration: underline; }
+.market-card details { font-size: .82rem; }
+.market-card details ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; color: var(--muted-foreground); }
+.market-card .subtotal { font-weight: 700; color: var(--foreground); white-space: nowrap; }
+.market-card li.estimado { color: var(--aviso-ink); }
+.market-card .soma { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--card-borda); color: var(--muted-foreground); }
+.market-card .soma b { color: var(--foreground); }

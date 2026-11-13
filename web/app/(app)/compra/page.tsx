@@ -119,6 +119,7 @@ export default function MinhaCompra() {
   const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
   const [avisoNovo, setAvisoNovo] = useState('');
   const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
+  const [todosMercados, setTodosMercados] = useState(false);   // mostra também os mercados com poucos preços hoje
   // a aba escolhida vale durante a visita: voltar de outra tela não perde o lugar
   const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} };
   useEffect(() => { try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {} }, []);
@@ -474,15 +475,26 @@ export default function MinhaCompra() {
     return { km: total + km(aqui, casa), de: casa.rotulo };
   })();
 
+  // mercados com poucos preços hoje: ficam escondidos atrás do botão "Mostrar todos"
+  const poucos = ranking.filter((r) => !r.confiavel).length;
+  const slug = (m: string) => norm(m).replace(/[^a-z0-9]+/g, '-');
+  // botão do cartão de recomendação: abre "Ver marcas e preços" do mercado e rola até ele
+  const abrirMercado = (m: string) => {
+    const el = document.getElementById(`mercado-${slug(m)}`);
+    if (!el) return;
+    const d = el.querySelector('details'); if (d) d.open = true;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <>
       <div>
         <h1>Minha cesta</h1>
         <p className="lead">Monte a lista e veja em qual mercado ela sai mais barata.</p>
       </div>
-      <div className="choice" role="radiogroup" aria-label="Ver">
-        <label><input type="radio" name="aba" checked={aba === 'lista'} onChange={() => setAba('lista')} /><span>Lista ({itens.length} de {todos.length})</span></label>
-        <label><input type="radio" name="aba" checked={aba === 'comparar'} onChange={() => setAba('comparar')} /><span>Onde comprar</span></label>
+      <div className="tab-container" role="tablist" aria-label="Ver">
+        <button type="button" role="tab" className={`tab-button${aba === 'lista' ? ' active' : ''}`} aria-selected={aba === 'lista'} onClick={() => setAba('lista')}>Lista ({itens.length} de {todos.length})</button>
+        <button type="button" role="tab" className={`tab-button${aba === 'comparar' ? ' active' : ''}`} aria-selected={aba === 'comparar'} onClick={() => setAba('comparar')}>Onde comprar</button>
       </div>
 
       {aba === 'lista' && !dados && !erro && (
@@ -499,9 +511,9 @@ export default function MinhaCompra() {
       {aba === 'comparar' && dados && <>
 
       {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : top ? (
-        <div className="destaque">
+        <div className="recommendation-card">
           <span className="muted">Mais barato para comprar tudo num lugar só</span>
-          <span className="grande">{fmt(top)}</span>
+          <span className="recommendation-price">{fmt(top)}</span>
           <span><b>{top.m}</b>{SO_SOCIOS.has(top.m) && <> <TagSocios /></>}{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
           {(() => { const d = locais.distancia(top.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
           {top.falta.length > 0 && (
@@ -516,6 +528,7 @@ export default function MinhaCompra() {
             <span className="muted">{brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m}{pior.falta.length ? ', total estimado' : ''})</span>
           )}
           {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} (vários mercados, veja o roteiro no fim)</span>}
+          <button type="button" className="btn-action-primary" onClick={() => abrirMercado(top.m)}>Ver marcas e preços no {top.m}</button>
         </div>
       ) : null}
 
@@ -548,25 +561,37 @@ export default function MinhaCompra() {
         );
       })()}
 
-      {itens.length > 0 && <h2>Total em cada mercado</h2>}
       {itens.length > 0 && (
-        <div className="ranking">
-          {ranking.map((r, i) => (
-            <div key={r.m} className={r.confiavel ? '' : 'poucos-precos'}>
-              {!r.confiavel && (i === 0 || ranking[i - 1].confiavel) && (
+        <div className="section-header-bar">
+          <h2 className="section-title">Total em cada mercado</h2>
+          {poucos > 0 && ranking.length > poucos && (
+            <button type="button" className="btn-filter-toggle" aria-pressed={todosMercados} onClick={() => setTodosMercados(!todosMercados)}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+              {todosMercados ? 'Só os mais completos' : `Mostrar todos (+${poucos})`}
+            </button>
+          )}
+        </div>
+      )}
+      {itens.length > 0 && (
+        <div className="market-list">
+          {ranking.filter((r) => todosMercados || r.confiavel || poucos === ranking.length).map((r, i, lista) => (
+            <div key={r.m} id={`mercado-${slug(r.m)}`} className={`market-card${r.confiavel ? '' : ' poucos-precos'}`}>
+              {!r.confiavel && (i === 0 || lista[i - 1].confiavel) && (
                 <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
               )}
-              <b>{r.m}{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{distTxt(r.m) && <span className="dist"> · 📍 {distTxt(r.m)}</span>}</b>
-              <span className="total">{fmt(r)}</span>
+              <div className="market-card-header">
+                <span><span className="market-name">{r.m}</span>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{distTxt(r.m) && <span className="market-distance">📍 {distTxt(r.m)}</span>}</span>
+                <span className="market-total">{fmt(r)}</span>
+              </div>
               {r.falta.length > 0 && (
-                <span className="falta">
-                  Sem preço hoje: {r.falta.join(', ')}.{' '}
-                  Estimado pelo preço mediano dos outros mercados.
+                <span className="market-warning">
+                  <span aria-hidden="true">⚠</span>
+                  <span>Sem preço hoje: {r.falta.join(', ')}. Estimado pelo preço mediano dos outros mercados.</span>
                 </span>
               )}
               {r.escolhas.length > 0 && (
                 <details>
-                  <summary>Ver marcas e preços</summary>
+                  <summary className="market-expand-link">Ver marcas e preços</summary>
                   <ul>
                     {r.escolhas.map(({ c, o }) => (
                       <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{tamTxt(c)}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b>{' '}
