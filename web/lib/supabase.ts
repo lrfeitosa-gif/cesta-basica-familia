@@ -15,9 +15,9 @@ export function mensagemErro(msg: string): string {
   if (/email not confirmed/i.test(msg)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
   if (/already registered|already been registered/i.test(msg)) return 'Este e-mail já tem conta. Entre com sua senha.';
   if (/password should be at least/i.test(msg)) return 'A senha precisa ter pelo menos 8 caracteres.';
-  // regra de senha forte do Supabase (Authentication → Email): letras minúsculas, maiúsculas, números e símbolos
+  // regra de senha forte ligada no Supabase (Authentication → Email) em 13/11
   if (/password should contain|weak.?password|password is too weak|known to be weak/i.test(msg))
-    return 'Senha fraca. Use pelo menos 8 caracteres, com letra minúscula, maiúscula, número e símbolo (ex.: Mercado#2026).';
+    return 'Senha fraca. Use pelo menos 8 caracteres, misturando letras, números e um símbolo (ex.: mercado#2026).';
   if (/invalid.*email|email address .* is invalid|unable to validate email/i.test(msg)) return 'Este e-mail não parece válido. Confira se digitou certo.';
   if (/signups? not allowed|signup is disabled/i.test(msg)) return 'Os cadastros estão fechados no momento. Fale com quem te convidou.';
   if (/database error saving new user/i.test(msg)) return 'Código de convite inválido, esgotado ou o teste está lotado. Confira com quem te convidou.';

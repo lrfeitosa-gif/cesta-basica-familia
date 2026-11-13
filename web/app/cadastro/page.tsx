@@ -72,7 +72,7 @@ export default function Cadastro() {
         <span id="convite-ajuda" className="au-ajuda">Teste fechado: peça o código a quem te convidou.</span>
         <CampoPilula icone="email" rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required
           value={email} onChange={(e) => setEmail(e.target.value)} />
-        <CampoPilula icone="senha" rotulo="Senha (mínimo de 8 caracteres)" id="senha" type="password" autoComplete="new-password"
+        <CampoPilula icone="senha" rotulo="Senha: 8+ caracteres, letras, números e símbolo" id="senha" type="password" autoComplete="new-password"
           required minLength={8} aria-invalid={senhaCurta} value={senha} onChange={(e) => setSenha(e.target.value)} />
         <label className="au-aceite">
           <input type="checkbox" id="aceite" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
