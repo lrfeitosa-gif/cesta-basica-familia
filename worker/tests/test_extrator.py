@@ -176,3 +176,32 @@ def test_gemini_demorando_sempre_vai_para_o_claude(ambiente, monkeypatch):
 
     extrator.extrair("x.jpg", http=httpx.Client(transport=httpx.MockTransport(demora)))
     assert ambiente["claude"] == 1
+
+
+def test_imagem_grande_vira_faixas_com_sobreposicao():
+    import io
+
+    from PIL import Image
+
+    from coleta.extrator import ALTURA_FAIXA, LARGURA_FAIXA, SOBRA, _fatias
+
+    buf = io.BytesIO()
+    Image.new("RGB", (3000, 9000), "white").save(buf, format="JPEG", quality=95)
+    faixas = _fatias(buf.getvalue(), "image/jpeg")
+    tamanhos = [Image.open(io.BytesIO(f)).size for f, _ in faixas]
+    assert len(faixas) == 3
+    assert all(l == LARGURA_FAIXA and a <= ALTURA_FAIXA for l, a in tamanhos)
+    # a soma das alturas menos as sobreposições cobre a imagem reduzida (1800 x 5400) inteira
+    assert sum(a for _, a in tamanhos) - SOBRA * (len(faixas) - 1) == 5400
+
+
+def test_imagem_pequena_fica_inteira():
+    import io
+
+    from PIL import Image
+
+    from coleta.extrator import _fatias
+
+    buf = io.BytesIO()
+    Image.new("RGB", (1200, 1600), "white").save(buf, format="JPEG")
+    assert len(_fatias(buf.getvalue(), "image/jpeg")) == 1
