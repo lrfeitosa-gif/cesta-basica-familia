@@ -97,12 +97,25 @@ def _partes(lista: list[dict], consulta: str) -> tuple[list[list[str]], list[str
     return termos, fora
 
 
+# Exclusões da busca cadastradas na Administração (tabela exclusao_busca, migração 0029), as mesmas do app:
+# quem busca o termo não vê produtos com a palavra excluída, a menos que a escreva. Preenchida em main().
+EXCLUSOES: list[tuple[str, str]] = []
+
+
+def _tem_palavra(texto: str, palavra: str) -> bool:
+    limpa = lambda x: " " + re.sub(r"[^a-z0-9]+", " ", x).strip() + " "
+    return limpa(palavra) in limpa(texto)
+
+
 def filtrar_foco(lista: list[dict], consulta: str) -> list[dict]:
     termos, fora = _partes(lista, consulta)
     if not termos:
         return []
+    q = norm(consulta)
+    regras = [x for t, x in EXCLUSOES if _tem_palavra(q, t) and not _tem_palavra(q, x)]
     achados = [o for o in lista if all(any(t in o["busca"] for t in vs) for vs in termos)
-               and not any(t in o["busca"] for t in fora)]
+               and not any(t in o["busca"] for t in fora)
+               and not any(_tem_palavra(o["busca"], x) for x in regras)]
     foco = [o for o in achados if norm(o["nome"]).startswith(termos[0][0])]
     return foco or achados
 
@@ -275,6 +288,8 @@ def main(argv: list[str] | None = None) -> None:
     for o in lista:
         o["busca"] = texto_busca(o)
     print(f"preços de hoje: {len(lista)}")
+    exc = tentar(lambda: db.table("exclusao_busca").select("termo,excluir").execute().data) or []
+    EXCLUSOES[:] = [(norm(e["termo"]).strip(), norm(e["excluir"]).strip()) for e in exc]
 
     alertas = tentar(lambda: db.table("item_interesse").select("id,familia_id,termo,marca,preco_alvo")
                      .not_.is_("termo", "null").execute().data) or []

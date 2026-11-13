@@ -71,6 +71,9 @@ export function carregarOfertas(): Promise<Ofertas> {
 // Atualiza sozinho quando alguém marca uma oferta como esgotada.
 export function useOfertas() {
   const [dados, setDados] = React.useState<Ofertas | null>(null);
+  // exclusões da busca: carregadas junto com os preços; ao chegar, os dados mudam de identidade para as telas
+  // (que guardam os resultados com useMemo) refazerem os filtros
+  React.useEffect(() => { carregarExclusoes().then(() => setDados((d) => (d ? { ...d } : d))); }, []);
   const [erro, setErro] = React.useState(false);
   const [tentativa, setTentativa] = React.useState(0);
   React.useEffect(() => {
@@ -323,9 +326,28 @@ function partesDaBusca(lista: Oferta[], consulta: string): { termos: string[][];
   };
 }
 
+// Exclusões da busca cadastradas na Administração (tabela exclusao_busca, migração 0029): quem busca o termo
+// não vê produtos com a palavra excluída, a menos que a escreva na busca. Ex.: "heineken" sem "Sol (Grupo Heineken)".
+export type Exclusao = { id?: number; termo: string; excluir: string };
+let EXCLUSOES: Exclusao[] = [];
+let exclusoesCarregadas: Promise<void> | null = null;
+export function carregarExclusoes(forcar = false): Promise<void> {
+  if (!exclusoesCarregadas || forcar) {
+    exclusoesCarregadas = (async () => {
+      const { data } = await supabase.from('exclusao_busca').select('id,termo,excluir');
+      EXCLUSOES = ((data ?? []) as Exclusao[]).map((x) => ({ ...x, termo: norm(x.termo).trim(), excluir: norm(x.excluir).trim() }));
+    })().catch(() => { exclusoesCarregadas = null; });
+  }
+  return exclusoesCarregadas ?? Promise.resolve();
+}
+export const temPalavra = (texto: string, palavra: string) => ` ${texto.replace(/[^a-z0-9]+/g, ' ')} `.includes(` ${palavra.replace(/[^a-z0-9]+/g, ' ').trim()} `);
+
 // Filtro composto: todas as palavras precisam aparecer; as marcadas com "-" ficam de fora.
 export function filtrar(lista: Oferta[], consulta: string): Oferta[] {
   const { termos, fora } = partesDaBusca(lista, consulta);
   if (!termos.length) return [];
-  return lista.filter((o) => termos.every((vs) => vs.some((t) => o.busca.includes(t))) && !fora.some((t) => o.busca.includes(t)));
+  const q = norm(consulta);
+  const regras = EXCLUSOES.filter((x) => temPalavra(q, x.termo) && !temPalavra(q, x.excluir));
+  return lista.filter((o) => termos.every((vs) => vs.some((t) => o.busca.includes(t))) && !fora.some((t) => o.busca.includes(t))
+    && !regras.some((x) => temPalavra(o.busca, x.excluir)));
 }
