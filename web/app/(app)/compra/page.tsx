@@ -501,13 +501,6 @@ export default function MinhaCompra() {
   // mercados com poucos preços hoje: ficam escondidos atrás do botão "Mostrar todos"
   const poucos = ranking.filter((r) => !r.confiavel).length;
   const slug = (m: string) => norm(m).replace(/[^a-z0-9]+/g, '-');
-  // botão do cartão de recomendação: abre "Ver marcas e preços" do mercado e rola até ele
-  const abrirMercado = (m: string) => {
-    const el = document.getElementById(`mercado-${slug(m)}`);
-    if (!el) return;
-    const d = el.querySelector('details'); if (d) d.open = true;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   // Mapa: loja do mercado (a mais perto do endereço cadastrado) e roteiro com várias lojas no Google Maps
   const pontoLoja = (m: string) => {
@@ -568,7 +561,17 @@ export default function MinhaCompra() {
           )}
           {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
           <a className="btn-action-primary" href={linkLoja(top.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {top.m} ↗</a>
-          <button type="button" className="btn-action-secundario" onClick={() => abrirMercado(top.m)}>Ver marcas e preços no {top.m}</button>
+          <details className="rec-itens">
+            <summary className="market-expand-link">Ver itens</summary>
+            <ul>
+              {top.escolhas.map(({ c, o }) => (
+                <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b> · {brl(v(c, o) * sel[c.id])}</li>
+              ))}
+              {top.estimados.map(({ c, valor }) => (
+                <li key={c.id} className="estimado">{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: sem preço hoje, estimado ≈ {brl(valor)}</li>
+              ))}
+            </ul>
+          </details>
         </div>
       ) : null}
 
