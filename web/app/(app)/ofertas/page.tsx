@@ -15,6 +15,9 @@ import PerguntaIA, { parecePergunta } from './pergunta-ia';
 const RUIDO = /racao|caes|gatos|whisky|vodka|gin /;
 const POR_PAGINA = 10;
 
+// Exemplos tocáveis abaixo da busca: ensinam que dá para perguntar à IA.
+const EXEMPLOS_IA = ['Qual o café mais barato?', 'Põe 2 arroz 5 kg na cesta', 'Me avise quando o feijão baixar'];
+
 export default function Oportunidades() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const familiaId = useSessao()?.user.id;
@@ -22,6 +25,8 @@ export default function Oportunidades() {
   const [mercado, setMercado] = useState('Todos');
   const [limite, setLimite] = useState(POR_PAGINA);
   const [q, setQ] = useState('');
+  const [forcarIA, setForcarIA] = useState(false);   // botão "Perguntar" ou exemplo tocado: manda para a IA mesmo sem cara de pergunta
+  const [pedido, setPedido] = useState(0);           // cada toque em "Perguntar"/exemplo/Enter dispara a pergunta
   const [cat, setCat] = useState('Todas');
   const [semNotas, setSemNotas] = useState(false);
   // a carga completa às vezes trava (banco ocupado durante a coleta): depois de 25 s, oferece tentar de novo
@@ -66,7 +71,13 @@ export default function Oportunidades() {
   // Preço do quilo não se compara com preço da unidade: a medida mais comum nos resultados vem primeiro
   // (é dela o "Mais barato"); as outras medidas aparecem depois, cada uma do menor para o maior.
   // pergunta em linguagem natural ("qual o café mais barato?"): vai para a IA, não para a busca por palavras
-  const modoPergunta = parecePergunta(q);
+  const modoPergunta = !!q.trim() && (forcarIA || parecePergunta(q));
+  const perguntarAgora = (texto?: string) => {
+    const t = texto ?? q;
+    if (texto !== undefined) setQ(texto);
+    if (!t.trim()) { document.getElementById('busca')?.focus(); return; }
+    setForcarIA(true); setPedido((n) => n + 1);
+  };
   const busca = useMemo(() => (dados && q.trim() && !modoPergunta ? ordenarPorMedida(filtrarFoco(dados.lista, q)) : null), [dados, q, modoPergunta]);
   // com categoria escolhida: todos os preços dela (descontos primeiro, depois o menor preço por kg/litro)
   const comDesc = (o: Oferta) => ({ o, desc: o.de > o.preco ? 1 - o.preco / o.de : 0 });
@@ -92,13 +103,21 @@ export default function Oportunidades() {
           {dados && <> · {dados.lista.length.toLocaleString('pt-BR')} preços de {dados.mercados.length} mercados em {dataBr(dados.dia)}</>}.
         </p>
       </div>
-      <div className="busca-topo">
-        <label htmlFor="busca" className="visually-hidden">Buscar produto</label>
+      <form className="busca-topo" role="search" onSubmit={(e) => { e.preventDefault(); if (modoPergunta) perguntarAgora(); }}>
+        <label htmlFor="busca" className="visually-hidden">Buscar produto ou perguntar à IA</label>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input id="busca" className="input" type="search" autoComplete="off" enterKeyHint="search"
-          placeholder="Buscar ou perguntar: qual o café mais barato?"
-          value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); }} />
-      </div>
+          placeholder="Buscar produto ou perguntar"
+          value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); if (!e.target.value.trim()) setForcarIA(false); }} />
+        <button type="button" className="btn-ia" onClick={() => perguntarAgora()} aria-label="Perguntar à IA">✨ Perguntar</button>
+      </form>
+      {!q.trim() && (
+        <div className="chips exemplos-ia" role="group" aria-label="Exemplos de perguntas à IA">
+          {EXEMPLOS_IA.map((t) => (
+            <button key={t} type="button" className="chip chip-ia" onClick={() => perguntarAgora(t)}>✨ {t}</button>
+          ))}
+        </div>
+      )}
       {sugestoes.length > 0 && (
         <div className="chips sugestoes" role="group" aria-label="Sugestões de busca">
           {sugestoes.map((n) => (
@@ -106,7 +125,7 @@ export default function Oportunidades() {
           ))}
         </div>
       )}
-      {modoPergunta && <PerguntaIA pergunta={q.trim()} dados={dados} familiaId={familiaId} distTxt={distTxt} />}
+      {modoPergunta && <PerguntaIA pergunta={q.trim()} dados={dados} familiaId={familiaId} distTxt={distTxt} pedido={pedido} />}
       {q.trim() && !modoPergunta && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando &quot;{q.trim()}&quot; em todos os preços de hoje…</p>
       )}

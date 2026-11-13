@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { brl, filtrarFoco, marcaCasa, type Oferta, type Ofertas } from '@/lib/ofertas';
@@ -18,8 +18,8 @@ export const parecePergunta = (t: string) => /\?\s*$/.test(t)
 
 // Pergunta à IA (Groq): ela só traduz a pergunta em busca; os preços e a resposta saem dos dados de hoje do app.
 // Pôr na cesta e criar alerta sempre pedem confirmação.
-export default function PerguntaIA({ pergunta, dados, familiaId, distTxt }: {
-  pergunta: string; dados: Ofertas | null; familiaId?: string; distTxt: (m: string) => string | null;
+export default function PerguntaIA({ pergunta, dados, familiaId, distTxt, pedido = 0 }: {
+  pergunta: string; dados: Ofertas | null; familiaId?: string; distTxt: (m: string) => string | null; pedido?: number;
 }) {
   const [estado, setEstado] = useState<'' | 'pensando' | 'erro'>('');
   const [erro, setErro] = useState('');
@@ -66,13 +66,22 @@ export default function PerguntaIA({ pergunta, dados, familiaId, distTxt }: {
     setAviso(error ? 'Não foi possível criar o alerta agora. Tente pela tela Alertas.' : 'Alerta criado. Você recebe o aviso quando o preço ficar bom.');
   };
 
+  // pedido vindo da tela (botão "Perguntar", exemplo ou Enter): pergunta sozinho, assim que os preços estiverem carregados
+  const atendido = useRef(0);
+  useEffect(() => {
+    if (pedido > atendido.current && dados && familiaId && estado !== 'pensando') {
+      atendido.current = pedido;
+      if (!(r && r.feita === pergunta)) perguntar();
+    }
+  }, [pedido, dados, familiaId]);
+
   const atual = r && r.feita === pergunta ? r : null;
   const melhor = atual?.achados[0];
   return (
     <div className="ia">
       {!atual && (
         <button type="button" className="btn btn-secondary btn-block" onClick={perguntar} disabled={estado === 'pensando' || !dados}>
-          {estado === 'pensando' ? 'Pensando…' : !dados ? 'Carregando os preços…' : 'Perguntar à IA'}
+          {estado === 'pensando' ? 'Pensando…' : !dados ? 'Carregando os preços…' : '✨ Perguntar à IA'}
         </button>
       )}
       {estado === 'erro' && <div className="alert alert-error" role="alert">{erro}</div>}
