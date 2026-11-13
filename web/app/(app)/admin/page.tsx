@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
 import { horaBr } from '@/lib/ofertas';
 import Link from 'next/link';
+import ExclusoesBusca from './exclusoes';
 
 type Usuario = {
   id: string; email: string; criado_em: string; confirmado_em: string | null; ultimo_login: string | null; convite: string | null;
@@ -29,6 +30,7 @@ const CODIGO_TESTE = 'TESTE';
 const ABAS = [
   { id: 'resumo', rotulo: 'Resumo' }, { id: 'convites', rotulo: 'Convites' }, { id: 'ajuda', rotulo: 'Precisa de ajuda' },
   { id: 'opinioes', rotulo: 'Opiniões' }, { id: 'pessoas', rotulo: 'Pessoas' }, { id: 'eventos', rotulo: 'Eventos' },
+  { id: 'busca', rotulo: 'Busca' },
 ] as const;
 type Aba = (typeof ABAS)[number]['id'];
 
@@ -260,6 +262,8 @@ export default function Admin() {
             ))}
           </div>
         </>}
+
+        {aba === 'busca' && <ExclusoesBusca />}
 
         {aba === 'eventos' && <>
           <select className="marca-sel" aria-label="Filtrar eventos" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
