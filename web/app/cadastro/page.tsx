@@ -1,6 +1,6 @@
 'use client';
 import Logo from '@/app/logo';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
@@ -18,6 +18,11 @@ export default function Cadastro() {
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const senhaCurta = senha.length > 0 && senha.length < 8;
+  // link de convite (/cadastro?convite=CODIGO) já traz o código preenchido
+  useEffect(() => {
+    const c = new URLSearchParams(location.search).get('convite');
+    if (c) setConvite(c.trim().toUpperCase().slice(0, 40));
+  }, []);
 
   const criar = async (e: FormEvent) => {
     e.preventDefault();

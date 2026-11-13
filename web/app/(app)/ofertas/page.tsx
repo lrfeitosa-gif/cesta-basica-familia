@@ -9,6 +9,7 @@ import { useDistTexto } from '@/lib/locais';
 import Fontes from '../fontes';
 import BoasVindas from '../boas-vindas';
 import PrimeirosPassos from '../primeiros-passos';
+import PerguntaIA, { parecePergunta } from './pergunta-ia';
 
 // Fora das oportunidades: ração e destilados (bebidas do dia a dia, como cerveja, continuam)
 const RUIDO = /racao|caes|gatos|whisky|vodka|gin /;
@@ -64,7 +65,9 @@ export default function Oportunidades() {
   // com busca: todos os preços que combinam, do menor preço por kg/litro ao maior; sem busca: maiores descontos
   // Preço do quilo não se compara com preço da unidade: a medida mais comum nos resultados vem primeiro
   // (é dela o "Mais barato"); as outras medidas aparecem depois, cada uma do menor para o maior.
-  const busca = useMemo(() => (dados && q.trim() ? ordenarPorMedida(filtrarFoco(dados.lista, q)) : null), [dados, q]);
+  // pergunta em linguagem natural ("qual o café mais barato?"): vai para a IA, não para a busca por palavras
+  const modoPergunta = parecePergunta(q);
+  const busca = useMemo(() => (dados && q.trim() && !modoPergunta ? ordenarPorMedida(filtrarFoco(dados.lista, q)) : null), [dados, q, modoPergunta]);
   // com categoria escolhida: todos os preços dela (descontos primeiro, depois o menor preço por kg/litro)
   const comDesc = (o: Oferta) => ({ o, desc: o.de > o.preco ? 1 - o.preco / o.de : 0 });
   const porCategoria = useMemo(() => (dados && cat !== 'Todas'
@@ -93,7 +96,7 @@ export default function Oportunidades() {
         <label htmlFor="busca" className="visually-hidden">Buscar produto</label>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input id="busca" className="input" type="search" autoComplete="off" enterKeyHint="search"
-          placeholder="Buscar produto ou mercado"
+          placeholder="Buscar ou perguntar: qual o café mais barato?"
           value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); }} />
       </div>
       {sugestoes.length > 0 && (
@@ -103,7 +106,8 @@ export default function Oportunidades() {
           ))}
         </div>
       )}
-      {q.trim() && !dados && !erro && (
+      {modoPergunta && <PerguntaIA pergunta={q.trim()} dados={dados} familiaId={familiaId} distTxt={distTxt} />}
+      {q.trim() && !modoPergunta && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando &quot;{q.trim()}&quot; em todos os preços de hoje…</p>
       )}
       {dados && !q && <Fontes dados={dados} />}
@@ -133,7 +137,7 @@ export default function Oportunidades() {
           ) : <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Carregando todos os preços para a busca e os filtros…</p>}
         </>
       ) : !erro && <Carregando />)}
-      {dados && (
+      {dados && !modoPergunta && (
         <>
           <div className="chips" role="group" aria-label="Filtrar por categoria">
             {categorias.map((g) => (
