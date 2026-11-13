@@ -9,32 +9,34 @@ export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: Rea
   const nomeJunto = norm(o.nome).replace(/\s/g, '');
   const tamNoNome = [String(o.q), String(o.q).replace('.', ',')].some((q) => nomeJunto.includes(`${q}${o.u}`));
   return (
-    <div className="item">
-      <div className="nome">{comMarca}{o.nome}{!tamNoNome && <> <small>{emb(o)}</small></>}</div>
-      <div className="etiqueta-preco">
-        <b>{brl(o.preco)}</b>
-        {o.de > o.preco && <s>de {brl(o.de)}</s>}
+    <article className="product-card">
+      <div className="product-header">
+        <h3 className="product-title">{comMarca}{o.nome}{!tamNoNome && <> <small>{emb(o)}</small></>}</h3>
+        <div className="price-tag-container">
+          <b className="current-price">{brl(o.preco)}</b>
+          {o.de > o.preco && <s className="old-price">de {brl(o.de)}</s>}
+          {extra && <span className="discount-badge">{extra}</span>}
+        </div>
       </div>
-      <div className="meta">
+      <div className="product-meta">
         <span className="mkt">{o.mercado}</span>
         {SO_SOCIOS.has(o.mercado) && <TagSocios />}
-        <span className={`fonte fonte-${o.fonte}`} title={o.fonte === 'site' ? 'Preço do site do mercado' : 'Preço de promoção do encarte'}>
+        <span className={o.fonte === 'site' ? 'badge-site' : 'badge-encarte'} title={o.fonte === 'site' ? 'Preço do site do mercado' : 'Preço de promoção do encarte'}>
           {o.fonte === 'site' ? 'site' : 'encarte'}
         </span>
         <span className="unit">{brl(o.porUn)}/{o.ub}</span>
         {dist && <span className="dist">📍 {dist}</span>}
-        {extra}
         {o.cond && <span className="cond">{o.cond}</span>}
-        <span className="acoes-oferta">
-          {o.url && (
-            <a className="link-site" href={o.url} target="_blank" rel="noopener noreferrer">
-              {o.fonte === 'site' ? `Comprar no site do ${o.mercado}` : 'Ver encarte'} ↗
-            </a>
-          )}
-          <button type="button" className="btn-acabou" onClick={() => avisarEsgotado(o)}>Avisar que acabou</button>
-        </span>
       </div>
-    </div>
+      <div className="product-actions">
+        {o.url && (
+          <a className="card-btn card-btn-primario" href={o.url} target="_blank" rel="noopener noreferrer">
+            {o.fonte === 'site' ? `Comprar no site do ${o.mercado}` : 'Ver encarte'} ↗
+          </a>
+        )}
+        <button type="button" className="card-btn card-btn-secundario" onClick={() => avisarEsgotado(o)}>Avisar que acabou</button>
+      </div>
+    </article>
   );
 }
 
