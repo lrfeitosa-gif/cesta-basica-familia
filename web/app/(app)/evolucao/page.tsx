@@ -55,6 +55,26 @@ async function historico(filtrar: Filtro, desde: string): Promise<LinhaHist[]> {
   return out;
 }
 
+// Características que viram selo no cartão do produto (e saem do título, para o nome ficar curto)
+const SELOS: [RegExp, string][] = [
+  [/\bsem\s+gl[uú]ten\b/i, 'Sem glúten'], [/\bsem\s+lactose\b|\bzero\s+lactose\b/i, 'Sem lactose'],
+  [/\bintegral\b/i, 'Integral'], [/\bdiet\b/i, 'Diet'], [/\blight\b/i, 'Light'], [/\bzero\b(?!\s+lactose)/i, 'Zero'],
+  [/\borg[aâ]nico\b/i, 'Orgânico'], [/\bvegano\b/i, 'Vegano'],
+];
+function cartaoProduto(o: Oferta) {
+  let nome = o.nome;
+  const selos: string[] = [];
+  for (const [re, rotulo] of SELOS) if (re.test(nome)) { selos.push(rotulo); nome = nome.replace(re, ' '); }
+  // tira a marca e o tamanho do título: aparecem à parte, no chip e à direita
+  if (o.marca) nome = nome.replace(new RegExp(o.marca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), ' ');
+  nome = nome.replace(/\b\d+(?:[.,]\d+)?\s*(?:kg|g|gr|ml|l|lt|un|unid)\b/ig, ' ').replace(/\s*[-–]\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+  return { nome: nome || o.nome, selos };
+}
+// Ícone de minigráfico: avisa que o toque abre a linha do tempo de preços
+const IconeTendencia = () => (
+  <svg className="ico-tendencia" viewBox="0 0 32 20" aria-hidden="true"><path d="M2 16 10 9l6 4 8-9 6 3" /><path d="M2 19h28" opacity=".35" /></svg>
+);
+
 // Evolução do preço ao longo das coletas: uma linha por mercado, no período escolhido.
 export default function Evolucao() {
   const { dados, erro, tentarDeNovo } = useOfertas();
@@ -65,6 +85,7 @@ export default function Evolucao() {
   const [unidade, setUnidade] = useState('');
   const [falha, setFalha] = useState('');
   const [itens, setItens] = useState<ItemBase[]>([]);
+  const [escopo, setEscopo] = useState<'geral' | 'itens'>('geral');
 
   useEffect(() => {
     supabase.from('item_base').select('id,nome').eq('ativo', true).order('nome')
@@ -168,42 +189,70 @@ export default function Evolucao() {
 
       {!sel ? (
         <>
-          <div className="field">
+          <form className="busca-topo" role="search" onSubmit={(e) => e.preventDefault()}>
             <label htmlFor="q-evol" className="visually-hidden">Buscar item</label>
-            <input id="q-evol" className="input" type="search" autoComplete="off" placeholder="Ex.: café, arroz, feijão carioca"
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input id="q-evol" className="input" type="search" autoComplete="off" enterKeyHint="search" placeholder="Ex.: café, arroz, feijão carioca"
               value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
+          </form>
           {!q.trim() ? (
-            <div className="empty">Digite um item, como &quot;café&quot;, e escolha na lista para ver o histórico.</div>
+            <div className="evol-intro">
+              <IconeTendencia />
+              <span>Digite um item, como &quot;café&quot;. Ao escolher, abre um gráfico com o preço em cada mercado ao longo do tempo.</span>
+            </div>
           ) : <>
-            {itensAchados.length > 0 && <>
-              <h2 className="evol-secao">Todas as marcas (pelo preço do quilo ou litro)</h2>
-              <div className="lista">
-                {itensAchados.map((i) => (
-                  <button key={i.id} type="button" className="linha-escolha" onClick={() => setSel({ item: i })}>
-                    <span><b>{i.nome}</b></span>
-                  </button>
-                ))}
-              </div>
-            </>}
-            {dados && grupoDaBusca.produtos.length > 1 && (
-              <button type="button" className="linha-escolha linha-grupo" onClick={() => setSel({ grupo: { busca: q.trim(), produtos: grupoDaBusca.produtos } })}>
-                <span><b>Comparar os {grupoDaBusca.produtos.length} produtos</b>
-                  <span className="muted"> ({grupoDaBusca.marcas} {grupoDaBusca.marcas === 1 ? 'marca' : 'marcas'}), pelo preço do {grupoDaBusca.ub === 'un' ? 'item' : grupoDaBusca.ub === 'l' ? 'litro' : 'quilo'}</span></span>
-                <span className="mkt">Ver</span>
+            <div className="segmentado segmentado-2" role="tablist" aria-label="O que ver">
+              <button type="button" role="tab" aria-selected={escopo === 'geral'} className={escopo === 'geral' ? 'ativo' : ''} onClick={() => setEscopo('geral')}>Visão geral</button>
+              <button type="button" role="tab" aria-selected={escopo === 'itens'} className={escopo === 'itens' ? 'ativo' : ''} onClick={() => setEscopo('itens')}>
+                Produtos{dados && todosAchados.length ? ` (${todosAchados.length > 15 ? '15+' : todosAchados.length})` : ''}
               </button>
-            )}
-            {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : achados.length > 0 ? <>
-              <h2 className="evol-secao">Ou um produto específico</h2>
-              <div className="lista">
-                {achados.map((o) => (
-                  <button key={o.id} type="button" className="linha-escolha" onClick={() => setSel({ produto: o })}>
-                    <span><b>{o.nome}</b>{o.marca && <span className="muted"> · {o.marca}</span>}</span>
-                    <span className="muted">{emb(o)}</span>
-                  </button>
-                ))}
+            </div>
+            {escopo === 'geral' ? <>
+              {dados && grupoDaBusca.produtos.length > 1 && (
+                <button type="button" className="evol-banner" onClick={() => setSel({ grupo: { busca: q.trim(), produtos: grupoDaBusca.produtos } })}>
+                  <span className="evol-banner-ico" aria-hidden="true"><IconeTendencia /></span>
+                  <span className="evol-banner-texto">
+                    <b>Comparar os {grupoDaBusca.produtos.length} produtos de &quot;{q.trim()}&quot;</b>
+                    <small>{grupoDaBusca.marcas} {grupoDaBusca.marcas === 1 ? 'marca' : 'marcas'}, pelo preço do {grupoDaBusca.ub === 'un' ? 'item' : grupoDaBusca.ub === 'l' ? 'litro' : 'quilo'}, em todos os mercados</small>
+                  </span>
+                  <span className="evol-banner-cta">Ver evolução →</span>
+                </button>
+              )}
+              {itensAchados.length > 0 && <>
+                <h2 className="evol-secao">Por categoria, todas as marcas</h2>
+                <div className="evol-cards">
+                  {itensAchados.map((i) => (
+                    <button key={i.id} type="button" className="evol-card" onClick={() => setSel({ item: i })}>
+                      <span className="evol-card-texto"><b>{i.nome}</b><small>preço do quilo ou litro</small></span>
+                      <IconeTendencia />
+                    </button>
+                  ))}
+                </div>
+              </>}
+              {erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando />
+                : !itensAchados.length && grupoDaBusca.produtos.length <= 1 && (achados.length
+                  ? <button type="button" className="link-dicas" onClick={() => setEscopo('itens')}>Ver os produtos →</button>
+                  : <div className="empty">Nada encontrado. Tente menos palavras.</div>)}
+            </> : erro ? <ErroCarga tentarDeNovo={tentarDeNovo} /> : !dados ? <Carregando /> : achados.length > 0 ? (
+              <div className="evol-cards">
+                {achados.map((o) => {
+                  const c = cartaoProduto(o);
+                  return (
+                    <button key={o.id} type="button" className="evol-card evol-produto" onClick={() => setSel({ produto: o })}>
+                      <span className="evol-card-texto">
+                        <b>{c.nome}</b>
+                        <span className="evol-chips">
+                          {o.marca && <span className="chip-marca">{o.marca}</span>}
+                          {c.selos.map((x) => <span key={x} className="chip-selo">{x}</span>)}
+                        </span>
+                      </span>
+                      <span className="evol-peso">{emb(o)}</span>
+                      <IconeTendencia />
+                    </button>
+                  );
+                })}
               </div>
-            </> : !itensAchados.length && <div className="empty">Nada encontrado. Tente menos palavras.</div>}
+            ) : <div className="empty">Nenhum produto específico encontrado. Tente menos palavras.</div>}
           </>}
         </>
       ) : (
@@ -217,9 +266,9 @@ export default function Evolucao() {
                 : <span><b>{sel.produto.nome}</b> <span className="muted">{emb(sel.produto)}</span></span>}
               <button type="button" className="btn btn-link" onClick={() => { setSel(null); setSeries(null); }}>Trocar</button>
             </div>
-            <div className="choice" role="radiogroup" aria-label="Período">
+            <div className="segmentado" role="tablist" aria-label="Período">
               {PERIODOS.map(([d, r]) => (
-                <label key={d}><input type="radio" name="periodo" checked={dias === d} onChange={() => setDias(d)} /><span>{r}</span></label>
+                <button key={d} type="button" role="tab" aria-selected={dias === d} className={dias === d ? 'ativo' : ''} onClick={() => setDias(d)}>{r}</button>
               ))}
             </div>
           </div>
