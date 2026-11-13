@@ -24,7 +24,7 @@ function Notas() {
   const onboarding = useSearchParams().get('onboarding') === '1';
   const [modo, setModo] = useState<'foto' | 'camera' | 'link'>('foto');
   const [link, setLink] = useState('');
-  const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string; abrir?: string } | null>(null);
+  const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string; abrir?: string; id?: number } | null>(null);
   const [compras, setCompras] = useState<Compra[]>([]);
   const [ultimaUrl, setUltimaUrl] = useState('');
   // itens de cada nota, carregados quando a pessoa abre "Ver itens"
@@ -37,7 +37,7 @@ function Notas() {
 
   const carregar = async () => {
     const busca = (campos: string) => supabase.from('compra').select(campos)
-      .eq('origem', 'nota').order('data', { ascending: false }).limit(20);
+      .in('origem', ['nota', 'foto']).order('data', { ascending: false }).limit(20);   // notas pelo QR Code e pela foto
     let { data, error } = await busca('id,data,total,loja_nota,mercado(rede),itens:item_comprado(count)');
     if (error) ({ data, error } = await busca('id,data,total,mercado(rede),itens:item_comprado(count)'));  // antes da migração 0009
     setCompras((data as unknown as Compra[]) ?? []);
@@ -59,7 +59,7 @@ function Notas() {
     if (r.status === 502) return setStatus({ tipo: 'erro', abrir: url,
       texto: 'A Sefaz não respondeu ao app. Abra a nota no navegador, tire um print da página com os itens e envie em "Foto da nota".' });
     if (!r.ok) return setStatus({ tipo: 'erro', texto: j.erro });
-    setStatus({ tipo: 'ok', texto: `${j.loja || 'Nota'} de ${dataBr(j.data)}: ${j.itens} itens, ${brl(j.total)}.` });
+    setStatus({ tipo: 'ok', texto: `${j.loja || 'Nota'} de ${dataBr(j.data)}: ${j.itens} itens, ${brl(j.total)}.`, id: j.id });
     setLink('');
     carregar();
   };
@@ -78,7 +78,7 @@ function Notas() {
       });
       const j = await r.json().catch(() => ({ erro: 'Não conseguimos ler a foto agora. Tente de novo.' }));
       if (!r.ok) return setStatus({ tipo: 'erro', texto: j.erro });
-      setStatus({ tipo: 'ok', texto: `${j.loja} de ${dataBr(j.data)}: ${j.itens} itens, ${brl(j.total)}.` });
+      setStatus({ tipo: 'ok', texto: `${j.loja} de ${dataBr(j.data)}: ${j.itens} itens, ${brl(j.total)}.`, id: j.id });
       carregar();
     } catch {
       setStatus({ tipo: 'erro', texto: 'Não conseguimos abrir a foto. Tente outra imagem.' });
@@ -158,6 +158,12 @@ function Notas() {
       {status && (
         <div className={`alert ${status.tipo === 'erro' ? 'alert-error' : status.tipo === 'ok' ? 'alert-ok' : ''}`} role="status" aria-live="polite">
           {status.texto}
+          {status.tipo === 'ok' && (
+            <div className="row" style={{ marginTop: 8 }}>
+              {status.id && <Link className="btn btn-primary" href={`/compra?nota=${status.id}`}>Usar na cesta →</Link>}
+              <button type="button" className="btn btn-secondary" onClick={() => document.getElementById('notas-registradas')?.scrollIntoView({ behavior: 'smooth' })}>Ver as notas</button>
+            </div>
+          )}
           {status.abrir && (
             <div className="row" style={{ marginTop: 8 }}>
               <a className="btn btn-secondary" href={status.abrir} target="_blank" rel="noopener noreferrer">Abrir a nota</a>
@@ -168,7 +174,7 @@ function Notas() {
       )}
 
       {compras.length > 0 && (
-        <section className="stack">
+        <section className="stack" id="notas-registradas">
           <h2>Notas registradas</h2>
           <div className="nota-lista">
             {compras.map((c) => (

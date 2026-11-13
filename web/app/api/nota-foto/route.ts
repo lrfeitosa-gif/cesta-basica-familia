@@ -137,5 +137,5 @@ ${JSON.stringify(SCHEMA)}` },
     compra_id: compra.id, descricao_nota: i.descricao, quantidade: i.quantidade, preco_unitario: i.preco_unitario,
   })));
 
-  return NextResponse.json({ loja: mercado?.rede ?? lida.loja ?? 'Supermercado', data, total, itens: lida.itens.length });
+  return NextResponse.json({ id: compra.id, loja: mercado?.rede ?? lida.loja ?? 'Supermercado', data, total, itens: lida.itens.length });
 }

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { marcarSaida, useEncerrarSemUso, useSessao } from '@/lib/sessao';
+import { garantirDonoDaCesta } from '@/lib/cesta';
 import { supabase } from '@/lib/supabase';
 import Logo from '@/app/logo';
 import Avisos from './aviso';
@@ -36,6 +37,8 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
     return () => { document.removeEventListener('pointerdown', fora); document.removeEventListener('keydown', esc); };
   }, []);
   useEffect(() => { if (sessao) supabase.rpc('eh_admin').then(({ data }) => setAdmin(!!data)); }, [sessao]);
+  // outra conta entrou neste aparelho: a lista guardada aqui pertence à conta anterior e é apagada
+  useEffect(() => { if (sessao) garantirDonoDaCesta(sessao.user.id); }, [sessao?.user.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   // uso por tela (uma vez por tela em cada visita) e erros de tela, para o painel de administração
   useEffect(() => {
     if (!sessao) return;

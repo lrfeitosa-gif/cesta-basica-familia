@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   })));
 
   return NextResponse.json({
-    loja: mercado?.rede ?? nota.loja, data: nota.data, total: nota.total, itens: nota.itens.length,
+    id: compra.id, loja: mercado?.rede ?? nota.loja, data: nota.data, total: nota.total, itens: nota.itens.length,
     amostra: nota.itens.slice(0, 3).map((i) => i.descricao),
   });
 }
