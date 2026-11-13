@@ -120,8 +120,19 @@ export default function MinhaCompra() {
   const [avisoNovo, setAvisoNovo] = useState('');
   const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
   const [todosMercados, setTodosMercados] = useState(false);   // mostra também os mercados com poucos preços hoje
+  // Preferências de lojas (filtros da comparação), guardadas neste aparelho: valem para toda a análise de "Onde comprar".
+  type Pref = { ordem: 'preco' | 'perto'; semSocios: boolean; maxKm: number | null };
+  const [pref, setPrefEstado] = useState<Pref>({ ordem: 'preco', semSocios: false, maxKm: null });
+  const [foraRoteiro, setForaRoteiro] = useState<string[]>([]);   // mercados tirados do roteiro de vários mercados
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  useEffect(() => {
+    try { const p = JSON.parse(localStorage.getItem('cesta-pref') || 'null'); if (p) setPrefEstado((x) => ({ ...x, ...p })); } catch {}
+    try { setForaRoteiro(JSON.parse(localStorage.getItem('cesta-fora-roteiro') || '[]')); } catch {}
+  }, []);
+  const setPref = (p: Partial<Pref>) => setPrefEstado((x) => { const n = { ...x, ...p }; try { localStorage.setItem('cesta-pref', JSON.stringify(n)); } catch {} return n; });
+  const trocarRoteiro = (m: string) => setForaRoteiro((x) => { const n = x.includes(m) ? x.filter((y) => y !== m) : [...x, m]; try { localStorage.setItem('cesta-fora-roteiro', JSON.stringify(n)); } catch {} return n; });
   // a aba escolhida vale durante a visita: voltar de outra tela não perde o lugar
-  const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} };
+  const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} window.scrollTo(0, 0); };
   useEffect(() => { try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {} }, []);
 
   useEffect(() => {
@@ -397,6 +408,13 @@ export default function MinhaCompra() {
     const ps = Object.values(porItem[c.id]).map((o) => v(c, o));
     if (ps.length) { media[c.id] = mediana(ps); nMedia[c.id] = ps.length; }
   }
+  // Filtros de lojas: sócios e distância máxima (mercado sem loja localizada não é cortado pela distância)
+  const permitido = (m: string) => {
+    if (pref.semSocios && SO_SOCIOS.has(m)) return false;
+    if (pref.maxKm !== null) { const d = locais.distancia(m); if (d && d.km > pref.maxKm) return false; }
+    return true;
+  };
+  const ocultosFiltro = (dados?.mercados ?? []).filter((m) => !permitido(m)).length;
   const ranking = (dados?.mercados ?? []).map((m) => {
     let total = 0; let estimado = 0; const falta: string[] = []; const escolhas: { c: ItemCesta; o: Oferta }[] = [];
     const estimados: { c: ItemCesta; valor: number; outrasMarcas: boolean }[] = [];
@@ -414,7 +432,7 @@ export default function MinhaCompra() {
       }
     }
     return { m, total, estimado, falta, escolhas, estimados, valor: total + estimado };
-  }).filter((r) => r.falta.length < itens.length)
+  }).filter((r) => r.falta.length < itens.length && permitido(r.m))
     // Primeiro quem tem preço para a maioria dos itens (no máximo 30% estimado), do menor para o maior valor;
     // mercados com poucos itens com preço (ex.: só o encarte) vêm depois, porque o total deles é quase só estimativa.
     .map((x) => ({ ...x, confiavel: x.falta.length <= Math.floor(itens.length * 0.3) }))
@@ -453,9 +471,14 @@ export default function MinhaCompra() {
   // a partir do endereço cadastrado (linha reta, casa → lojas → casa, sempre indo para a loja mais perto).
   let ideal = 0; let idealOk = true;
   const porMercadoIdeal = new Map<string, { c: ItemCesta; o: Oferta; valor: number }[]>();
+  // mercados que podem entrar no roteiro (passam nos filtros) e os que a pessoa tirou do roteiro
+  const candidatosRoteiro = [...new Set(itens.flatMap((c) => Object.keys(porItem[c.id])))].filter(permitido).sort();
+  const semItem: string[] = [];
   for (const c of itens) {
-    const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
-    if (!menor) { idealOk = false; continue; }
+    const menor = Object.values(porItem[c.id]).filter((o) => permitido(o.mercado) && !foraRoteiro.includes(o.mercado))
+      .sort((a, b) => v(c, a) - v(c, b))[0];
+    // item sem preço em nenhum mercado hoje fica fora do roteiro; sem preço só nos mercados tirados, avisa
+    if (!menor) { if (Object.keys(porItem[c.id]).length) { idealOk = false; semItem.push(c.rotulo); } continue; }
     const valor = v(c, menor) * sel[c.id];
     ideal += valor;
     porMercadoIdeal.set(menor.mercado, [...(porMercadoIdeal.get(menor.mercado) ?? []), { c, o: menor, valor }]);
@@ -486,26 +509,42 @@ export default function MinhaCompra() {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // Mapa: loja do mercado (a mais perto do endereço cadastrado) e roteiro com várias lojas no Google Maps
+  const pontoLoja = (m: string) => {
+    const d = locais.distancia(m);
+    if (d) return `${d.loja.lat},${d.loja.lng}`;
+    const l = locais.lojas.find((x) => x.mercado === m);
+    return l ? `${l.lat},${l.lng}` : `${m} Indaiatuba SP`;
+  };
+  const linkLoja = (m: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pontoLoja(m))}`;
+  const linkRoteiro = (ms: string[]) => {
+    const pts = ms.map(pontoLoja);
+    const destino = pts[pts.length - 1];
+    const meio = pts.slice(0, -1).join('|');
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}${meio ? `&waypoints=${encodeURIComponent(meio)}` : ''}`;
+  };
+  const lista = pref.ordem === 'perto'
+    ? [...ranking].sort((a, b) => (locais.distancia(a.m)?.km ?? 999) - (locais.distancia(b.m)?.km ?? 999))
+    : ranking;
+
   return (
     <>
-      <div>
-        <h1>Minha cesta</h1>
-        <p className="lead">Monte a lista e veja em qual mercado ela sai mais barata.</p>
-      </div>
-      <div className="tab-container" role="tablist" aria-label="Ver">
-        <button type="button" role="tab" className={`tab-button${aba === 'lista' ? ' active' : ''}`} aria-selected={aba === 'lista'} onClick={() => setAba('lista')}>Lista ({itens.length} de {todos.length})</button>
-        <button type="button" role="tab" className={`tab-button${aba === 'comparar' ? ' active' : ''}`} aria-selected={aba === 'comparar'} onClick={() => setAba('comparar')}>Onde comprar</button>
-      </div>
+      {aba === 'lista' ? (
+        <div>
+          <h1>Minha cesta</h1>
+          <p className="lead">Marque os itens e ajuste as quantidades. Depois, veja onde sai mais barato.</p>
+        </div>
+      ) : (
+        <div className="passo-topo">
+          <button type="button" className="voltar-lista" onClick={() => setAba('lista')}>← Editar lista ({itens.length} {itens.length === 1 ? 'item' : 'itens'})</button>
+          <h1>Onde comprar</h1>
+        </div>
+      )}
 
       {aba === 'lista' && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando os preços de hoje nos mercados…</p>
       )}
-      {aba === 'lista' && (top ? (
-        <button type="button" className="resumo-compra" onClick={() => { setAba('comparar'); window.scrollTo(0, 0); }}>
-          <span>Mais barato hoje: <b>{top.m}</b>{SO_SOCIOS.has(top.m) && <> <TagSocios /></>} {fmt(top)}</span>
-          <span className="mkt">Ver comparação →</span>
-        </button>
-      ) : !itens.length ? <div className="empty">Marque ao menos um item abaixo.</div> : null)}
+      {aba === 'lista' && !itens.length && dados && <div className="empty">Marque ao menos um item abaixo.</div>}
 
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
@@ -527,8 +566,9 @@ export default function MinhaCompra() {
           {pior && pior !== segundo && pior !== top && (
             <span className="muted">{brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m}{pior.falta.length ? ', total estimado' : ''})</span>
           )}
-          {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} (vários mercados, veja o roteiro no fim)</span>}
-          <button type="button" className="btn-action-primary" onClick={() => abrirMercado(top.m)}>Ver marcas e preços no {top.m}</button>
+          {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
+          <a className="btn-action-primary" href={linkLoja(top.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {top.m} ↗</a>
+          <button type="button" className="btn-action-secundario" onClick={() => abrirMercado(top.m)}>Ver marcas e preços no {top.m}</button>
         </div>
       ) : null}
 
@@ -557,6 +597,7 @@ export default function MinhaCompra() {
               ))}
             </div>
             {entre !== null && <span className="muted">Distância entre as duas lojas: {fmtKm(entre)} em linha reta.</span>}
+            <a className="btn-action-primary" href={linkRoteiro([dupla.a, dupla.b])} target="_blank" rel="noopener noreferrer">Ver roteiro de compra no mapa ↗</a>
           </div>
         );
       })()}
@@ -564,19 +605,38 @@ export default function MinhaCompra() {
       {itens.length > 0 && (
         <div className="section-header-bar">
           <h2 className="section-title">Total em cada mercado</h2>
+          <button type="button" className="btn-filter-toggle" aria-expanded={filtrosAbertos} onClick={() => setFiltrosAbertos(!filtrosAbertos)}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+            Filtros{ocultosFiltro > 0 ? ` (${ocultosFiltro} ocultos)` : ''} {filtrosAbertos ? '▴' : '▾'}
+          </button>
+        </div>
+      )}
+      {itens.length > 0 && filtrosAbertos && (
+        <div className="filtros-painel">
+          <div className="filtro-grupo" role="radiogroup" aria-label="Ordenar">
+            <span>Ordenar por</span>
+            <button type="button" className={`tab-button${pref.ordem === 'preco' ? ' active' : ''}`} aria-pressed={pref.ordem === 'preco'} onClick={() => setPref({ ordem: 'preco' })}>Mais barato</button>
+            <button type="button" className={`tab-button${pref.ordem === 'perto' ? ' active' : ''}`} aria-pressed={pref.ordem === 'perto'} onClick={() => setPref({ ordem: 'perto' })} disabled={!locais.refs.length}>Mais perto</button>
+          </div>
+          <div className="filtro-grupo" role="radiogroup" aria-label="Distância máxima">
+            <span>Distância máxima</span>
+            {([null, 2, 3, 5] as const).map((k) => (
+              <button key={String(k)} type="button" className={`tab-button${pref.maxKm === k ? ' active' : ''}`} aria-pressed={pref.maxKm === k}
+                disabled={k !== null && !locais.refs.length} onClick={() => setPref({ maxKm: k })}>{k === null ? 'Sem limite' : `até ${k} km`}</button>
+            ))}
+          </div>
+          <label className="filtro-check"><input type="checkbox" checked={pref.semSocios} onChange={(e) => setPref({ semSocios: e.target.checked })} /> Ocultar mercados só para sócios (Sam&apos;s Club)</label>
           {poucos > 0 && ranking.length > poucos && (
-            <button type="button" className="btn-filter-toggle" aria-pressed={todosMercados} onClick={() => setTodosMercados(!todosMercados)}>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
-              {todosMercados ? 'Só os mais completos' : `Mostrar todos (+${poucos})`}
-            </button>
+            <label className="filtro-check"><input type="checkbox" checked={todosMercados} onChange={(e) => setTodosMercados(e.target.checked)} /> Mostrar mercados com poucos preços hoje ({poucos})</label>
           )}
+          <span className="muted">{!locais.refs.length ? 'Cadastre um endereço para ordenar e filtrar pela distância. ' : ''}Os filtros valem para toda a comparação (mais barato, 2 mercados e roteiro) e ficam guardados neste aparelho.</span>
         </div>
       )}
       {itens.length > 0 && (
         <div className="market-list">
-          {ranking.filter((r) => todosMercados || r.confiavel || poucos === ranking.length).map((r, i, lista) => (
+          {lista.filter((r) => todosMercados || r.confiavel || poucos === ranking.length).map((r, i, vis) => (
             <div key={r.m} id={`mercado-${slug(r.m)}`} className={`market-card${r.confiavel ? '' : ' poucos-precos'}`}>
-              {!r.confiavel && (i === 0 || lista[i - 1].confiavel) && (
+              {!r.confiavel && pref.ordem === 'preco' && (i === 0 || vis[i - 1].confiavel) && (
                 <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
               )}
               <div className="market-card-header">
@@ -619,11 +679,20 @@ export default function MinhaCompra() {
           ))}
         </div>
       )}
-      {idealOk && roteiro.length > 1 && top && (
+      {candidatosRoteiro.length > 1 && top && (
         <section className="ideal">
-          <span className="muted">Comprando cada item no mercado mais barato</span>
+          <span className="ideal-titulo">Roteiro inteligente <span className="muted">(opcional)</span></span>
+          <span className="muted">Cada item no mercado mais barato. Toque nos mercados para tirar do roteiro os que você não quer visitar; o total se ajusta na hora.</span>
+          <div className="chips roteiro-mercados" role="group" aria-label="Mercados do roteiro">
+            {candidatosRoteiro.map((m) => (
+              <button key={m} type="button" className="chip" aria-pressed={!foraRoteiro.includes(m)} onClick={() => trocarRoteiro(m)}>
+                {foraRoteiro.includes(m) ? '＋' : '✓'} {m}
+              </button>
+            ))}
+          </div>
+          {!idealOk ? <span className="cond">Sem os mercados escolhidos não há preço para: {semItem.join(', ')}. Ative mais mercados.</span> : <>
           <span className="grande">{brl(ideal)}</span>
-          <span><b>{brl(top.valor - ideal)} a menos</b> que tudo no {top.m}, passando por {roteiro.length} mercados</span>
+          <span>{top.valor - ideal > 0 ? <><b>{brl(top.valor - ideal)} a menos</b> que tudo no {top.m}</> : <>Não compensa: sai {brl(ideal - top.valor)} a mais que tudo no {top.m}</>}, passando por {roteiro.length} {roteiro.length === 1 ? 'mercado' : 'mercados'}</span>
           <ul className="ideal-mercados">
             {roteiro.map((r) => (
               <li key={r.m}>
@@ -638,6 +707,8 @@ export default function MinhaCompra() {
           {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta, saindo de {percurso.de} e voltando
             {semLocal.length ? ` (sem ${semLocal.join(' e ')}, que ainda não ${semLocal.length === 1 ? 'tem' : 'têm'} o endereço da loja no app)` : ''}.</span>
             : !locais.refs.length ? <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span> : null}
+          {roteiro.length > 1 && <a className="btn-action-primary" href={linkRoteiro(roteiro.map((r) => r.m))} target="_blank" rel="noopener noreferrer">Abrir roteiro no mapa ↗</a>}
+          </>}
         </section>
       )}
 
@@ -752,6 +823,14 @@ export default function MinhaCompra() {
           }}>Limpar lista</button>
         )}
       </div>
+      {itens.length > 0 && (
+        <div className="cta-fixo">
+          <button type="button" className="cta-fixo-btn" onClick={() => setAba('comparar')}>
+            <span>Ver onde comprar mais barato ➔</span>
+            {top && <small>{itens.length} {itens.length === 1 ? 'item' : 'itens'} · a partir de {fmt(top)} no {top.m}</small>}
+          </button>
+        </div>
+      )}
       </>}
     </>
   );
