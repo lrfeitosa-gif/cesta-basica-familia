@@ -1,6 +1,6 @@
 'use client';
 import { TelaAcesso, CampoPilula, Seta } from '@/app/tela-acesso';
-import { Suspense, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
@@ -29,12 +29,17 @@ function Formulario() {
     router.replace(voltar);
   };
 
+  // links de nova senha enviados antes de 13/11 apontam para esta tela: leva para a troca de senha
+  useEffect(() => {
+    if (/type=recovery/.test(location.hash) || /type=recovery/.test(location.search)) location.replace(`/nova-senha${location.search}${location.hash}`);
+  }, []);
+
   const esqueci = async () => {
     if (!email) return setErro('Digite seu e-mail acima para receber o link de nova senha.');
     setErro('');
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/entrar` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/nova-senha` });
     if (error) return setErro(mensagemErro(error.message));
-    setAviso(`Enviamos um link para ${email}. Abra o e-mail para criar uma nova senha.`);
+    setAviso(`Enviamos um link para ${email}. Abra o e-mail (confira também Spam e Promoções) e toque no link para criar uma nova senha.`);
   };
 
   return (
