@@ -8,6 +8,7 @@ import { fmtKm, km, useLocais } from '@/lib/locais';
 import Enderecos from './enderecos';
 import { registrar } from '@/lib/eventos';
 import { CHAVE_CESTA } from '../primeiros-passos';
+import { garantirDonoDaCesta } from '@/lib/cesta';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
@@ -135,11 +136,14 @@ export default function MinhaCompra() {
   const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} window.scrollTo(0, 0); };
   useEffect(() => { try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {} }, []);
 
+  // lista guardada neste aparelho: só depois de saber de quem é a conta (outra conta no mesmo celular não herda a lista)
   useEffect(() => {
+    if (!sessao) return;
+    if (garantirDonoDaCesta(sessao.user.id)) { setSel(PADRAO); setMarcas({}); setExtras([]); return; }
     try { const s = JSON.parse(localStorage.getItem('cesta-sel') || 'null'); if (s) setSel(s); } catch {}
     try { setMarcas(JSON.parse(localStorage.getItem('cesta-marca') || '{}')); } catch {}
     try { setExtras(JSON.parse(localStorage.getItem('cesta-extra') || '[]')); } catch {}
-  }, []);
+  }, [sessao?.user.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   const mudar = (novo: Record<string, number>) => {
     setSel(novo); try { localStorage.setItem('cesta-sel', JSON.stringify(novo)); } catch {}
     // 1º item na Cesta: registra uma vez (card de primeiros passos e lista "precisa de ajuda" do painel)
@@ -469,7 +473,7 @@ export default function MinhaCompra() {
 
   // Cada item no mercado mais barato (item 5 de 12/11): total, mercados do roteiro e o percurso aproximado
   // a partir do endereço cadastrado (linha reta, casa → lojas → casa, sempre indo para a loja mais perto).
-  let ideal = 0; let idealOk = true;
+  let ideal = 0;
   const porMercadoIdeal = new Map<string, { c: ItemCesta; o: Oferta; valor: number }[]>();
   // mercados que podem entrar no roteiro (passam nos filtros) e os que a pessoa tirou do roteiro
   const candidatosRoteiro = [...new Set(itens.flatMap((c) => Object.keys(porItem[c.id])))].filter(permitido).sort();
@@ -478,7 +482,8 @@ export default function MinhaCompra() {
     const menor = Object.values(porItem[c.id]).filter((o) => permitido(o.mercado) && !foraRoteiro.includes(o.mercado))
       .sort((a, b) => v(c, a) - v(c, b))[0];
     // item sem preço em nenhum mercado hoje fica fora do roteiro; sem preço só nos mercados tirados, avisa
-    if (!menor) { if (Object.keys(porItem[c.id]).length) { idealOk = false; semItem.push(c.rotulo); } continue; }
+    // sem preço nos mercados que ficaram (ou em nenhum): o item fica fora do roteiro, com aviso de onde ele tem preço
+    if (!menor) { const onde = Object.keys(porItem[c.id]).filter((m) => foraRoteiro.includes(m) || !permitido(m)); if (onde.length) semItem.push(`${c.rotulo} (só no ${onde.join(' ou ')})`); continue; }
     const valor = v(c, menor) * sel[c.id];
     ideal += valor;
     porMercadoIdeal.set(menor.mercado, [...(porMercadoIdeal.get(menor.mercado) ?? []), { c, o: menor, valor }]);
@@ -559,7 +564,7 @@ export default function MinhaCompra() {
           {pior && pior !== segundo && pior !== top && (
             <span className="muted">{brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m}{pior.falta.length ? ', total estimado' : ''})</span>
           )}
-          {idealOk && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
+          {!semItem.length && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
           <a className="btn-action-primary" href={linkLoja(top.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {top.m} ↗</a>
           <details className="rec-itens">
             <summary className="market-expand-link">Ver itens</summary>
@@ -693,8 +698,10 @@ export default function MinhaCompra() {
               </button>
             ))}
           </div>
-          {!idealOk ? <span className="cond">Sem os mercados escolhidos não há preço para: {semItem.join(', ')}. Ative mais mercados.</span> : <>
+          {semItem.length > 0 && <span className="cond">Fora do roteiro por falta de preço nos mercados escolhidos: {semItem.join('; ')}.</span>}
+          {!roteiro.length ? <span className="cond">Escolha ao menos um mercado.</span> : <>
           <span className="grande">{brl(ideal)}</span>
+          {semItem.length > 0 && <span className="muted">Total sem os itens que ficaram fora do roteiro.</span>}
           <span>{top.valor - ideal > 0 ? <><b>{brl(top.valor - ideal)} a menos</b> que tudo no {top.m}</> : <>Não compensa: sai {brl(ideal - top.valor)} a mais que tudo no {top.m}</>}, passando por {roteiro.length} {roteiro.length === 1 ? 'mercado' : 'mercados'}</span>
           <ul className="ideal-mercados">
             {roteiro.map((r) => (

@@ -1,6 +1,7 @@
 'use client';
 import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import Link from 'next/link';
+import Logo from '@/app/logo';
 
 // Moldura das telas de acesso (entrar / criar conta): marca Mercato, ilustração, título e o formulário.
 export function TelaAcesso({ titulo, destaque, sub, children, rodape }:
@@ -9,7 +10,7 @@ export function TelaAcesso({ titulo, destaque, sub, children, rodape }:
     <div className="ob au">
       <div className="ob-card au-card">
         <Link href="/" className="au-marca" aria-label="Mercato, início">
-          <span className="au-logo">mercato</span>
+          <Logo size={34} />
           <span className="au-slogan">Preço bom nos mercados de Indaiatuba</span>
         </Link>
         <img className="au-ilustra" src="/img/entrada.webp" width={640} height={857}

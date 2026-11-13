@@ -28,12 +28,26 @@ export function Carrinho({ size = 40, className, mono = false }: { size?: number
 
 export const NOME = 'Mercato';
 
-// Marca completa: carrinho + nome.
-export default function Logo({ size = 36 }: { size?: number }) {
+// Marca Mercato (13/11): carrinho com a seta de preço caindo dentro da cesta. 64x64, cores do tema.
+// fundo: cor da cesta (verde do tema); seta: cor de destaque sobre a cesta; rodas e alça: cor do texto.
+export function MarcaMercato({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <span className="logo">
-      <Carrinho size={size} className="logo-carrinho" />
-      <span className="logo-nome">mercato</span>
+    <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <path d="M5 12h7.5l6.5 29.5" fill="none" stroke="var(--logo-traco, currentColor)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 18h43.5a2 2 0 0 1 1.9 2.6l-5.6 18.6a3 3 0 0 1-2.9 2.1H20.2Z" fill="var(--logo-cesta, var(--primary))" />
+      <path d="M37.5 23.5v11.5M31.5 29.5l6 6 6-6" fill="none" stroke="var(--logo-seta, #FFC107)" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="24" cy="52" r="5" fill="var(--logo-traco, currentColor)" />
+      <circle cx="49" cy="52" r="5" fill="var(--logo-traco, currentColor)" />
+    </svg>
+  );
+}
+
+// Marca completa: nome "mercato" com o carrinho no lugar do "o".
+export default function Logo({ size = 30 }: { size?: number }) {
+  return (
+    <span className="logo" role="img" aria-label="Mercato" style={{ fontSize: size }}>
+      <span className="logo-nome" aria-hidden="true">mercat</span>
+      <MarcaMercato size={Math.round(size * 1.05)} className="logo-o" />
     </span>
   );
 }

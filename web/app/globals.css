@@ -893,3 +893,29 @@ details[open] > .market-expand-link::after { content: " ▴"; }
 .rec-itens { margin-top: 8px; font-size: .85rem; }
 .rec-itens ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 2px; color: var(--muted-foreground); }
 .rec-itens li.estimado { color: var(--aviso-ink); }
+
+/* ===== Marca Mercato (13/11): "mercat" + carrinho no lugar do "o" ===== */
+.logo { display: inline-flex; align-items: center; gap: 0; color: var(--foreground); line-height: 1; }
+.logo .logo-nome { font-family: var(--body); font-size: 1em; font-weight: 800; letter-spacing: -.03em; color: var(--foreground); }
+.logo .logo-o { margin-left: .02em; transform: translateY(.06em); --logo-traco: var(--foreground); }
+.au-marca .logo { font-size: 34px; }
+
+/* ===== Compatibilidade mínima com navegadores de celular (13/11) =====
+   Alvo: Safari iOS 15+, Chrome Android 100+, Samsung Internet 18+, Firefox Android recente. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* iOS aumenta o zoom ao tocar em campo com letra menor que 16 px: todos os campos com 16 px */
+input, select, textarea, .input, .au-campo input { font-size: 16px; }
+/* telas cheias: 100vh antes de 100dvh para navegadores sem dvh */
+.ob { min-height: 100vh; min-height: 100dvh; }
+/* Safari antigo só entende a máscara com prefixo */
+.rolagem[data-dir="true"] .filtro-linha { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+.rolagem[data-esq="true"] .filtro-linha { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+.rolagem[data-esq="true"][data-dir="true"] .filtro-linha { -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
+/* botões sem o destaque azul do toque no Android/iOS */
+button, a, summary { -webkit-tap-highlight-color: transparent; }
+
+/* ===== Entrar e criar conta: formulário visível sem rolar em celulares (13/11) ===== */
+.au-card { gap: 12px; padding-top: 20px; }
+.au-ilustra { width: auto; max-width: 70%; max-height: 24vh; object-fit: contain; }
+@media (max-height: 700px) { .au-ilustra { max-height: 18vh; } .au-slogan { display: none; } }
+.au-titulo { font-size: 20px; margin-bottom: 4px; }
