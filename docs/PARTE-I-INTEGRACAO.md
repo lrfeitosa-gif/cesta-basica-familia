@@ -114,7 +114,7 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 Volume: cerca de 16 mil ofertas por dia com a lista ampliada. O plano gratuito (500 MB) deve durar uns 2 meses; acompanhar em Supabase → Settings → Usage.
 
 ### 5.5 App web (`web/`, Next.js na Vercel)
-- Endereço: **https://cesta-basica-familia.vercel.app** (pode ser trocado em Vercel → Settings → Domains).
+- Endereço: **https://appmercato.vercel.app** (pode ser trocado em Vercel → Settings → Domains).
 - Administração → **Carregar encartes do Assaí ou Sonda**: permite enviar até 5 imagens por lote, revisar a extração e gravar ofertas válidas por até 14 dias. A leitura usa `GROQ_API_KEY`; PDFs não são aceitos nesta tela.
 - Administração → **Cadastro base de produtos**: a busca global localiza produtos por nome ou marca e permite mover vários resultados para outro item, inclusive os que já estão classificados.
 - Telas públicas: início, criar conta, entrar, termos, privacidade.

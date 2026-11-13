@@ -73,7 +73,7 @@ jobs:
         if: always()
         run: |
           for i in 1 2; do
-            curl -s -o /dev/null -w "api/ofertas: %{http_code} em %{time_total}s" --max-time 60 https://cesta-basica-familia.vercel.app/api/ofertas || true
+            curl -s -o /dev/null -w "api/ofertas: %{http_code} em %{time_total}s" --max-time 60 https://appmercato.vercel.app/api/ofertas || true
             echo
             sleep 20
           done
