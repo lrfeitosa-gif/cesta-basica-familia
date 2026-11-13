@@ -10,6 +10,7 @@ import Fontes from '../fontes';
 import BoasVindas from '../boas-vindas';
 import PrimeirosPassos from '../primeiros-passos';
 import PerguntaIA, { parecePergunta } from './pergunta-ia';
+import LinhaRolagem from '../linha-rolagem';
 
 // Fora das oportunidades: ração e destilados (bebidas do dia a dia, como cerveja, continuam)
 const RUIDO = /racao|caes|gatos|whisky|vodka|gin /;
@@ -112,11 +113,11 @@ export default function Oportunidades() {
         <button type="button" className="btn-ia" onClick={() => perguntarAgora()} aria-label="Perguntar à IA">✨ Perguntar</button>
       </form>
       {!q.trim() && (
-        <div className="chips exemplos-ia" role="group" aria-label="Exemplos de perguntas à IA">
+        <LinhaRolagem rotulo="Exemplos de perguntas à IA" className="exemplos-ia">
           {EXEMPLOS_IA.map((t) => (
             <button key={t} type="button" className="chip chip-ia" onClick={() => perguntarAgora(t)}>✨ {t}</button>
           ))}
-        </div>
+        </LinhaRolagem>
       )}
       {sugestoes.length > 0 && (
         <div className="chips sugestoes" role="group" aria-label="Sugestões de busca">
@@ -158,18 +159,18 @@ export default function Oportunidades() {
       ) : !erro && <Carregando />)}
       {dados && !modoPergunta && (
         <>
-          <div className="chips filtro-linha" role="group" aria-label="Filtrar por categoria">
+          <LinhaRolagem rotulo="Filtrar por categoria">
             {categorias.map((g) => (
               <button key={g} type="button" className="chip chip-cat" aria-pressed={g === cat}
                 onClick={() => { setCat(g); setLimite(POR_PAGINA); }}>{g}</button>
             ))}
-          </div>
-          <div className="chips filtro-linha" role="group" aria-label="Filtrar por mercado">
+          </LinhaRolagem>
+          <LinhaRolagem rotulo="Filtrar por mercado">
             {mercados.map((m) => (
               <button key={m} type="button" className="chip" aria-pressed={m === mercado}
                 onClick={() => { setMercado(m); setLimite(POR_PAGINA); }}>{m}</button>
             ))}
-          </div>
+          </LinhaRolagem>
           {busca && !filtradas.length && (
             <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
           )}

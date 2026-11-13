@@ -793,3 +793,18 @@ body { font-family: var(--body); }
 .card-btn-secundario { background: transparent; color: var(--muted-foreground); border: 1px solid var(--chip-borda); font-weight: 500; }
 .product-actions .card-btn-secundario:only-child { margin-left: auto; }
 .card-btn-secundario:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Setas de rolagem nas linhas de filtros (13/11): aparecem só quando há itens escondidos daquele lado */
+.rolagem { position: relative; }
+.rolagem-seta { position: absolute; top: 50%; translate: 0 -50%; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; font: inherit; font-size: 22px; font-weight: 700; line-height: 1; padding: 0 0 3px;
+  background: var(--card); color: var(--foreground); border: 1px solid var(--border); box-shadow: 0 2px 8px rgb(0 0 0 / .15); cursor: pointer; }
+.rolagem-seta:hover { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.rolagem-esq { left: -6px; }
+.rolagem-dir { right: -6px; }
+/* esmaecido na ponta com mais itens, para indicar que a linha continua */
+.rolagem[data-dir="true"] .filtro-linha { mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+.rolagem[data-esq="true"] .filtro-linha { mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+.rolagem[data-esq="true"][data-dir="true"] .filtro-linha { mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
+.rolagem .exemplos-ia { margin-top: 0; }
+.rolagem:has(.exemplos-ia) { margin-top: -4px; }
