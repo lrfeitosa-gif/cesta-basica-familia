@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { marcarSaida, useEncerrarSemUso, useSessao } from '@/lib/sessao';
+import { usePathname } from 'next/navigation';
+import { sairDoApp, useEncerrarSemUso, useSessao } from '@/lib/sessao';
 import { garantirDonoDaCesta } from '@/lib/cesta';
 import { supabase } from '@/lib/supabase';
 import Logo from '@/app/logo';
@@ -23,7 +23,6 @@ const ABAS = [
 export default function AreaLogada({ children }: { children: ReactNode }) {
   const sessao = useSessao();
   const rota = usePathname();
-  const router = useRouter();
   const [admin, setAdmin] = useState<boolean | null>(null);   // null: ainda conferindo
   const menu = useRef<HTMLDetailsElement>(null);
   const [opiniao, setOpiniao] = useState(false);
@@ -54,7 +53,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
   }, []);
   if (!sessao) return null;
   const fecharMenu = () => { if (menu.current) menu.current.open = false; };
-  const sair = async () => { marcarSaida(); await supabase.auth.signOut(); router.replace('/'); };
+  const sair = () => sairDoApp('/entrar');
   return (
     <>
       <header className="barra-topo">

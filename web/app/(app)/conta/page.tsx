@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { marcarSaida, useSessao } from '@/lib/sessao';
+import { sairDoApp, useSessao } from '@/lib/sessao';
 
 // Meus dados: o que o app guarda sobre a pessoa, com exportação e exclusão da conta.
 export default function Conta() {
@@ -42,7 +42,7 @@ export default function Conta() {
   // precisa ter entrado há pouco (senão, entra de novo e volta para cá).
   const temSenha = !!sessao?.user.identities?.some((i) => i.provider === 'email') || sessao?.user.app_metadata.provider === 'email';
   const entrouHaPouco = Date.now() - (Date.parse(sessao?.user.last_sign_in_at ?? '') || 0) < 10 * 60_000;
-  const entrarDeNovo = async () => { marcarSaida(); await supabase.auth.signOut(); router.replace('/entrar?voltar=/conta'); };
+  const entrarDeNovo = () => sairDoApp('/entrar?voltar=/conta');
 
   const excluir = async () => {
     setErro('');
@@ -55,10 +55,8 @@ export default function Conta() {
     }
     const { error } = await supabase.rpc('excluir_conta');
     if (error) return setErro('Não foi possível excluir agora. Tente de novo em instantes.');
-    marcarSaida();
-    await supabase.auth.signOut();
     try { localStorage.clear(); } catch {}
-    router.replace('/');
+    await sairDoApp('/');
   };
 
   if (!sessao) return null;

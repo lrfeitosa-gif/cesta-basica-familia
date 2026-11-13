@@ -13,6 +13,16 @@ const CHAVE_USO = 'ultimo-uso';
 let motivoSaida: '' | 'sair' | 'inatividade' = '';
 export const marcarSaida = () => { motivoSaida = 'sair'; };
 
+// Sair deste aparelho. O signOut padrão ('global') depende da internet e, quando o servidor recusa
+// (token vencido, rede ruim), devolve erro sem apagar a sessão do aparelho: a pessoa tocava em Sair e
+// continuava dentro do app. Com 'local' a sessão sai sempre; depois vai para a tela de destino com recarga completa.
+export async function sairDoApp(destino = '/entrar') {
+  marcarSaida();
+  try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* segue mesmo assim */ }
+  try { Object.keys(localStorage).filter((k) => k.startsWith('sb-') && k.endsWith('-auth-token')).forEach((k) => localStorage.removeItem(k)); } catch {}
+  window.location.replace(destino);
+}
+
 // Páginas que exigem login: sem sessão, manda para /entrar e volta depois.
 // Se a sessão existia e sumiu (expirou), avisa na tela de entrada.
 export function useSessao(obrigatoria = true) {

@@ -21,6 +21,8 @@ export function mensagemErro(msg: string): string {
   if (/invalid.*email|email address .* is invalid|unable to validate email/i.test(msg)) return 'Este e-mail não parece válido. Confira se digitou certo.';
   if (/signups? not allowed|signup is disabled/i.test(msg)) return 'Os cadastros estão fechados no momento. Fale com quem te convidou.';
   if (/database error saving new user/i.test(msg)) return 'Código de convite inválido, esgotado ou o teste está lotado. Confira com quem te convidou.';
+  // o envio de e-mail falhou no provedor (ex.: Resend sem domínio próprio só entrega ao dono da conta)
+  if (/error sending .*email/i.test(msg)) return 'Não conseguimos enviar o e-mail agora. Tente mais tarde ou fale com quem te convidou.';
   if (/rate limit/i.test(msg)) return 'Muitas tentativas seguidas. Espere um minuto e tente de novo.';
   // erro não previsto: mostra o motivo técnico entre parênteses para dar para investigar
   return `Não foi possível concluir agora. Tente de novo em instantes.${msg ? ` (${msg.slice(0, 140)})` : ''}`;
