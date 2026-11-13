@@ -13,7 +13,7 @@ export const Ilustracoes: ReactNode[] = ALT.map((alt, i) => (
 export const PASSOS = [
   {
     titulo: 'Preço de oportunidade',
-    texto: 'Todo dia, às 7h e às 13h, buscamos os preços de 9 mercados de Indaiatuba e avisamos quando um item fica bem mais em conta.',
+    texto: 'Todo dia, às 7h e às 13h, buscamos os preços dos mercados de Indaiatuba, nos sites e nos encartes, e avisamos quando um item fica bem mais em conta.',
   },
   {
     titulo: 'Compare do jeito certo',
