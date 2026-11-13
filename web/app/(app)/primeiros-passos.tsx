@@ -11,9 +11,9 @@ const CHAVE_FECHADO = 'primeiros-passos-fechado';     // card fechado ou conclu�
 
 type Feito = { endereco: boolean; alerta: boolean; cesta: boolean };
 const PASSOS: { chave: keyof Feito; href: string; texto: string }[] = [
-  { chave: 'endereco', href: '/compra', texto: 'Cadastre o endereço de casa' },
+  { chave: 'endereco', href: '/compra?ver=onde', texto: 'Cadastre o endereço de casa' },
   { chave: 'alerta', href: '/alertas', texto: 'Crie um alerta para algo que você compra toda semana' },
-  { chave: 'cesta', href: '/compra', texto: 'Monte sua compra e veja o mercado mais barato' },
+  { chave: 'cesta', href: '/compra?ver=lista', texto: 'Monte sua compra e veja o mercado mais barato' },
 ];
 
 const temCesta = () => {

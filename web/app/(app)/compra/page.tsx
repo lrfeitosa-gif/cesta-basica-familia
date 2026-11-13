@@ -134,7 +134,14 @@ export default function MinhaCompra() {
   const trocarRoteiro = (m: string) => setForaRoteiro((x) => { const n = x.includes(m) ? x.filter((y) => y !== m) : [...x, m]; try { localStorage.setItem('cesta-fora-roteiro', JSON.stringify(n)); } catch {} return n; });
   // a aba escolhida vale durante a visita: voltar de outra tela não perde o lugar
   const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} window.scrollTo(0, 0); };
-  useEffect(() => { try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {} }, []);
+  // Passo inicial: ?nota=ID (Usar na cesta) e ?ver=lista abrem a Lista, para editar; ?ver=onde abre Onde comprar;
+  // sem nada, volta ao passo em que a pessoa estava nesta visita.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('nota') || p.get('ver') === 'lista') return setAba('lista');
+    if (p.get('ver') === 'onde') return setAba('comparar');
+    try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {}
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // lista guardada neste aparelho: só depois de saber de quem é a conta (outra conta no mesmo celular não herda a lista)
   useEffect(() => {
