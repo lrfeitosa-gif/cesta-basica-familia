@@ -241,7 +241,7 @@ def enviar_email(para: str, titulo: str, avisos: list[Aviso]) -> bool:
             f"<p style='color:#6b7686;font-size:13px'>Você recebe este e-mail porque ligou o aviso por e-mail em Alertas. "
             f"Para parar, desligue lá.</p></div>")
     r = httpx.post("https://api.resend.com/emails", timeout=30, headers={"Authorization": f"Bearer {chave}"}, json={
-        "from": os.environ.get("AVISO_EMAIL_REMETENTE") or "Cesta Básica Família <onboarding@resend.dev>",
+        "from": os.environ.get("AVISO_EMAIL_REMETENTE") or "Mercato <onboarding@resend.dev>",
         "to": [para], "subject": titulo, "html": html})
     if r.status_code >= 300:
         print(f"  e-mail falhou ({r.status_code}): {r.text[:160]}")

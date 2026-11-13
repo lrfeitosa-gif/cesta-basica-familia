@@ -1,15 +1,28 @@
 {
-  "name": "fast-promotions-mk",
-  "short_name": "fast-promo",
+  "name": "Mercato",
+  "short_name": "Mercato",
   "description": "Notifica quando o preço do que sua família consome está bem mais em conta.",
   "start_url": "/ofertas",
   "display": "standalone",
-  "background_color": "#f3f5f8",
-  "theme_color": "#1d4ed8",
+  "background_color": "#F8F9FA",
+  "theme_color": "#00875A",
   "lang": "pt-BR",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

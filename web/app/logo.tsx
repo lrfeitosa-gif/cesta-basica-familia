@@ -26,14 +26,14 @@ export function Carrinho({ size = 40, className, mono = false }: { size?: number
   );
 }
 
-export const NOME = 'fast-promotions-mk';
+export const NOME = 'Mercato';
 
-// Marca completa: carrinho + nome. "mk" em destaque, como etiqueta.
+// Marca completa: carrinho + nome.
 export default function Logo({ size = 36 }: { size?: number }) {
   return (
     <span className="logo">
       <Carrinho size={size} className="logo-carrinho" />
-      <span className="logo-nome">fast-promotions<span>-mk</span></span>
+      <span className="logo-nome">mercato</span>
     </span>
   );
 }

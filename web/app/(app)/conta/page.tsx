@@ -32,7 +32,7 @@ export default function Conta() {
     };
     const url = URL.createObjectURL(new Blob([JSON.stringify(conteudo, null, 2)], { type: 'application/json' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `fast-promotions-mk-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+    a.href = url; a.download = `mercato-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setBaixando(false);

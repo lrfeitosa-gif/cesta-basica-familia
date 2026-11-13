@@ -1,33 +1,22 @@
 'use client';
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import Link from 'next/link';
-import Logo from '@/app/logo';
-import { Ilustracoes, PASSOS } from './(app)/boas-vindas';
 
-// Moldura das telas de acesso (entrar / criar conta) no design system de boas-vindas:
-// logo, título com palavra em destaque, traço dourado, mini-carrossel com pontos e o formulário.
+// Moldura das telas de acesso (entrar / criar conta): marca Mercato, ilustração, título e o formulário.
 export function TelaAcesso({ titulo, destaque, sub, children, rodape }:
   { titulo: string; destaque: string; sub: string; children: ReactNode; rodape: ReactNode }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setI((x) => (x + 1) % PASSOS.length), 4500);
-    return () => clearInterval(t);
-  }, []);
   return (
     <div className="ob au">
       <div className="ob-card au-card">
-        <Link href="/" className="logo-link" aria-label="Início"><Logo size={30} /></Link>
-        <h1 className="au-titulo">{titulo}<br /><span>{destaque}</span></h1>
-        <span className="au-traco" aria-hidden="true" />
-        <p className="au-sub">{sub}</p>
-        <div className="au-mini">
-          <div className="au-mini-ilustra" key={i}>{Ilustracoes[i]}</div>
-          <b>{PASSOS[i].titulo}</b>
-          <div className="ob-dots" aria-label="Destaques">
-            {PASSOS.map((p, j) => (
-              <button key={j} type="button" aria-label={p.titulo} aria-pressed={j === i} data-on={j === i} onClick={() => setI(j)} />
-            ))}
-          </div>
+        <Link href="/" className="au-marca" aria-label="Mercato, início">
+          <span className="au-logo">mercato</span>
+          <span className="au-slogan">Preço bom nos mercados de Indaiatuba</span>
+        </Link>
+        <img className="au-ilustra" src="/img/entrada.webp" width={640} height={857}
+          alt="Pessoa mostrando no celular os descontos do dia nos mercados" />
+        <div className="au-hero">
+          <h1 className="au-titulo">{titulo} {destaque}</h1>
+          <p className="au-sub">{sub}</p>
         </div>
         {children}
         <p className="au-rodape">{rodape}</p>
