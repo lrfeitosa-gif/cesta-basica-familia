@@ -3,14 +3,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { brl, dataBr, emb, filtrarFoco, norm, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga } from '../linha-oferta';
+import { useSessao } from '@/lib/sessao';
+import { adicionarNaCesta } from '@/lib/cesta';
+import { mostrarAviso } from '../aviso';
 
-const PERIODOS = [[30, '30 dias'], [90, '3 meses'], [365, '1 ano']] as const;
+const PERIODOS = [[30, '30 dias'], [90, '3 meses'], [180, '6 meses'], [365, '1 ano']] as const;
 // Uma cor fixa e diferente por mercado (antes as cores se repetiam a partir do 10º mercado: Assaí e Savegnago
 // quase iguais, Atacadão e Sumerbol iguais). A mesma rede tem sempre a mesma cor em qualquer gráfico.
 const COR_MERCADO: Record<string, string> = {
   'Assaí': '#d1495b', 'Atacadão': '#1f5fbf', 'Cato': '#7a8b00', 'Covabra': '#2a9d8f', 'Goodbom': '#e07a00',
   'Pague Menos': '#8e44ad', 'Revolução': '#5d4037', 'Roldão': '#c2185b', "Sam's Club": '#0b7285', 'Savegnago': '#2e7d32',
-  'São Vicente': '#f2a900', 'Sonda': '#455a64', 'Sumerbol': '#6d8cff',
+  'São Vicente': '#b88400', 'Sonda': '#455a64', 'Sumerbol': '#6d8cff',
 };
 const CORES_EXTRA = ['#9c27b0', '#00897b', '#ff7043', '#3949ab', '#827717'];
 
@@ -86,6 +89,23 @@ export default function Evolucao() {
   const [falha, setFalha] = useState('');
   const [itens, setItens] = useState<ItemBase[]>([]);
   const [escopo, setEscopo] = useState<'geral' | 'itens'>('geral');
+  const sessao = useSessao();
+  // Depois de ver onde está mais barato: pôr na cesta ou criar um alerta para o que foi escolhido
+  const alvoDaEscolha = (e: Escolha) => 'produto' in e ? { termo: e.produto.nome, marca: e.produto.marca || null }
+    : 'item' in e ? { termo: e.item.nome, marca: null } : { termo: e.grupo.busca, marca: null };
+  const porNaCesta = async () => {
+    if (!sel || !sessao) return;
+    const { termo } = alvoDaEscolha(sel);
+    mostrarAviso({ texto: await adicionarNaCesta(sessao.user.id, termo, 1) });
+  };
+  const criarAlerta = async () => {
+    if (!sel || !sessao) return;
+    const { termo, marca } = alvoDaEscolha(sel);
+    if (!window.confirm(`Criar alerta para "${termo}"${marca ? `, marca ${marca}` : ''}? Avisamos quando ficar 15% abaixo do normal ou no menor preço do mês.`)) return;
+    await supabase.rpc('garantir_familia');
+    const { error } = await supabase.from('item_interesse').insert({ familia_id: sessao.user.id, termo, marca, preco_alvo: null, origem: 'manual' });
+    mostrarAviso({ texto: error ? 'Não foi possível criar o alerta agora. Tente pela tela Alertas.' : `Alerta criado para "${termo}". Para pôr um preço-alvo, abra Alertas.` });
+  };
 
   useEffect(() => {
     supabase.from('item_base').select('id,nome').eq('ativo', true).order('nome')
@@ -266,7 +286,7 @@ export default function Evolucao() {
                 : <span><b>{sel.produto.nome}</b> <span className="muted">{emb(sel.produto)}</span></span>}
               <button type="button" className="btn btn-link" onClick={() => { setSel(null); setSeries(null); }}>Trocar</button>
             </div>
-            <div className="segmentado" role="tablist" aria-label="Período">
+            <div className="segmentado segmentado-4" role="tablist" aria-label="Período">
               {PERIODOS.map(([d, r]) => (
                 <button key={d} type="button" role="tab" aria-selected={dias === d} className={dias === d ? 'ativo' : ''} onClick={() => setDias(d)}>{r}</button>
               ))}
@@ -274,7 +294,13 @@ export default function Evolucao() {
           </div>
           {falha ? <div className="alert alert-error" role="alert">{falha}</div> : !series ? <Carregando /> : !series.length ? (
             <div className="empty">Ainda não há histórico deste {porItem ? 'item' : 'produto'} no período.</div>
-          ) : <Grafico series={series} sufixo={porItem && unidade ? `/${unidade}` : ''} />}
+          ) : <>
+            <Grafico series={series} sufixo={porItem && unidade ? `/${unidade}` : ''} />
+            <div className="evol-acoes">
+              <button type="button" className="btn btn-primary" onClick={porNaCesta}>+ Pôr na cesta</button>
+              <button type="button" className="btn btn-secondary" onClick={criarAlerta}>🔔 Criar alerta</button>
+            </div>
+          </>}
           {series && series.length > 0 && (
             <p className="muted">
               Variação: do primeiro ao último preço do período.
@@ -289,6 +315,7 @@ export default function Evolucao() {
 }
 
 function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
+  const [foco, setFoco] = useState<string | null>(null);   // mercado destacado pela legenda
   const dias = [...new Set(series.flatMap((s) => s.pontos.map((p) => p.dia)))].sort();
   const precos = series.flatMap((s) => s.pontos.map((p) => p.preco));
   const min = Math.min(...precos), max = Math.max(...precos);
@@ -298,10 +325,22 @@ function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
   const x = (d: string) => E + (dias.length === 1 ? (W - E - 8) / 2 : (dias.indexOf(d) / (dias.length - 1)) * (W - E - 8));
   const y = (p: number) => T + (1 - (p - y0) / (y1 - y0)) * (H - T - B);
   const marcas = [y0 + (y1 - y0) * 0.1, (y0 + y1) / 2, y1 - (y1 - y0) * 0.1];
+  // último preço de cada mercado, do menor para o maior: o primeiro é o "Melhor preço"
+  const ultimos = series.map((s) => ({ s, p: s.pontos[s.pontos.length - 1] })).sort((a, b) => a.p.preco - b.p.preco);
+  const melhor = ultimos[0];
+  // ordem de desenho: o destacado por último, por cima dos outros
+  const desenho = foco ? [...series.filter((s) => s.mercado !== foco), ...series.filter((s) => s.mercado === foco)] : series;
 
   return (
     <>
-      <p className="muted evol-desde">Dados desde {dataBr(dias[0]).slice(0, 5)}</p>
+      {melhor && (
+        <div className="evol-melhor">
+          <span className="selo-melhor">Melhor preço</span>
+          <span><b>{melhor.s.mercado}</b> · {brl(melhor.p.preco)}{sufixo}</span>
+          <small className="muted">último preço, {dataBr(melhor.p.dia).slice(0, 5)}</small>
+        </div>
+      )}
+      <p className="muted evol-desde">Dados desde {dataBr(dias[0]).slice(0, 5)}. Toque num mercado da legenda para destacar a linha.</p>
       <figure className="card evol-grafico" style={{ margin: 0 }}>
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Preço por mercado ao longo do tempo">
           {marcas.map((m) => (
@@ -313,26 +352,35 @@ function Grafico({ series, sufixo }: { series: Serie[]; sufixo: string }) {
           <text x={4} y={12} className="evol-eixo">R${sufixo || ''}</text>
           <text x={E} y={H - 6} className="evol-eixo">{dataBr(dias[0]).slice(0, 5)}</text>
           {dias.length > 1 && <text x={W - 4} y={H - 6} textAnchor="end" className="evol-eixo">{dataBr(dias[dias.length - 1]).slice(0, 5)}</text>}
-          {series.map((s) => (
-            <g key={s.mercado}>
-              {s.pontos.length > 1 && <polyline fill="none" stroke={s.cor} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"
-                points={s.pontos.map((p) => `${x(p.dia)},${y(p.preco)}`).join(' ')} />}
-              {s.pontos.map((p) => <circle key={p.dia} cx={x(p.dia)} cy={y(p.preco)} r="2.6" fill={s.cor}><title>{`${s.mercado} · ${dataBr(p.dia)}: ${brl(p.preco)}${sufixo}`}</title></circle>)}
-            </g>
-          ))}
+          {desenho.map((s) => {
+            const apagada = !!foco && foco !== s.mercado;
+            const forte = foco === s.mercado;
+            return (
+              <g key={s.mercado} opacity={apagada ? 0.15 : 1}>
+                {s.pontos.length > 1 && <polyline fill="none" stroke={s.cor} strokeWidth={forte ? 3.6 : 2.2} strokeLinejoin="round" strokeLinecap="round"
+                  points={s.pontos.map((p) => `${x(p.dia)},${y(p.preco)}`).join(' ')} />}
+                {s.pontos.map((p) => <circle key={p.dia} cx={x(p.dia)} cy={y(p.preco)} r={forte ? 3.4 : 2.6} fill={s.cor}><title>{`${s.mercado} · ${dataBr(p.dia)}: ${brl(p.preco)}${sufixo}`}</title></circle>)}
+              </g>
+            );
+          })}
         </svg>
-        <figcaption className="evol-legenda">
-          {series.map((s) => <span key={s.mercado}><i style={{ background: s.cor }} />{s.mercado}</span>)}
+        <figcaption className="evol-legenda" role="group" aria-label="Destacar um mercado">
+          {series.map((s) => (
+            <button key={s.mercado} type="button" aria-pressed={foco === s.mercado} data-apagado={!!foco && foco !== s.mercado}
+              onClick={() => setFoco(foco === s.mercado ? null : s.mercado)}>
+              <i style={{ background: s.cor }} />{s.mercado}
+            </button>
+          ))}
         </figcaption>
       </figure>
       <div className="adm-tabela evol-tabela" role="table">
         <div role="row" className="cab"><span>Mercado</span><span>Último</span><span>Menor</span><span>Maior</span><span>Variação</span></div>
-        {series.map((s) => {
+        {ultimos.map(({ s }, i) => {
           const ps = s.pontos.map((p) => p.preco);
           const ult = ps[ps.length - 1], pri = ps[0];
           const v = pri ? ((ult - pri) / pri) * 100 : 0;
           return (
-            <div role="row" key={s.mercado}>
+            <div role="row" key={s.mercado} className={i === 0 ? 'evol-linha-melhor' : undefined}>
               <span><i className="evol-cor" style={{ background: s.cor }} />{s.mercado}</span>
               <span>{brl(ult)}{sufixo}<small className="muted"> {dataBr(s.pontos[s.pontos.length - 1].dia).slice(0, 5)}</small></span>
               <span>{brl(Math.min(...ps))}{sufixo}</span>
