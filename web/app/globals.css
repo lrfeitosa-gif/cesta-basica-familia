@@ -861,3 +861,31 @@ details[open] > .market-expand-link::after { content: " ▴"; }
 .market-card li.estimado { color: var(--aviso-ink); }
 .market-card .soma { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--card-borda); color: var(--muted-foreground); }
 .market-card .soma b { color: var(--foreground); }
+
+/* ===== Cesta em 2 passos (13/11): Lista → Onde comprar, com botão fixo no rodapé ===== */
+.passo-topo { display: grid; gap: 6px; }
+.voltar-lista { justify-self: start; font: inherit; font-size: 14px; font-weight: 600; color: var(--link-ink); background: none; border: 0; padding: 6px 0; cursor: pointer; }
+.voltar-lista:hover { text-decoration: underline; }
+.app:has(.cta-fixo) { padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px)); }
+.cta-fixo { position: fixed; left: 0; right: 0; bottom: calc(62px + env(safe-area-inset-bottom, 0px)); z-index: 6; padding: 10px 16px;
+  background: linear-gradient(to top, var(--background) 70%, transparent); }
+.cta-fixo-btn { display: grid; gap: 2px; justify-items: center; width: 100%; max-width: 488px; margin: 0 auto; padding: 12px 16px; border: 0; border-radius: 14px;
+  font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; background: var(--primary); color: var(--primary-foreground);
+  box-shadow: 0 8px 20px rgb(0 0 0 / .18); }
+.cta-fixo-btn:hover { background: var(--primary-hover); }
+.cta-fixo-btn small { font-size: 12px; font-weight: 500; opacity: .9; }
+.btn-action-secundario { display: block; width: 100%; margin-top: 8px; padding: 10px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;
+  background: transparent; color: var(--link-ink); border: 1px solid var(--card-borda); }
+.dupla .btn-action-primary, .ideal .btn-action-primary { margin-top: 8px; }
+
+.filtros-painel { display: grid; gap: 12px; background: var(--card); border: 1px solid var(--card-borda); border-radius: 10px; padding: 14px 16px; font-size: 14px; }
+.filtro-grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.filtro-grupo > span { flex-basis: 100%; font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.filtro-grupo .tab-button { padding: 6px 12px; font-size: 13px; }
+.filtro-grupo .tab-button:disabled { opacity: .45; cursor: default; }
+.filtro-check { display: flex; gap: 8px; align-items: flex-start; }
+.filtro-check input { width: 18px; height: 18px; accent-color: var(--primary); margin-top: 1px; flex: none; }
+
+.ideal-titulo { font-size: 18px; font-weight: 700; color: var(--foreground); }
+.roteiro-mercados .chip { font-size: 13px; padding: 6px 12px; border-radius: 20px; background: var(--chip-bg); color: var(--chip-ink); border: 1px solid var(--chip-borda); text-decoration: line-through; }
+.roteiro-mercados .chip[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent-foreground); border-color: var(--primary); text-decoration: none; }
