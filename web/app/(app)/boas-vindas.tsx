@@ -3,11 +3,11 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocais } from '@/lib/locais';
 import { jaViu, marcarVisto } from '@/lib/visto';
 
-// Ilustrações do onboarding (imagens em /public/img, recortadas das referências).
-const ALT = ['Pessoa vendo no celular o preço de um produto baixar', 'Balança comparando duas embalagens pelo preço do quilo', 'Pessoa montando a compra no celular, com o carrinho ao lado'];
+// Ilustrações do onboarding (imagens em /public/img, enviadas pela Luciane em 13/11, sem o cabeçalho com a marca).
+const ALT = ['Pessoa mostrando no celular um aviso de preço de oportunidade', 'Pessoa comparando embalagens de tamanhos diferentes pelo preço do quilo e do litro', 'Pessoa pesquisando no celular os preços dos mercados de Indaiatuba'];
 export const Ilustracoes: ReactNode[] = ALT.map((alt, i) => (
   // eslint-disable-next-line @next/next/no-img-element
-  <img key={i} src={`/img/ob-${i + 1}.jpg`} alt={alt} width={572} height={i === 1 ? 650 : 610} />
+  <img key={i} src={`/img/ob-${i + 1}.jpg`} alt={alt} width={572} height={605} />
 ));
 
 export const PASSOS = [

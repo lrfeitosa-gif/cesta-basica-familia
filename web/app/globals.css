@@ -730,3 +730,5 @@ body { font-family: var(--body); }
 .au-ilustra { width: 220px; max-width: 70%; }
 @media (min-width: 480px) { .au { padding-inline: 16px; } .au-card { border-radius: 36px; } }
 .au-form { grid-template-columns: minmax(0, 1fr); }
+/* Ilustrações novas (13/11) já vêm no verde do Mercato: sem o filtro de cor das antigas */
+.ob-ilustra img, .au-mini-ilustra img { filter: none; }
