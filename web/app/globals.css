@@ -1045,3 +1045,30 @@ nav.abas a[aria-current="page"] svg { background: var(--accent-bg); stroke-width
 .sugestao-alvo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
 .sugestao-alvo .chip { font-size: 13px; border-color: var(--primary); color: var(--link-ink); }
 @media (prefers-reduced-motion: reduce) { .pref-seta { transition: none; } }
+
+/* Primeiros passos (13/11): "N de 3 feitos" e lista com os 3 passos ao tocar na seta */
+.passo-bloco { display: grid; gap: 6px; }
+.passo-lista { list-style: none; margin: 0; padding: 10px 14px; display: grid; gap: 8px; background: var(--card); border: 1px solid var(--card-borda);
+  border-radius: var(--radius-lg); font-size: 14px; }
+.passo-lista li { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.passo-num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  background: var(--muted-bg); color: var(--muted-foreground); }
+.passo-lista li[data-feito="true"] .passo-num { background: var(--desc-bg); color: var(--desc-ink); }
+.passo-lista a { color: var(--link-ink); font-weight: 600; text-decoration: none; }
+.passo-feito { color: var(--muted-foreground); text-decoration: line-through; }
+.passo-dispensar { justify-content: flex-end; border-top: 1px solid var(--card-borda); padding-top: 6px; }
+.passo-dispensar button { font: inherit; font-size: 13px; color: var(--muted-foreground); background: none; border: 0; cursor: pointer; padding: 4px 0; }
+
+/* Evolução, gráfico (13/11): 4 períodos, melhor preço em destaque, legenda que destaca a linha, ações */
+.segmentado-4 { grid-template-columns: repeat(4, 1fr); }
+.segmentado-4 button { font-size: 13px; }
+.evol-melhor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 12px 14px; border-radius: var(--radius-lg);
+  border: 2px solid var(--primary); background: var(--card); font-size: 15px; }
+.evol-melhor small { flex-basis: 100%; font-size: 12px; }
+.evol-legenda { gap: 6px; }
+.evol-legenda button { display: inline-flex; align-items: center; font: inherit; font-size: 12px; font-weight: 600; min-height: 32px; padding: 4px 10px;
+  border-radius: 20px; border: 1px solid var(--chip-borda); background: var(--chip-bg); color: var(--foreground); cursor: pointer; }
+.evol-legenda button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 1px var(--foreground) inset; }
+.evol-legenda button[data-apagado="true"] { opacity: .45; }
+.evol-tabela .evol-linha-melhor { background: var(--desc-bg); font-weight: 700; }
+.evol-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
