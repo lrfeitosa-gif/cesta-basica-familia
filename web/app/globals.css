@@ -946,3 +946,102 @@ button, a, summary { -webkit-tap-highlight-color: transparent; }
 .selo-melhor, .selo-dif { flex: none; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
 .selo-melhor { background: var(--desc-bg); color: var(--desc-ink); }
 .selo-dif { background: var(--aviso-bg); color: var(--aviso-ink); }
+
+/* ===== Notas (13/11): seletor segmentado, um botão principal, dicas curtas, cartões de nota ===== */
+.segmentado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: var(--radius-lg);
+  background: var(--muted-bg); border: 1px solid var(--card-borda); }
+.segmentado button { font: inherit; font-size: 14px; font-weight: 600; min-height: 40px; border: 0; border-radius: 12px; cursor: pointer;
+  background: transparent; color: var(--muted-foreground); }
+.segmentado button.ativo { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.segmentado button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.btn-icone { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; font-size: 16px; }
+.btn-icone svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.dicas-foto { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dicas-foto li { display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); text-align: center;
+  background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; padding: 8px 4px; }
+.dicas-foto li span { font-size: 18px; }
+.link-dicas { justify-self: start; font: inherit; font-size: 13px; font-weight: 600; color: var(--link-ink); background: none; border: 0; padding: 4px 0; cursor: pointer; }
+.dicas-texto { margin: 0; font-size: 13px; }
+
+.nota-cards { display: grid; gap: 10px; }
+.nota-card { background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 14px 16px; display: grid; gap: 8px; box-shadow: var(--shadow); }
+.nota-cab { display: flex; align-items: center; gap: 12px; }
+.nota-ico { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 16px;
+  background: var(--accent-bg); color: var(--accent-foreground); }
+.nota-titulo { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.nota-titulo b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nota-titulo small { font-size: 12px; color: var(--muted-foreground); }
+.nota-total { flex: none; font-size: 16px; font-weight: 700; color: var(--total-ink); font-variant-numeric: tabular-nums; }
+.nota-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.selo-ok, .selo-origem { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+.selo-ok { background: var(--desc-bg); color: var(--desc-ink); }
+.selo-origem { background: var(--muted-bg); color: var(--muted-foreground); }
+.nota-acoes { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--card-borda); padding-top: 8px; }
+.nota-ver { background: none; border: 0; font: inherit; font-size: 13px; font-weight: 500; color: var(--link-ink); padding: 6px 0; min-height: 36px; cursor: pointer; }
+.nota-usar { font-size: 13px; font-weight: 700; color: var(--link-ink); text-decoration: none; min-height: 36px; display: inline-flex; align-items: center; }
+.nota-card .nota-itens { margin: 0; color: var(--muted-foreground); font-size: 13px; }
+.nota-itens-esq, .nota-card.esqueleto { display: grid; gap: 6px; }
+.nota-itens-esq .esq, .nota-card.esqueleto .esq { display: block; height: 10px; border-radius: 5px; background: var(--muted-bg); }
+.nota-itens-esq .esq:nth-child(2) { width: 80%; } .nota-itens-esq .esq:nth-child(3) { width: 60%; }
+.aviso-privacidade { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 12px; color: var(--muted-foreground); }
+.aviso-privacidade svg { flex: none; width: 16px; height: 16px; fill: none; stroke: var(--primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; margin-top: 1px; }
+
+/* ===== Barra de abas inferior (13/11): área de toque de 48 px e aba ativa com a cor da marca ===== */
+nav.abas { background: var(--card); border-top: 1px solid var(--card-borda); }
+nav.abas a { min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 3px; padding: 6px 0; font-size: .68rem; font-weight: 600;
+  color: var(--muted-foreground); border-top: 3px solid transparent; }
+nav.abas a svg { width: 24px; height: 24px; padding: 2px 10px; box-sizing: content-box; border-radius: 12px; }
+nav.abas a[aria-current="page"] { color: var(--primary); border-top-color: var(--primary); font-weight: 700; }
+nav.abas a[aria-current="page"] svg { background: var(--accent-bg); stroke-width: 2.2; }
+@media (prefers-color-scheme: dark) { nav.abas a[aria-current="page"] { color: #81C784; border-top-color: #81C784; } }
+
+/* ===== Cantos padronizados (13/11): 16 px em cartões e botões de ação; 12 px em itens internos; pílula só em chips e filtros ===== */
+.btn, .input, .au-campo, .alert, .card, .lista, .market-card, .product-card, .recommendation-card, .comparativo-item, .filtros-painel,
+.address-compact, .ideal, .dupla, .destaque, .empty, .cta-fixo-btn, .btn-action-primary, .btn-action-secundario { border-radius: var(--radius-lg); }
+
+/* ===== Evolução (13/11): busca, escopo Visão geral / Itens específicos, banner de comparação e cartões com minigráfico ===== */
+.segmentado-2 { grid-template-columns: repeat(2, 1fr); }
+.ico-tendencia { flex: none; width: 32px; height: 20px; fill: none; stroke: var(--primary); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.evol-intro { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted-foreground); background: var(--card);
+  border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 14px 16px; }
+.evol-banner { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; width: 100%; text-align: left; font: inherit; cursor: pointer;
+  padding: 16px; border-radius: var(--radius-lg); border: 2px solid var(--primary); background: var(--accent-bg); color: var(--foreground);
+  box-shadow: 0 4px 12px rgb(46 125 50 / .15); }
+.evol-banner-ico { grid-row: span 2; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--card); }
+.evol-banner-texto { display: grid; gap: 2px; }
+.evol-banner-texto b { font-size: 15px; }
+.evol-banner-texto small { font-size: 12px; color: var(--muted-foreground); }
+.evol-banner-cta { grid-column: 2; font-size: 14px; font-weight: 700; color: var(--link-ink); }
+.evol-cards { display: grid; gap: 8px; }
+.evol-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; cursor: pointer; color: var(--foreground);
+  background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 12px 14px; min-height: 56px; }
+.evol-card:hover, .evol-card:focus-visible { border-color: var(--primary); }
+.evol-card-texto { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.evol-card-texto b { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.evol-card-texto small { font-size: 12px; color: var(--muted-foreground); }
+.evol-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip-marca, .chip-selo { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+.chip-marca { background: var(--muted-bg); color: var(--foreground); }
+.chip-selo { background: var(--accent-bg); color: var(--accent-foreground); }
+.evol-peso { flex: none; font-size: 13px; font-weight: 700; color: var(--foreground); background: var(--muted-bg); border-radius: 8px; padding: 4px 8px; font-variant-numeric: tabular-nums; }
+
+/* ===== Alertas (13/11): regras em tópicos, preferências e histórico retráteis, selos por tipo, sugestão de alvo ===== */
+.regras-alerta { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; color: var(--muted-foreground); }
+.regras-alerta li { display: flex; gap: 8px; align-items: center; }
+.pref-avisos { background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 12px 16px; }
+.pref-avisos summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; min-height: 44px; }
+.pref-avisos summary::-webkit-details-marker { display: none; }
+.pref-ico { flex: none; font-size: 20px; }
+.pref-titulo { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.pref-titulo b { font-size: 15px; }
+.pref-titulo small { font-size: 12px; color: var(--muted-foreground); }
+.pref-seta { flex: none; color: var(--muted-foreground); transition: transform .2s ease; }
+.pref-avisos[open] .pref-seta { transform: rotate(180deg); }
+.pref-corpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--card-borda); }
+.historico-avisos ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; }
+.badge-alerta { justify-self: start; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 8px; }
+.badge-alvo { background: var(--desc-bg); color: var(--desc-ink); }
+.badge-oportunidade { background: var(--aviso-bg); color: var(--aviso-ink); }
+.sugestao-alvo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.sugestao-alvo .chip { font-size: 13px; border-color: var(--primary); color: var(--link-ink); }
+@media (prefers-reduced-motion: reduce) { .pref-seta { transition: none; } }

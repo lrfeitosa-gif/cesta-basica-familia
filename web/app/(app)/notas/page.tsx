@@ -14,7 +14,7 @@ const ACENTOS: Record<string, string> = { pao: 'Pão', acucar: 'Açúcar', sao: 
 const nomeLoja = (n: string) => n.toLowerCase().replace(/\b(ltda|eireli|me|epp|s\/?a)\b\.?/g, '').trim()
   .split(/\s+/).map((w) => ACENTOS[w] ?? (['de', 'da', 'do', 'das', 'dos', 'e'].includes(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
 
-type Compra = { id: number; data: string; total: number | null; loja_nota?: string | null; mercado: { rede: string } | null; itens: { count: number }[] };
+type Compra = { id: number; data: string; total: number | null; origem?: string; loja_nota?: string | null; mercado: { rede: string } | null; itens: { count: number }[] };
 const META = 3;
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dataBr = (iso: string) => iso.split('-').reverse().join('/');
@@ -26,6 +26,9 @@ function Notas() {
   const [link, setLink] = useState('');
   const [status, setStatus] = useState<{ tipo: 'ok' | 'erro' | 'lendo'; texto: string; abrir?: string; id?: number } | null>(null);
   const [compras, setCompras] = useState<Compra[]>([]);
+  const [listaCarregada, setListaCarregada] = useState(false);
+  const [aberta, setAberta] = useState<number | null>(null);   // nota com os itens abertos
+  const [dicas, setDicas] = useState(false);
   const [ultimaUrl, setUltimaUrl] = useState('');
   // itens de cada nota, carregados quando a pessoa abre "Ver itens"
   const [itensNota, setItensNota] = useState<Record<number, { descricao_nota: string; quantidade: number; preco_unitario: number }[]>>({});
@@ -38,9 +41,10 @@ function Notas() {
   const carregar = async () => {
     const busca = (campos: string) => supabase.from('compra').select(campos)
       .in('origem', ['nota', 'foto']).order('data', { ascending: false }).limit(20);   // notas pelo QR Code e pela foto
-    let { data, error } = await busca('id,data,total,loja_nota,mercado(rede),itens:item_comprado(count)');
+    let { data, error } = await busca('id,data,total,origem,loja_nota,mercado(rede),itens:item_comprado(count)');
     if (error) ({ data, error } = await busca('id,data,total,mercado(rede),itens:item_comprado(count)'));  // antes da migração 0009
     setCompras((data as unknown as Compra[]) ?? []);
+    setListaCarregada(true);
   };
   useEffect(() => { if (sessao) carregar(); }, [sessao]);
 
@@ -99,7 +103,7 @@ function Notas() {
       <div>
         <h1>{onboarding ? 'Suas últimas notas' : 'Notas fiscais'}</h1>
         <p className="lead">
-          Envie as últimas notas de supermercado por foto ou QR Code. Com elas o app aprende o que sua família compra e quanto paga.
+          Envie suas notas para facilitar a composição da cesta, a comparação de preços e a criação de notificações.
         </p>
       </div>
 
@@ -110,30 +114,36 @@ function Notas() {
         </div>
       )}
 
-      <div className="choice" role="radiogroup" aria-label="Como enviar">
-        <label><input type="radio" name="modo" checked={modo === 'foto'} onChange={() => setModo('foto')} /><span>Foto da nota</span></label>
-        <label><input type="radio" name="modo" checked={modo === 'camera'} onChange={() => setModo('camera')} /><span>QR Code</span></label>
-        <label><input type="radio" name="modo" checked={modo === 'link'} onChange={() => setModo('link')} /><span>Colar link</span></label>
+      <div className="segmentado" role="tablist" aria-label="Como enviar">
+        {([['foto', 'Foto'], ['camera', 'QR Code'], ['link', 'Link']] as const).map(([m, r]) => (
+          <button key={m} type="button" role="tab" aria-selected={modo === m} className={modo === m ? 'ativo' : ''} onClick={() => setModo(m)}>{r}</button>
+        ))}
       </div>
 
       {modo === 'foto' ? (
         <div className="stack">
-          <label className="btn btn-primary btn-block" htmlFor="foto-nota" aria-disabled={status?.tipo === 'lendo'}>
-            {status?.tipo === 'lendo' ? 'Lendo…' : 'Fotografar a nota'}
+          {/* sem "capture": o celular oferece tirar foto ou escolher da galeria (print da página da nota na Sefaz) */}
+          <label className="btn btn-primary btn-block btn-icone" htmlFor="foto-nota" aria-disabled={status?.tipo === 'lendo'}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+            {status?.tipo === 'lendo' ? 'Lendo a nota…' : 'Fotografar ou escolher a nota'}
           </label>
-          <input id="foto-nota" type="file" accept="image/*" capture="environment" className="visually-hidden"
+          <input id="foto-nota" type="file" accept="image/*" className="visually-hidden"
             disabled={status?.tipo === 'lendo'}
             onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
-          {/* sem "capture": abre a galeria, para enviar o print da página da nota na Sefaz */}
-          <label className="btn btn-secondary btn-block" htmlFor="print-nota" aria-disabled={status?.tipo === 'lendo'}>
-            Escolher foto ou print da galeria
-          </label>
-          <input id="print-nota" type="file" accept="image/*" className="visually-hidden"
-            disabled={status?.tipo === 'lendo'}
-            onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
-          <p className="muted">
-            Fotografe a nota inteira, reto e bem iluminado. Nota comprida: fotografe a parte dos itens. Também vale o print da página da nota que abre pelo QR Code no celular.
-          </p>
+          <ul className="dicas-foto" aria-label="Dicas para a foto">
+            <li><span aria-hidden="true">🧾</span>Nota inteira</li>
+            <li><span aria-hidden="true">💡</span>Boa luz</li>
+            <li><span aria-hidden="true">📐</span>Reta</li>
+            <li><span aria-hidden="true">📱</span>Print vale</li>
+          </ul>
+          <button type="button" className="link-dicas" aria-expanded={dicas} onClick={() => setDicas(!dicas)}>
+            Dicas para uma leitura perfeita {dicas ? '▴' : '▾'}
+          </button>
+          {dicas && (
+            <p className="muted dicas-texto">
+              Fotografe a nota inteira, reta e bem iluminada. Nota comprida: fotografe a parte dos itens. Também vale o print da página da nota que abre pelo QR Code no celular.
+            </p>
+          )}
         </div>
       ) : modo === 'camera' ? (
         <div className="stack">
@@ -173,35 +183,55 @@ function Notas() {
         </div>
       )}
 
-      {compras.length > 0 && (
+      {!listaCarregada ? (
+        <div className="nota-cards" aria-label="Carregando as notas">
+          {[0, 1].map((i) => <div key={i} className="nota-card esqueleto"><span className="esq" style={{ width: '55%' }} /><span className="esq" style={{ width: '35%' }} /></div>)}
+        </div>
+      ) : compras.length > 0 && (
         <section className="stack" id="notas-registradas">
-          <h2>Notas registradas</h2>
-          <div className="nota-lista">
-            {compras.map((c) => (
-              <div key={c.id}>
-                <b>{c.mercado?.rede ?? (c.loja_nota ? nomeLoja(c.loja_nota) : 'Mercado não identificado')}</b>
-                {c.total != null && <span className="etiqueta">{brl(c.total)}</span>}
-                <span className="muted" style={{ gridColumn: '1 / -1' }}>{dataBr(c.data)} · {c.itens[0]?.count ?? 0} itens</span>
-                <details style={{ gridColumn: '1 / -1' }} onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) verItens(c.id); }}>
-                  <summary className="btn-link">Ver itens</summary>
-                  {itensNota[c.id] ? (
-                    <ul className="nota-itens">
-                      {itensNota[c.id].map((i, k) => (
-                        <li key={k}>{String(i.quantidade).replace('.', ',')}× {i.descricao_nota} · {brl(i.preco_unitario)}</li>
-                      ))}
-                    </ul>
-                  ) : <span className="muted">Carregando…</span>}
-                </details>
-                <Link href={`/compra?nota=${c.id}`} className="btn btn-link" style={{ gridColumn: '1 / -1', justifySelf: 'start', padding: 0 }}>
-                  Usar na cesta →
-                </Link>
-              </div>
-            ))}
+          <h2 className="section-title">Notas registradas</h2>
+          <div className="nota-cards">
+            {compras.map((c) => {
+              const nome = c.mercado?.rede ?? (c.loja_nota ? nomeLoja(c.loja_nota) : 'Mercado não identificado');
+              const itens = itensNota[c.id];
+              return (
+                <article key={c.id} className="nota-card">
+                  <div className="nota-cab">
+                    <span className="nota-ico" aria-hidden="true">{nome.charAt(0).toUpperCase()}</span>
+                    <span className="nota-titulo"><b>{nome}</b><small>{dataBr(c.data)} · {c.itens[0]?.count ?? 0} itens</small></span>
+                    {c.total != null && <span className="nota-total">{brl(c.total)}</span>}
+                  </div>
+                  <div className="nota-meta">
+                    <span className="selo-ok">✓ Lida</span>
+                    <span className="selo-origem">{c.origem === 'foto' ? 'Foto' : 'QR Code'}</span>
+                  </div>
+                  <div className="nota-acoes">
+                    <button type="button" className="nota-ver" aria-expanded={aberta === c.id}
+                      onClick={() => { const abrir = aberta !== c.id; setAberta(abrir ? c.id : null); if (abrir) verItens(c.id); }}>
+                      {aberta === c.id ? 'Esconder itens ▴' : 'Ver itens ▾'}
+                    </button>
+                    <Link href={`/compra?nota=${c.id}`} className="nota-usar">Usar na cesta →</Link>
+                  </div>
+                  {aberta === c.id && (itens ? (
+                    itens.length ? (
+                      <ul className="nota-itens">
+                        {itens.map((i, k) => <li key={k}>{String(i.quantidade).replace('.', ',')}× {i.descricao_nota} · {brl(i.preco_unitario)}</li>)}
+                      </ul>
+                    ) : <span className="muted">Nenhum item nesta nota.</span>
+                  ) : (
+                    <div className="nota-itens-esq" aria-label="Carregando os itens"><span className="esq" /><span className="esq" /><span className="esq" /></div>
+                  ))}
+                </article>
+              );
+            })}
           </div>
         </section>
       )}
 
-      <p className="aviso-nota">A foto não é guardada. Da nota ficam só itens, quantidades, preços, loja e data; CPF e dados pessoais nunca são gravados.</p>
+      <p className="aviso-privacidade">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z" /><path d="m9 12 2 2 4-4" /></svg>
+        A foto não é guardada. Ficam só itens, preços, loja e data; CPF e dados pessoais nunca.
+      </p>
 
       {onboarding && (
         <div className="stack" style={{ marginTop: 'auto' }}>
