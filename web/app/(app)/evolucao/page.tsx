@@ -7,7 +7,8 @@ import { useSessao } from '@/lib/sessao';
 import { adicionarNaCesta } from '@/lib/cesta';
 import { mostrarAviso } from '../aviso';
 
-const PERIODOS = [[30, '30 dias'], [90, '3 meses'], [180, '6 meses'], [365, '1 ano']] as const;
+// Períodos possíveis; só aparecem os menores que o histórico existente, mais "Tudo" (desde a 1ª coleta).
+const PERIODOS: [number, string][] = [[7, '7 dias'], [15, '15 dias'], [30, '30 dias'], [90, '3 meses'], [180, '6 meses'], [365, '1 ano']];
 // Uma cor fixa e diferente por mercado (antes as cores se repetiam a partir do 10º mercado: Assaí e Savegnago
 // quase iguais, Atacadão e Sumerbol iguais). A mesma rede tem sempre a mesma cor em qualquer gráfico.
 const COR_MERCADO: Record<string, string> = {
@@ -83,7 +84,25 @@ export default function Evolucao() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<Escolha | null>(null);
-  const [dias, setDias] = useState<number>(90);
+  const [dias, setDias] = useState<number>(30);
+  // dias de histórico existentes (da 1ª coleta até hoje): define os períodos oferecidos
+  const [historicoDias, setHistoricoDias] = useState<number | null>(null);
+  useEffect(() => {
+    Promise.all([
+      supabase.from('oferta_periodo').select('de').order('de').limit(1),
+      supabase.from('oferta').select('valido_de').order('valido_de').limit(1),
+    ]).then(([a, b]) => {
+      const datas = [a.data?.[0]?.de, b.data?.[0]?.valido_de].filter(Boolean) as string[];
+      if (!datas.length) return;
+      const primeira = datas.sort()[0];
+      const n = Math.max(1, Math.ceil((Date.now() - Date.parse(primeira)) / 86400000));
+      setHistoricoDias(n);
+      setDias(n);   // começa mostrando tudo o que existe
+    });
+  }, []);
+  const periodos: [number, string][] = historicoDias
+    ? [...PERIODOS.filter(([d]) => d < historicoDias), [historicoDias, `Tudo (${historicoDias} ${historicoDias === 1 ? 'dia' : 'dias'})`]]
+    : [[30, '30 dias']];
   const [series, setSeries] = useState<Serie[] | null>(null);
   const [unidade, setUnidade] = useState('');
   const [falha, setFalha] = useState('');
@@ -286,8 +305,8 @@ export default function Evolucao() {
                 : <span><b>{sel.produto.nome}</b> <span className="muted">{emb(sel.produto)}</span></span>}
               <button type="button" className="btn btn-link" onClick={() => { setSel(null); setSeries(null); }}>Trocar</button>
             </div>
-            <div className="segmentado segmentado-4" role="tablist" aria-label="Período">
-              {PERIODOS.map(([d, r]) => (
+            <div className="segmentado" role="tablist" aria-label="Período" style={{ gridTemplateColumns: `repeat(${periodos.length}, 1fr)` }}>
+              {periodos.map(([d, r]) => (
                 <button key={d} type="button" role="tab" aria-selected={dias === d} className={dias === d ? 'ativo' : ''} onClick={() => setDias(d)}>{r}</button>
               ))}
             </div>
