@@ -9,15 +9,15 @@ const display = Barlow_Condensed({ subsets: ['latin'], weight: ['600', '700', '8
 const body = Tomorrow({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-body' });
 
 export const metadata: Metadata = {
-  title: 'fast-promotions-mk',
+  title: 'Mercato',
   description: 'Notifica quando o preço do que sua família consome está bem mais em conta.',
   manifest: '/manifest.json',
   icons: { icon: '/icon-192.png', apple: '/apple-touch-icon.png' },
   // iPhone: notificações de app web só funcionam com o app adicionado à tela inicial
-  appleWebApp: { capable: true, title: 'fast-promo', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Mercato', statusBarStyle: 'default' },
 };
 
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: "#f2f8fd" };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: "#F8F9FA" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
