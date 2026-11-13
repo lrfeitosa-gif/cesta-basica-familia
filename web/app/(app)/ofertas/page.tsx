@@ -144,7 +144,7 @@ export default function Oportunidades() {
         <>
           <div className="lista">
             {opp.slice(0, POR_PAGINA).map(({ o, desc }) => (
-              <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} extra={<span className="off">−{Math.round(desc * 100)}%</span>} />
+              <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} extra={<>−{Math.round(desc * 100)}%</>} />
             ))}
           </div>
           {erro ? (
@@ -158,13 +158,13 @@ export default function Oportunidades() {
       ) : !erro && <Carregando />)}
       {dados && !modoPergunta && (
         <>
-          <div className="chips" role="group" aria-label="Filtrar por categoria">
+          <div className="chips filtro-linha" role="group" aria-label="Filtrar por categoria">
             {categorias.map((g) => (
               <button key={g} type="button" className="chip chip-cat" aria-pressed={g === cat}
                 onClick={() => { setCat(g); setLimite(POR_PAGINA); }}>{g}</button>
             ))}
           </div>
-          <div className="chips" role="group" aria-label="Filtrar por mercado">
+          <div className="chips filtro-linha" role="group" aria-label="Filtrar por mercado">
             {mercados.map((m) => (
               <button key={m} type="button" className="chip" aria-pressed={m === mercado}
                 onClick={() => { setMercado(m); setLimite(POR_PAGINA); }}>{m}</button>
@@ -186,7 +186,7 @@ export default function Oportunidades() {
           )}
           <div className="lista">
             {lista.map(({ o, desc }, i) => (
-              <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} extra={desc >= 0.01 ? <span className="off">−{Math.round(desc * 100)}%</span> : undefined} />
+              <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} extra={desc >= 0.01 ? <>−{Math.round(desc * 100)}%</> : undefined} />
             ))}
           </div>
           {filtradas.length > limite && (

@@ -732,3 +732,64 @@ body { font-family: var(--body); }
 .au-form { grid-template-columns: minmax(0, 1fr); }
 /* Ilustrações novas (13/11) já vêm no verde do Mercato: sem o filtro de cor das antigas */
 .ob-ilustra img, .au-mini-ilustra img { filter: none; }
+
+/* ===== Ofertas em cartões (CSS enviado em 13/11, 10h25) =====
+   Modo escuro com as cores exatas do CSS; modo claro com as mesmas ideias nos tons do tema Mercato. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121212; --foreground: #E0E0E0; --card: #1A1A1A; --card-foreground: #E0E0E0;
+    --primary: #2E7D32; --primary-hover: #276b2b; --primary-foreground: #FFFFFF;
+    --border: #2C2C2C; --input-bg: #333333; --ring: #81C784; --muted-foreground: #AAAAAA; --muted: #B0B0B0;
+    --secondary: #1E1E1E; --secondary-foreground: #E0E0E0; --accent-bg: #1B5E20; --accent-foreground: #81C784;
+  }
+}
+:root {
+  --chip-bg: var(--card); --chip-ink: var(--muted-foreground); --chip-borda: var(--border);
+  --preco-bg: #FFF6DB; --preco-borda: #FFC107; --preco-ink: #7A5200; --preco-de: #6C757D;
+  --desc-bg: #E3F4EC; --desc-ink: #1B5E20; --site-bg: #E0F2F1; --site-ink: #00695C;
+  --card-sombra: 0 2px 6px rgb(0 0 0 / .06); --card-borda: var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chip-bg: #1E1E1E; --chip-ink: #B0B0B0; --chip-borda: #333333;
+    --preco-bg: #2D2412; --preco-borda: #FFC107; --preco-ink: #FFC107; --preco-de: #9E9E9E;
+    --desc-bg: #1B5E20; --desc-ink: #81C784; --site-bg: #263238; --site-ink: #80CBC4;
+    --card-sombra: 0 4px 6px rgb(0 0 0 / .3); --card-borda: #2C2C2C;
+  }
+}
+
+/* filtros em uma linha, com rolagem para o lado */
+.filtro-linha { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-block: 2px; margin-inline: -16px; padding-inline: 16px;
+  scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.filtro-linha::-webkit-scrollbar { display: none; }
+.filtro-linha .chip { flex: 0 0 auto; white-space: nowrap; font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 20px;
+  background: var(--chip-bg); color: var(--chip-ink); border: 1px solid var(--chip-borda); transition: all .2s ease; }
+.filtro-linha .chip[aria-pressed="true"], .filtro-linha .chip:hover { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+
+/* lista de cartões: sem a caixa única de antes */
+.lista:has(.product-card) { background: none; border: 0; box-shadow: none; overflow: visible; gap: 12px; backdrop-filter: none; }
+.product-card { background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px; box-shadow: var(--card-sombra); }
+.product-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.product-title { font-size: 15px; font-weight: 600; line-height: 1.4; margin: 0; color: var(--foreground); min-width: 0; }
+.product-title small { font-weight: 400; color: var(--muted-foreground); }
+.price-tag-container { flex: none; background: var(--preco-bg); border: 1px solid var(--preco-borda); border-radius: 8px; padding: 8px 12px;
+  text-align: right; min-width: 110px; }
+.current-price { display: block; margin: 0; font-size: 18px; font-weight: 700; color: var(--preco-ink); font-variant-numeric: tabular-nums; }
+.old-price { display: block; font-size: 12px; color: var(--preco-de); }
+.discount-badge { display: inline-block; margin-top: 4px; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 700;
+  background: var(--desc-bg); color: var(--desc-ink); }
+.product-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--muted-foreground);
+  border-top: 1px solid var(--card-borda); padding-top: 8px; }
+.product-meta .mkt { color: var(--foreground); }
+.badge-site, .badge-encarte { padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+.badge-site { background: var(--site-bg); color: var(--site-ink); }
+.badge-encarte { background: var(--preco-bg); color: var(--preco-ink); }
+.product-actions { display: flex; gap: 8px; }
+.card-btn { font: inherit; font-size: 14px; border-radius: 8px; padding: 10px 14px; min-height: 42px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
+.card-btn-primario { flex: 1; background: var(--primary); color: var(--primary-foreground); border: 0; font-weight: 600; }
+.card-btn-primario:hover { background: var(--primary-hover); }
+.card-btn-secundario { background: transparent; color: var(--muted-foreground); border: 1px solid var(--chip-borda); font-weight: 500; }
+.product-actions .card-btn-secundario:only-child { margin-left: auto; }
+.card-btn-secundario:hover { color: var(--danger); border-color: var(--danger); }
