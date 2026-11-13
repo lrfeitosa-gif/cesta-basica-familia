@@ -35,7 +35,7 @@ import httpx
 from motor.regras import _norm as chave_marca
 from rodar_coleta import conectar, tentar
 
-APP = "https://cesta-basica-familia.vercel.app"
+APP = "https://appmercato.vercel.app"
 DESCONTO_MIN = 0.15
 DIAS_ANTISPAM = 7
 DIAS_REFERENCIA = 30

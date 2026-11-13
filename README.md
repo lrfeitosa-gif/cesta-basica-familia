@@ -2,7 +2,7 @@
 
 Avisa quando o preço do que a família consome está bem mais em conta nos mercados de Indaiatuba.
 
-- App: https://cesta-basica-familia.vercel.app
+- App: https://appmercato.vercel.app
 - Documentação completa (arquitetura, requisitos técnicos, chaves, pendências): [docs/PARTE-I-INTEGRACAO.md](docs/PARTE-I-INTEGRACAO.md)
 
 ```
