@@ -15,11 +15,10 @@ const TEXTO_PUSH: Record<EstadoPush, string> = {
 };
 
 // Como a família quer ser avisada (item 10 de 12/11): notificação no celular e/ou e-mail, uma vez por dia,
-// depois da coleta das 7h. Embaixo, os últimos avisos enviados.
+// depois da coleta das 7h. Fica num painel retrátil; o histórico dos avisos fica à parte (HistoricoAvisos).
 export default function ComoAvisar({ familiaId }: { familiaId: string }) {
   const [push, setPush] = useState<EstadoPush | null>(null);
   const [email, setEmail] = useState<boolean | null>(null);
-  const [enviados, setEnviados] = useState<Enviado[]>([]);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
 
@@ -27,9 +26,6 @@ export default function ComoAvisar({ familiaId }: { familiaId: string }) {
     estadoPush().then(setPush).catch(() => setPush('sem-suporte'));
     supabase.from('familia').select('aviso_email').eq('id', familiaId).maybeSingle()
       .then(({ data }) => setEmail(!!data?.aviso_email));
-    supabase.from('alerta').select('id,mensagem,enviado_em,canais').not('mensagem', 'is', null)
-      .order('enviado_em', { ascending: false }).limit(10)
-      .then(({ data }) => setEnviados((data as Enviado[]) ?? []));
   }, [familiaId]);
 
   const trocarPush = async () => {
@@ -47,12 +43,18 @@ export default function ComoAvisar({ familiaId }: { familiaId: string }) {
   };
   const podeLigar = push === 'ligado' || push === 'desligado';
 
+  const resumo = push === null || email === null ? 'Conferindo…'
+    : `Celular ${push === 'ligado' ? 'ligado' : 'desligado'} · E-mail ${email ? 'ligado' : 'desligado'}`;
+  const nenhum = push !== null && email !== null && push !== 'ligado' && !email;
   return (
-    <section className="card stack avisar">
-      <div>
-        <h2>Como avisar</h2>
+    <details className="pref-avisos" open={nenhum || undefined}>
+      <summary>
+        <span className="pref-ico" aria-hidden="true">🔔</span>
+        <span className="pref-titulo"><b>Preferências de aviso</b><small>{resumo}</small></span>
+        <span className="pref-seta" aria-hidden="true">▾</span>
+      </summary>
+      <div className="stack pref-corpo">
         <p className="muted">Uma vez por dia, depois da coleta das 7h, quando algum alerta tiver preço bom.</p>
-      </div>
       <label className="avisar-linha">
         <span><b>Notificação no celular</b><small>{push ? TEXTO_PUSH[push] : 'Conferindo…'}</small></span>
         <input type="checkbox" role="switch" className="chave" checked={push === 'ligado'} disabled={!podeLigar || ocupado} onChange={trocarPush} />
@@ -62,19 +64,35 @@ export default function ComoAvisar({ familiaId }: { familiaId: string }) {
         <input type="checkbox" role="switch" className="chave" checked={!!email} disabled={email === null || ocupado} onChange={trocarEmail} />
       </label>
       {erro && <div className="alert alert-error" role="alert">{erro}</div>}
-      {enviados.length > 0 && (
-        <details className="avisar-enviados">
-          <summary>Últimos avisos ({enviados.length})</summary>
-          <ul>
-            {enviados.map((a) => (
-              <li key={a.id}>
-                {a.mensagem}
-                <small className="muted"> {horaBr(a.enviado_em)}{a.canais.length ? `, por ${a.canais.join(' e ').replace('celular', 'notificação')}` : ', só no app'}</small>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </section>
+      </div>
+    </details>
+  );
+}
+
+// Histórico dos avisos enviados (últimos 10), separado das preferências e no fim da tela.
+export function HistoricoAvisos() {
+  const [enviados, setEnviados] = useState<Enviado[]>([]);
+  useEffect(() => {
+    supabase.from('alerta').select('id,mensagem,enviado_em,canais').not('mensagem', 'is', null)
+      .order('enviado_em', { ascending: false }).limit(10)
+      .then(({ data }) => setEnviados((data as Enviado[]) ?? []));
+  }, []);
+  if (!enviados.length) return null;
+  return (
+    <details className="pref-avisos historico-avisos">
+      <summary>
+        <span className="pref-ico" aria-hidden="true">🕘</span>
+        <span className="pref-titulo"><b>Últimos avisos enviados ({enviados.length})</b><small>O que chegou no celular e no e-mail</small></span>
+        <span className="pref-seta" aria-hidden="true">▾</span>
+      </summary>
+      <ul className="pref-corpo">
+        {enviados.map((a) => (
+          <li key={a.id}>
+            {a.mensagem}
+            <small className="muted"> {horaBr(a.enviado_em)}{a.canais.length ? `, por ${a.canais.join(' e ').replace('celular', 'notificação')}` : ', só no app'}</small>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

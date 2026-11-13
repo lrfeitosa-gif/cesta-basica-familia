@@ -5,7 +5,9 @@ import { useSessao } from '@/lib/sessao';
 import { brl, filtrarFoco, norm, marcaCasa, useOfertas, type Oferta } from '@/lib/ofertas';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useDistTexto } from '@/lib/locais';
-import ComoAvisar from './avisos';
+import ComoAvisar, { HistoricoAvisos } from './avisos';
+import { mostrarAviso } from '../aviso';
+import { emb } from '@/lib/ofertas';
 
 type Alerta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
 const VERSOES = [/zero alcool|sem alcool|0,0%|0.0%/, /zero lactose|sem lactose/, /diet/, /light/, /zero/];
@@ -22,9 +24,9 @@ function avaliar(a: Alerta, lista: Oferta[]) {
   achados.sort((x, y) => x.preco - y.preco);
   const melhor = achados[0];
   // com preço-alvo, o alerta dispara só quando chega no alvo; sem alvo, quando está bem abaixo do preço normal
-  const motivo = !melhor ? null
-    : a.preco_alvo != null ? (melhor.preco <= a.preco_alvo ? `abaixo do seu preço-alvo de ${brl(a.preco_alvo)}` : null)
-    : melhor.de > melhor.preco && 1 - melhor.preco / melhor.de >= DESCONTO_MIN ? `${Math.round((1 - melhor.preco / melhor.de) * 100)}% abaixo do preço normal`
+  const motivo: { tipo: 'alvo' | 'oportunidade'; texto: string } | null = !melhor ? null
+    : a.preco_alvo != null ? (melhor.preco <= a.preco_alvo ? { tipo: 'alvo', texto: `Preço-alvo atingido: ${brl(melhor.preco)} (alvo ${brl(a.preco_alvo)})` } : null)
+    : melhor.de > melhor.preco && 1 - melhor.preco / melhor.de >= DESCONTO_MIN ? { tipo: 'oportunidade', texto: `Oportunidade: ${Math.round((1 - melhor.preco / melhor.de) * 100)}% abaixo do preço normal` }
     : null;
   return { achados, melhor, motivo };
 }
@@ -48,6 +50,22 @@ export default function Alertas() {
   useEffect(() => { if (sessao) carregar(); }, [sessao]);
 
   const previa = useMemo(() => (dados && termo.trim() ? filtrarFoco(dados.lista, termo).length : null), [dados, termo]);
+  // Sugestão de preço-alvo a partir dos preços de hoje: na embalagem mais comum entre os achados (mesmo tamanho),
+  // o menor preço e o preço do meio (mediana). Ajuda a escolher um alvo realista.
+  const sugestao = useMemo(() => {
+    if (!dados || !termo.trim()) return null;
+    let l = filtrarFoco(dados.lista, termo);
+    if (marca.trim()) l = l.filter((o) => marcaCasa(o.marca, marca.trim()));
+    if (l.length < 2) return null;
+    const conta = new Map<string, Oferta[]>();
+    for (const o of l) { const k = `${o.q}${o.u}`; conta.set(k, [...(conta.get(k) ?? []), o]); }
+    const [, grupo] = [...conta.entries()].sort((x, y) => y[1].length - x[1].length)[0];
+    if (grupo.length < 2) return null;
+    const ps = grupo.map((o) => o.preco).sort((x, y) => x - y);
+    const meio = ps.length % 2 ? ps[(ps.length - 1) / 2] : (ps[ps.length / 2 - 1] + ps[ps.length / 2]) / 2;
+    return { emb: emb(grupo[0]), menor: ps[0], media: Math.round(meio * 100) / 100, n: grupo.length };
+  }, [dados, termo, marca]);
+  const usarAlvo = (v: number) => setAlvo(v.toFixed(2).replace('.', ','));
 
   const criar = async (e: FormEvent) => {
     e.preventDefault();
@@ -66,6 +84,7 @@ export default function Alertas() {
         ? 'Os alertas ainda não foram ativados no banco de dados (falta o ajuste 0004 no Supabase).'
         : 'Não foi possível salvar o alerta. Tente de novo.');
     }
+    mostrarAviso({ texto: `Alerta criado: "${termo.trim()}"${preco ? ` com alvo de ${brl(preco)}` : ''}. Avisamos quando o preço ficar bom.` });
     setTermo(''); setMarca(''); setAlvo('');
     carregar();
   };
@@ -83,12 +102,18 @@ export default function Alertas() {
     <>
       <div>
         <h1>Meus alertas</h1>
-        <p className="lead">Cadastre o que quer acompanhar. Avisamos quando o preço ficar abaixo do seu alvo, {DESCONTO_MIN * 100}% abaixo do normal ou do menor preço típico do último mês.</p>
+        <p className="lead">Cadastre o que quer acompanhar. Avisamos quando:</p>
+        <ul className="regras-alerta">
+          <li><span aria-hidden="true">🎯</span>chegar no seu preço-alvo</li>
+          <li><span aria-hidden="true">🏷️</span>ficar {DESCONTO_MIN * 100}% abaixo do normal</li>
+          <li><span aria-hidden="true">📉</span>for o menor do último mês</li>
+        </ul>
       </div>
 
       <ComoAvisar familiaId={sessao.user.id} />
 
       <form className="card stack" onSubmit={criar} noValidate>
+        <h2 className="section-title">Criar alerta</h2>
         <div className="field">
           <label htmlFor="termo">Produto</label>
           <input id="termo" className="input" placeholder="Ex.: heineken 350ml  ·  café -cápsula" autoComplete="off"
@@ -107,6 +132,13 @@ export default function Alertas() {
             <input id="alvo" className="input" inputMode="decimal" placeholder="R$ 15,90" value={alvo} onChange={(e) => setAlvo(e.target.value)} />
           </div>
         </div>
+        {sugestao && (
+          <div className="sugestao-alvo">
+            <span className="muted">Hoje, {sugestao.emb} ({sugestao.n} preços):</span>
+            <button type="button" className="chip" onClick={() => usarAlvo(sugestao.menor)}>Menor: {brl(sugestao.menor)}</button>
+            <button type="button" className="chip" onClick={() => usarAlvo(sugestao.media)}>Média: {brl(sugestao.media)}</button>
+          </div>
+        )}
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
         <button className="btn btn-primary" disabled={salvando}>{salvando ? 'Salvando…' : 'Criar alerta'}</button>
       </form>
@@ -115,7 +147,7 @@ export default function Alertas() {
         <div className="empty">Nenhum alerta ainda. Crie o primeiro acima, por exemplo &quot;arroz 5kg -integral&quot; com preço-alvo de R$ 20,00.</div>
       ) : (
         <>
-          {disparados.length > 0 && <h2>{disparados.length === 1 ? '1 alerta com oferta hoje' : `${disparados.length} alertas com oferta hoje`}</h2>}
+          <h2 className="section-title">{disparados.length ? (disparados.length === 1 ? '1 alerta com preço bom hoje' : `${disparados.length} alertas com preço bom hoje`) : `Seus alertas (${alertas.length})`}</h2>
           {avaliados.map(({ a, achados, melhor, motivo }) => (
             <section key={a.id} className={`alerta-card ${motivo ? 'alerta-on' : ''}`}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -128,7 +160,7 @@ export default function Alertas() {
                 <button type="button" className="btn-remover" onClick={() => { if (window.confirm(`Excluir o alerta "${a.termo}"?`)) remover(a.id); }}
                   aria-label={`Excluir alerta ${a.termo}`}>Excluir</button>
               </div>
-              {motivo ? <div className="alert alert-ok">Oportunidade: {motivo}</div>
+              {motivo ? <span className={`badge-alerta badge-${motivo.tipo}`}>{motivo.tipo === 'alvo' ? '🎯' : '🏷️'} {motivo.texto}</span>
                 : melhor ? <div className="muted">Ainda não chegou{a.preco_alvo != null ? ' no alvo' : ''}. Menor preço hoje: {brl(melhor.preco)} no {melhor.mercado}{a.preco_alvo != null && melhor.preco > a.preco_alvo ? ` (${brl(melhor.preco - a.preco_alvo)} acima do alvo)` : ''}.</div>
                 : <div className="muted">Nenhum preço encontrado hoje com essas palavras.</div>}
               {/* com preço-alvo, separa o que já está no alvo das outras opções (revisão de 12/11) */}
@@ -136,7 +168,7 @@ export default function Alertas() {
                 const noAlvo = a.preco_alvo != null ? achados.filter((o) => o.preco <= a.preco_alvo!) : [];
                 const outras = achados.filter((o) => !noAlvo.includes(o)).slice(0, noAlvo.length ? 2 : 3);
                 return <>
-                  {noAlvo.length > 0 && <><span className="alerta-grupo">Abaixo do seu alvo</span>
+                  {noAlvo.length > 0 && <><span className="alerta-grupo">No seu alvo</span>
                     <div className="lista">{noAlvo.slice(0, 3).map((o) => <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} />)}</div></>}
                   {outras.length > 0 && <>{noAlvo.length > 0 && <span className="alerta-grupo">Outras opções</span>}
                     <div className="lista">{outras.map((o) => <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} />)}</div></>}
@@ -146,6 +178,7 @@ export default function Alertas() {
           ))}
         </>
       )}
+      <HistoricoAvisos />
     </>
   );
 }

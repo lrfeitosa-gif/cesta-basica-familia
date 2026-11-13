@@ -1024,3 +1024,24 @@ nav.abas a[aria-current="page"] svg { background: var(--accent-bg); stroke-width
 .chip-marca { background: var(--muted-bg); color: var(--foreground); }
 .chip-selo { background: var(--accent-bg); color: var(--accent-foreground); }
 .evol-peso { flex: none; font-size: 13px; font-weight: 700; color: var(--foreground); background: var(--muted-bg); border-radius: 8px; padding: 4px 8px; font-variant-numeric: tabular-nums; }
+
+/* ===== Alertas (13/11): regras em tópicos, preferências e histórico retráteis, selos por tipo, sugestão de alvo ===== */
+.regras-alerta { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; color: var(--muted-foreground); }
+.regras-alerta li { display: flex; gap: 8px; align-items: center; }
+.pref-avisos { background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 12px 16px; }
+.pref-avisos summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; min-height: 44px; }
+.pref-avisos summary::-webkit-details-marker { display: none; }
+.pref-ico { flex: none; font-size: 20px; }
+.pref-titulo { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.pref-titulo b { font-size: 15px; }
+.pref-titulo small { font-size: 12px; color: var(--muted-foreground); }
+.pref-seta { flex: none; color: var(--muted-foreground); transition: transform .2s ease; }
+.pref-avisos[open] .pref-seta { transform: rotate(180deg); }
+.pref-corpo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--card-borda); }
+.historico-avisos ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; }
+.badge-alerta { justify-self: start; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 8px; }
+.badge-alvo { background: var(--desc-bg); color: var(--desc-ink); }
+.badge-oportunidade { background: var(--aviso-bg); color: var(--aviso-ink); }
+.sugestao-alvo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.sugestao-alvo .chip { font-size: 13px; border-color: var(--primary); color: var(--link-ink); }
+@media (prefers-reduced-motion: reduce) { .pref-seta { transition: none; } }
