@@ -1,4 +1,4 @@
-"""Coletor de encartes publicados como PDF/imagem no site do mercado (Sumerbol, Roldão).
+"""Coletor de encartes publicados como PDF/imagem no site do mercado (Sumerbol, Roldão, Revolução).
 
 Acha os arquivos na página de ofertas e passa cada um pelo extrator.
 
@@ -33,11 +33,18 @@ SITES = {
         "padrao": r"https://roldao\.com\.br/wp-content/uploads/{ano}/{mes:02d}/[^\"'\s]+\.(?:pdf|jpe?g|png)",
         "ignorar": ["Aspect-Ratio", "marcas-parceiras", "Relatorio", "ITU-"],  # ITU-: encarte de outra cidade
     },
+    "revolucao": {
+        "mercado": "Revolução",
+        # o botão "Ofertas para Indaiatuba" do site abre sempre esta imagem (assets/script.js), trocada a cada folheto
+        "arquivos": ["https://www.supermercadosrevolucao.com.br/assets/indaiatuba.jpg"],
+    },
 }
 
 
 def encartes(site: str) -> list[str]:
     cfg = SITES[site]
+    if "arquivos" in cfg:          # endereço fixo do encarte, sem página para procurar
+        return list(cfg["arquivos"])
     hoje = date.today()
     padrao = cfg["padrao"].format(ano=hoje.year, mes=hoje.month)
     html = httpx.get(cfg["pagina"], timeout=30, follow_redirects=True,

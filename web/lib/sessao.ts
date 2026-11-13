@@ -39,8 +39,12 @@ export function useSessao(obrigatoria = true) {
   useEffect(() => {
     if (sessao) { tinha.current = true; motivoSaida = ''; }
     if (obrigatoria && sessao === null) {
-      const motivo = !tinha.current || motivoSaida === 'sair' ? '' : `&motivo=${motivoSaida || 'expirou'}`;
-      router.replace(`/entrar?voltar=${encodeURIComponent(window.location.pathname)}${motivo}`);
+      // endereço limpo: /entrar sozinho quando a volta é para as ofertas (o padrão da tela de entrar)
+      const params = new URLSearchParams();
+      if (window.location.pathname !== '/ofertas') params.set('voltar', window.location.pathname);
+      if (tinha.current && motivoSaida !== 'sair') params.set('motivo', motivoSaida || 'expirou');
+      const q = params.toString();
+      router.replace(`/entrar${q ? `?${q}` : ''}`);
     }
   }, [obrigatoria, sessao, router]);
 

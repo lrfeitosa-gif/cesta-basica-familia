@@ -242,11 +242,52 @@ def _juntar(partes: list[Encarte]) -> Encarte:
                    ofertas=[o for p in partes for o in p.ofertas])
 
 
+# Encarte numa imagem só e muito grande (Revolução: um JPEG de ~7 MB): passa do limite de 5 MB da API e,
+# reduzido inteiro, os preços ficam ilegíveis. Vira faixas horizontais com sobreposição, lidas uma a uma;
+# itens repetidos na emenda das faixas saem na gravação (mesma chave, fica o menor preço).
+LIMITE_IMAGEM = 4_500_000
+LARGURA_FAIXA, ALTURA_FAIXA, SOBRA = 1800, 2200, 250
+
+
+def _fatias(dados: bytes, tipo: str) -> list[tuple[bytes, str]]:
+    if not tipo.startswith("image/"):
+        return [(dados, tipo)]
+    import io
+
+    from PIL import Image
+
+    Image.MAX_IMAGE_PIXELS = None
+    try:
+        imagem = Image.open(io.BytesIO(dados)).convert("RGB")
+    except Exception:          # não deu para abrir aqui: segue inteira, como antes
+        return [(dados, tipo)]
+    if len(dados) <= LIMITE_IMAGEM and max(imagem.size) <= 2600:
+        return [(dados, tipo)]
+    if imagem.width > LARGURA_FAIXA:
+        imagem = imagem.resize((LARGURA_FAIXA, round(imagem.height * LARGURA_FAIXA / imagem.width)), Image.LANCZOS)
+    faixas, topo = [], 0
+    while True:
+        base = min(topo + ALTURA_FAIXA, imagem.height)
+        buf = io.BytesIO()
+        imagem.crop((0, topo, imagem.width, base)).save(buf, format="JPEG", quality=88)
+        faixas.append((buf.getvalue(), "image/jpeg"))
+        if base >= imagem.height:
+            return faixas
+        topo = base - SOBRA
+
+
 def extrair(origem: str, client: anthropic.Anthropic | None = None, http: httpx.Client | None = None) -> Encarte:
     dados, tipo = _carregar(origem)
     nome = _leitor()
     if not nome:
-        return _extrair_claude(dados, tipo, client)
+        faixas = _fatias(dados, tipo)
+        if len(faixas) == 1:
+            return _extrair_claude(dados, tipo, client)
+        partes = []
+        for n, (faixa, tipo_faixa) in enumerate(faixas, 1):
+            partes.append(_extrair_claude(faixa, tipo_faixa, client))
+            print(f"  faixa {n}/{len(faixas)}: {len(partes[-1].ofertas)} ofertas", file=sys.stderr, flush=True)
+        return _juntar(partes)
     ler, _, rotulo = LEITORES[nome]
     partes, http = [], http or httpx.Client()
     for n, (pagina, tipo_pagina) in enumerate(_paginas(dados, tipo), 1):
