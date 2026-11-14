@@ -9,8 +9,9 @@ import { useDistTexto } from '@/lib/locais';
 import Fontes from '../fontes';
 import BoasVindas from '../boas-vindas';
 import PrimeirosPassos from '../primeiros-passos';
-import PerguntaIA, { parecePergunta } from './pergunta-ia';
+import PerguntaIA from './pergunta-ia';
 import LinhaRolagem from '../linha-rolagem';
+import ComparativoMercados, { OutrasFormas } from '../comparativo-mercados';
 
 // Fora das oportunidades: ração e destilados (bebidas do dia a dia, como cerveja, continuam)
 const RUIDO = /racao|caes|gatos|whisky|vodka|gin /;
@@ -19,6 +20,9 @@ const POR_PAGINA = 10;
 // Exemplos tocáveis abaixo da busca: ensinam que dá para perguntar à IA.
 const EXEMPLOS_IA = ['Qual o café mais barato?', 'Põe 2 arroz 5 kg na cesta', 'Me avise quando o feijão baixar'];
 
+// Tela Preços (14/11): Ofertas e Comparar numa só. Sem busca, os maiores descontos do dia; com busca, o menor preço por
+// quilo de cada mercado e todos os preços. A IA só responde pelo botão "Perguntar" (antes, frases com cara de pergunta
+// iam sozinhas para a IA e mostravam só 3 resultados).
 export default function Oportunidades() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const familiaId = useSessao()?.user.id;
@@ -72,7 +76,10 @@ export default function Oportunidades() {
   // Preço do quilo não se compara com preço da unidade: a medida mais comum nos resultados vem primeiro
   // (é dela o "Mais barato"); as outras medidas aparecem depois, cada uma do menor para o maior.
   // pergunta em linguagem natural ("qual o café mais barato?"): vai para a IA, não para a busca por palavras
-  const modoPergunta = !!q.trim() && (forcarIA || parecePergunta(q));
+  const modoPergunta = !!q.trim() && forcarIA;
+  // ?q= vindo de outra tela (Comparar antigo, links): já abre com a busca
+  useEffect(() => { const v = new URLSearchParams(window.location.search).get('q'); if (v) setQ(v); }, []);
+  const buscarTexto = (t: string) => { setQ(t); setForcarIA(false); setCat('Todas'); setMercado('Todos'); setLimite(POR_PAGINA); };
   const perguntarAgora = (texto?: string) => {
     const t = texto ?? q;
     if (texto !== undefined) setQ(texto);
@@ -92,15 +99,14 @@ export default function Oportunidades() {
   const mercados = ['Todos', ...(dados?.mercados ?? []).filter((m) => base.some((x) => x.o.mercado === m))];
   const filtradas = base.filter((x) => mercado === 'Todos' || x.o.mercado === mercado);
   const lista = filtradas.slice(0, limite);
-  const melhor = busca ? filtradas[0]?.o : undefined;
 
   return (
     <>
       <BoasVindas familiaId={familiaId} aoFechar={() => setBvFechou((n) => n + 1)} />
       <div>
-        <h1>Ofertas de hoje</h1>
+        <h1>Preços de hoje</h1>
         <p className="lead">
-          Os maiores descontos de hoje, comparados ao preço normal de cada mercado
+          {q.trim() ? 'Do menor para o maior preço por quilo, litro ou unidade' : 'Os maiores descontos de hoje, comparados ao preço normal de cada mercado'}
           {dados && <> · {dados.lista.length.toLocaleString('pt-BR')} preços de {dados.mercados.length} mercados em {dataBr(dados.dia)}</>}.
         </p>
       </div>
@@ -108,8 +114,8 @@ export default function Oportunidades() {
         <label htmlFor="busca" className="visually-hidden">Buscar produto ou perguntar à IA</label>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input id="busca" className="input" type="search" autoComplete="off" enterKeyHint="search"
-          placeholder="Buscar produto ou perguntar"
-          value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); if (!e.target.value.trim()) setForcarIA(false); }} />
+          placeholder="Buscar produto: arroz 5kg, café pilão"
+          value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); setForcarIA(false); if (e.target.value.trim()) { setCat('Todas'); setMercado('Todos'); } }} />
         <button type="button" className="btn-ia" onClick={() => perguntarAgora()} aria-label="Perguntar à IA">✨ Perguntar</button>
       </form>
       {!q.trim() && (
@@ -122,11 +128,11 @@ export default function Oportunidades() {
       {sugestoes.length > 0 && (
         <div className="chips sugestoes" role="group" aria-label="Sugestões de busca">
           {sugestoes.map((n) => (
-            <button key={n} type="button" className="chip" onClick={() => { setQ(n); setLimite(POR_PAGINA); }}>{n}</button>
+            <button key={n} type="button" className="chip" onClick={() => buscarTexto(n)}>{n}</button>
           ))}
         </div>
       )}
-      {modoPergunta && <PerguntaIA pergunta={q.trim()} dados={dados} familiaId={familiaId} distTxt={distTxt} pedido={pedido} />}
+      {modoPergunta && <PerguntaIA pergunta={q.trim()} dados={dados} familiaId={familiaId} distTxt={distTxt} pedido={pedido} aoBuscar={buscarTexto} />}
       {q.trim() && !modoPergunta && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando &quot;{q.trim()}&quot; em todos os preços de hoje…</p>
       )}
@@ -134,9 +140,9 @@ export default function Oportunidades() {
       {!q && <PrimeirosPassos familiaId={familiaId} versao={bvFechou} />}
 
       {semNotas && !q && (
-        <Link href="/notas" className="convite">
-          <b>Envie suas notas fiscais</b>
-          <span>Envie suas notas para facilitar a composição da cesta, a comparação de preços e a criação de notificações.</span>
+        <Link href="/compra?ver=lista" className="convite">
+          <b>Monte a cesta pela nota da última compra</b>
+          <span>Na Cesta, fotografe a nota fiscal: os itens viram a sua lista e você vê onde sai mais barato hoje.</span>
         </Link>
       )}
 
@@ -159,12 +165,16 @@ export default function Oportunidades() {
       ) : !erro && <Carregando />)}
       {dados && !modoPergunta && (
         <>
-          <LinhaRolagem rotulo="Filtrar por categoria">
-            {categorias.map((g) => (
-              <button key={g} type="button" className="chip chip-cat" aria-pressed={g === cat}
-                onClick={() => { setCat(g); setLimite(POR_PAGINA); }}>{g}</button>
-            ))}
-          </LinhaRolagem>
+          {!busca && (
+            <LinhaRolagem rotulo="Filtrar por categoria">
+              {categorias.map((g) => (
+                <button key={g} type="button" className="chip chip-cat" aria-pressed={g === cat}
+                  onClick={() => { setCat(g); setLimite(POR_PAGINA); }}>{g}</button>
+              ))}
+            </LinhaRolagem>
+          )}
+          {busca && <OutrasFormas lista={dados.lista} consulta={q} aoEscolher={buscarTexto} />}
+          {busca && mercado === 'Todos' && <ComparativoMercados todos={busca} distTxt={distTxt} />}
           <LinhaRolagem rotulo="Filtrar por mercado">
             {mercados.map((m) => (
               <button key={m} type="button" className="chip" aria-pressed={m === mercado}
@@ -174,20 +184,12 @@ export default function Oportunidades() {
           {busca && !filtradas.length && (
             <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
           )}
-          {melhor && (
-            <div className="destaque">
-              <span className="muted">
-                Mais barato pelo preço do {melhor.ub === 'un' ? 'item' : melhor.ub === 'l' ? 'litro' : 'quilo'} · {filtradas.length} preços encontrados
-                {filtradas.some((x) => x.o.ub !== melhor.ub) && ` (os vendidos por ${melhor.ub === 'un' ? 'peso ou volume' : 'outra medida'} aparecem no fim)`}
-              </span>
-              <span className="grande">{brl(melhor.preco)}</span>
-              <span>{melhor.nome} no <b>{melhor.mercado}</b>{distTxt(melhor.mercado) && <span className="dist"> · 📍 {distTxt(melhor.mercado)}</span>}</span>
-              <span className="muted">{brl(melhor.porUn)}/{melhor.ub}</span>
-            </div>
+          {busca && filtradas.length > 0 && (
+            <h2 className="section-title">Todos os preços <small className="muted">· {filtradas.length} {filtradas.length === 1 ? 'encontrado' : 'encontrados'}{filtradas.some((x) => x.o.ub !== filtradas[0].o.ub) ? '; os vendidos por outra medida vêm no fim' : ''}</small></h2>
           )}
           <div className="lista">
             {lista.map(({ o, desc }, i) => (
-              <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} extra={desc >= 0.01 ? <>−{Math.round(desc * 100)}%</> : undefined} />
+              <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} termo={busca ? q.trim() : undefined} extra={desc >= 0.01 ? <>−{Math.round(desc * 100)}%</> : undefined} />
             ))}
           </div>
           {filtradas.length > limite && (

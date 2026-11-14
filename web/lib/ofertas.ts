@@ -328,26 +328,53 @@ function partesDaBusca(lista: Oferta[], consulta: string): { termos: string[][];
 
 // Exclusões da busca cadastradas na Administração (tabela exclusao_busca, migração 0029): quem busca o termo
 // não vê produtos com a palavra excluída, a menos que a escreva na busca. Ex.: "heineken" sem "Sol (Grupo Heineken)".
-export type Exclusao = { id?: number; termo: string; excluir: string };
+export type Exclusao = { id?: number; termo: string; excluir: string; opcao?: boolean };
 let EXCLUSOES: Exclusao[] = [];
 let exclusoesCarregadas: Promise<void> | null = null;
 export function carregarExclusoes(forcar = false): Promise<void> {
   if (!exclusoesCarregadas || forcar) {
     exclusoesCarregadas = (async () => {
-      const { data } = await supabase.from('exclusao_busca').select('id,termo,excluir');
+      // opcao (0030): a palavra também vira botão "Também tem"; antes da migração, lê sem a coluna
+      const r = await supabase.from('exclusao_busca').select('id,termo,excluir,opcao');
+      const data: unknown[] | null = r.error ? (await supabase.from('exclusao_busca').select('id,termo,excluir')).data : r.data;
       EXCLUSOES = ((data ?? []) as Exclusao[]).map((x) => ({ ...x, termo: norm(x.termo).trim(), excluir: norm(x.excluir).trim() }));
     })().catch(() => { exclusoesCarregadas = null; });
   }
   return exclusoesCarregadas ?? Promise.resolve();
 }
 export const temPalavra = (texto: string, palavra: string) => ` ${texto.replace(/[^a-z0-9]+/g, ' ')} `.includes(` ${palavra.replace(/[^a-z0-9]+/g, ' ').trim()} `);
+// Palavra no singular ou no plural ("capsula" acha "capsulas"; "grao" acha "graos" e "grãos"): usada nas regras da busca.
+const formasDa = (p: string) => { const b = p.replace(/(oe|ae)s$/, 'ao').replace(/s$/, ''); return [b, `${b}s`, b.replace(/ao$/, 'aos'), b.replace(/ao$/, 'oes')]; };
+export const temForma = (texto: string, palavra: string) => formasDa(palavra).some((f) => temPalavra(texto, f));
 
 // Filtro composto: todas as palavras precisam aparecer; as marcadas com "-" ficam de fora.
 export function filtrar(lista: Oferta[], consulta: string): Oferta[] {
   const { termos, fora } = partesDaBusca(lista, consulta);
   if (!termos.length) return [];
   const q = norm(consulta);
-  const regras = EXCLUSOES.filter((x) => temPalavra(q, x.termo) && !temPalavra(q, x.excluir));
+  const regras = EXCLUSOES.filter((x) => temPalavra(q, x.termo) && !temForma(q, x.excluir));
   return lista.filter((o) => termos.every((vs) => vs.some((t) => o.busca.includes(t))) && !fora.some((t) => o.busca.includes(t))
-    && !regras.some((x) => temPalavra(o.busca, x.excluir)));
+    && !regras.some((x) => temForma(o.busca, x.excluir)));
+}
+
+// "Forma de sempre" (0030): regras com opcao = true tiram da busca as outras formas do produto (café → sem cápsula,
+// solúvel e grãos), mas a tela oferece cada uma como botão. Devolve, para a busca, as formas que têm preço hoje,
+// com o mais barato de cada uma (pela medida mais comum da forma).
+export type OutraForma = { palavra: string; busca: string; n: number; melhor: Oferta };
+export function outrasFormas(lista: Oferta[], consulta: string): OutraForma[] {
+  const q = norm(consulta);
+  if (!q.trim()) return [];
+  const vistas = new Set<string>();
+  const out: OutraForma[] = [];
+  for (const x of EXCLUSOES) {
+    if (!x.opcao || !temPalavra(q, x.termo) || temForma(q, x.excluir)) continue;
+    const chave = formasDa(x.excluir)[0];
+    if (vistas.has(chave)) continue;
+    const busca = `${consulta.trim()} ${x.excluir}`;
+    const achados = ordenarPorMedida(filtrarFoco(lista, busca));
+    if (!achados.length) continue;
+    vistas.add(chave);
+    out.push({ palavra: x.excluir, busca, n: achados.length, melhor: achados[0] });
+  }
+  return out.sort((a, b) => b.n - a.n);
 }

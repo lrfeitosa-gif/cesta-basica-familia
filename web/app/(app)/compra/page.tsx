@@ -9,6 +9,9 @@ import Enderecos from './enderecos';
 import { registrar } from '@/lib/eventos';
 import { CHAVE_CESTA } from '../primeiros-passos';
 import { garantirDonoDaCesta } from '@/lib/cesta';
+import EnviarNota from '../enviar-nota';
+import { mostrarAviso } from '../aviso';
+import Link from 'next/link';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
@@ -256,7 +259,7 @@ export default function MinhaCompra() {
     const { data } = await q.order('data', { ascending: false }).order('id', { ascending: false }).limit(1);
     setAba('lista');
     const itensNota = (data?.[0]?.itens ?? []) as { descricao_nota: string; quantidade: number }[];
-    if (!itensNota.length) return setAvisoNota('Nenhuma nota enviada ainda. Envie uma na aba Notas.');
+    if (!itensNota.length) return setAvisoNota('Nenhuma nota enviada ainda. Fotografe uma nota acima.');
     const lista = dados?.lista ?? [];
     const vocab = new Map<string, number>();
     for (const o of lista) for (const w of norm(o.nome).split(/[^a-z]+/)) if (w.length >= 3) vocab.set(w, (vocab.get(w) ?? 0) + 1);
@@ -308,6 +311,50 @@ export default function MinhaCompra() {
     usarNota(id);
   }, [dados, sessao]);   // eslint-disable-line react-hooks/exhaustive-deps
   const trocarHorti = (id: string, horti: boolean) => salvarExtras(extras.map((x) => (x.id === id ? { ...x, horti } : x)));
+  // Alertas na própria cesta (14/11, no lugar da aba Alertas): o sino do item cria um alerta com preço-alvo.
+  // O alerta guarda as palavras do item (as mesmas da busca) e a marca fixada, se houver.
+  type AlertaCesta = { id: number; termo: string; marca: string | null; preco_alvo: number | null };
+  const [alertas, setAlertas] = useState<AlertaCesta[]>([]);
+  const [sinoAberto, setSinoAberto] = useState<string | null>(null);
+  const [alvoTxt, setAlvoTxt] = useState('');
+  useEffect(() => {
+    if (!sessao) return;
+    supabase.from('item_interesse').select('id,termo,marca,preco_alvo').not('termo', 'is', null)
+      .then(({ data }) => setAlertas((data ?? []) as AlertaCesta[]));
+  }, [sessao]);
+  const termoDoItem = (c: ItemCesta) => (c.termo ?? (c.inc ?? []).join(' ')).trim();
+  const alertaDoItem = (c: ItemCesta) => alertas.find((a) => norm(a.termo).trim() === norm(termoDoItem(c)));
+  const abrirSino = (c: ItemCesta, sugestao?: number) => {
+    if (sinoAberto === c.id) return setSinoAberto(null);
+    const a = alertaDoItem(c);
+    const base = a?.preco_alvo ?? (sugestao ? Math.floor(sugestao * 0.95 * 10) / 10 : null);
+    setAlvoTxt(base ? base.toFixed(2).replace('.', ',') : '');
+    setSinoAberto(c.id);
+  };
+  const salvarAlerta = async (c: ItemCesta) => {
+    if (!sessao) return;
+    const preco = alvoTxt.trim() ? Number(alvoTxt.replace(/\./g, '').replace(',', '.')) : null;
+    if (alvoTxt.trim() && (!preco || preco <= 0)) return mostrarAviso({ texto: 'Preço-alvo inválido. Use só números, como 15,90.' });
+    await supabase.rpc('garantir_familia');
+    const existente = alertaDoItem(c);
+    const marca = marcas[c.id] ? (marcasDe(c.id).find((m) => m.chave === marcaCompacta(marcas[c.id]))?.nome ?? marcas[c.id]) : null;
+    const { data, error } = existente
+      ? await supabase.from('item_interesse').update({ preco_alvo: preco, marca }).eq('id', existente.id).select('id,termo,marca,preco_alvo').single()
+      : await supabase.from('item_interesse').insert({ familia_id: sessao.user.id, termo: termoDoItem(c), marca, preco_alvo: preco, origem: 'manual' })
+        .select('id,termo,marca,preco_alvo').single();
+    if (error || !data) return mostrarAviso({ texto: 'Não foi possível salvar o alerta agora. Tente de novo.' });
+    setAlertas((l) => [...l.filter((a) => a.id !== data.id), data as AlertaCesta]);
+    setSinoAberto(null);
+    mostrarAviso({ texto: `Alerta de ${c.rotulo}${preco ? ` até ${brl(preco)}` : ''} salvo. Os avisos chegam como você escolheu em Meus dados.` });
+  };
+  const removerAlerta = async (c: ItemCesta) => {
+    const a = alertaDoItem(c);
+    if (!a) return;
+    await supabase.from('item_interesse').delete().eq('id', a.id);
+    setAlertas((l) => l.filter((x) => x.id !== a.id));
+    setSinoAberto(null);
+  };
+
   const remover = (id: string) => {
     salvarExtras(extras.filter((x) => x.id !== id));
     const n = { ...sel }; delete n[id]; mudar(n);
@@ -761,9 +808,10 @@ export default function MinhaCompra() {
 
       {aba === 'lista' && <>
       {sessao && (
-        <div className="card stack">
-          <button type="button" className="btn btn-secondary" onClick={() => usarNota()}>Usar os itens da nota mais recente</button>
-          <span className="muted">Adiciona os itens da sua última nota à lista ou substitui a lista. Para usar outra nota, abra Notas e toque em &quot;Usar na cesta&quot;.</span>
+        <section className="card stack cesta-nota" aria-label="Montar a cesta pela nota fiscal">
+          <h2 className="section-title">Montar pela nota da compra</h2>
+          <EnviarNota textoBotao="Ler a nota e montar a cesta" aoLer={(id) => usarNota(id)} />
+          <button type="button" className="btn btn-link" onClick={() => usarNota()}>Usar de novo a última nota enviada</button>
           {notaPendente && (
             <div className="alert stack" role="group" aria-label="Como usar a nota">
               <span>Sua lista já tem {Object.keys(sel).length} itens. O que fazer com eles?</span>
@@ -773,8 +821,10 @@ export default function MinhaCompra() {
             </div>
           )}
           {avisoNota && <div className="alert alert-ok" role="status">{avisoNota}</div>}
-        </div>
+          <Link href="/notas" className="muted cesta-nota-link">Ver as notas enviadas</Link>
+        </section>
       )}
+      <h2 className="section-title">Itens da cesta <small className="muted">· toque no sino para receber alerta de preço</small></h2>
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>
@@ -814,7 +864,30 @@ export default function MinhaCompra() {
                   <span>{sel[c.id]}{kgs.has(c.id) ? ' kg' : ''}</span>
                   <button type="button" aria-label={`Mais ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: sel[c.id] + 1 })}>+</button>
                 </>}
+                {sessao && (
+                  <button type="button" className={`sino${alertaDoItem(c) ? ' ligado' : ''}`} aria-expanded={sinoAberto === c.id}
+                    aria-label={alertaDoItem(c) ? `Alerta de ${c.rotulo} ligado: mudar` : `Criar alerta para ${c.rotulo}`}
+                    onClick={() => abrirSino(c, menor && v(c, menor))}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+                  </button>
+                )}
               </div>
+              {(sinoAberto === c.id || alertaDoItem(c)) && (() => {
+                const a = alertaDoItem(c);
+                return sinoAberto === c.id ? (
+                  <form className="alvo-item" onSubmit={(e) => { e.preventDefault(); salvarAlerta(c); }}>
+                    <label htmlFor={`alvo-${c.id}`}>Avisar quando chegar a R$</label>
+                    <input id={`alvo-${c.id}`} className="input" inputMode="decimal" placeholder="sem alvo" value={alvoTxt} onChange={(e) => setAlvoTxt(e.target.value)} />
+                    <button className="btn btn-primary">{a ? 'Salvar' : 'Criar alerta'}</button>
+                    {a && <button type="button" className="btn btn-link" onClick={() => removerAlerta(c)}>Desligar alerta</button>}
+                    <span className="help">Sem preço-alvo, avisamos quando ficar 15% abaixo do normal.</span>
+                  </form>
+                ) : a && (
+                  <button type="button" className="alvo-resumo" onClick={() => abrirSino(c)}>
+                    Alerta ligado{a.preco_alvo != null ? ` · até ${brl(a.preco_alvo)}` : ' · 15% abaixo do normal'}{a.marca ? ` · ${a.marca}` : ''}
+                  </button>
+                );
+              })()}
               <div className="meta">
                 {menor
                   ? <span>{kgs.has(c.id) ? menor.nome : menor.marca || 'Sem marca'} · <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span></span>
