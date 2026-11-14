@@ -1,9 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { sairDoApp, useSessao } from '@/lib/sessao';
+import { brl } from '@/lib/ofertas';
+import ComoAvisar, { HistoricoAvisos } from '../alertas/avisos';
 
 // Meus dados: o que o app guarda sobre a pessoa, com exportação e exclusão da conta.
 export default function Conta() {
@@ -13,6 +15,22 @@ export default function Conta() {
   const [confirma, setConfirma] = useState('');
   const [erro, setErro] = useState('');
   const [senha, setSenha] = useState('');
+  // Alertas (14/11): a aba Alertas saiu; o jeito de receber, a lista e o histórico dos avisos ficam aqui.
+  // Os alertas são criados no sino da Cesta ou dos cartões de preço.
+  const [alertas, setAlertas] = useState<{ id: number; termo: string; marca: string | null; preco_alvo: number | null }[] | null>(null);
+  const [notas, setNotas] = useState<number | null>(null);
+  useEffect(() => {
+    if (!sessao) return;
+    supabase.from('item_interesse').select('id,termo,marca,preco_alvo').not('termo', 'is', null).order('criado_em', { ascending: false })
+      .then(({ data }) => setAlertas(data ?? []));
+    supabase.from('compra').select('id', { count: 'exact', head: true }).in('origem', ['nota', 'foto']).then(({ count }) => setNotas(count ?? 0));
+    if (window.location.hash === '#avisos') setTimeout(() => document.getElementById('avisos')?.scrollIntoView({ behavior: 'smooth' }), 300);
+  }, [sessao]);
+  const removerAlerta = async (id: number, termo: string) => {
+    if (!window.confirm(`Desligar o alerta "${termo}"?`)) return;
+    await supabase.from('item_interesse').delete().eq('id', id);
+    setAlertas((l) => (l ?? []).filter((a) => a.id !== id));
+  };
 
   const exportar = async () => {
     setBaixando(true);
@@ -64,8 +82,37 @@ export default function Conta() {
     <>
       <div>
         <h1>Meus dados</h1>
-        <p className="lead">Tudo o que o app guarda sobre você.</p>
+        <p className="lead">Alertas, notas enviadas e tudo o que o app guarda sobre você.</p>
       </div>
+
+      <section className="stack" id="avisos">
+        <h2 className="section-title">Como receber os alertas</h2>
+        <ComoAvisar familiaId={sessao.user.id} />
+      </section>
+
+      <section className="card stack">
+        <h2>Alertas ligados{alertas ? ` (${alertas.length})` : ''}</h2>
+        {alertas === null ? <span className="muted">Carregando…</span> : !alertas.length ? (
+          <span className="muted">Nenhum alerta. Toque no sino de um item da Cesta, ou de um preço, para criar.</span>
+        ) : (
+          <ul className="alertas-conta">
+            {alertas.map((a) => (
+              <li key={a.id}>
+                <span><b>{a.termo}</b><small className="muted">{a.marca ? ` · ${a.marca}` : ''} · {a.preco_alvo != null ? `até ${brl(a.preco_alvo)}` : '15% abaixo do normal'}</small></span>
+                <button type="button" className="btn-remover" onClick={() => removerAlerta(a.id, a.termo)}>desligar</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <span className="muted">Para mudar o preço-alvo, toque no sino do item na Cesta. <Link href="/alertas">Ver como estão os alertas hoje</Link></span>
+      </section>
+
+      <HistoricoAvisos />
+
+      <Link href="/notas" className="card row conta-link">
+        <span><b>Notas enviadas</b>{notas !== null && <small className="muted"> · {notas} {notas === 1 ? 'nota' : 'notas'}</small>}</span>
+        <span aria-hidden="true">→</span>
+      </Link>
 
       <section className="card stack">
         <h2>O que guardamos</h2>

@@ -83,6 +83,8 @@ const IconeTendencia = () => (
 export default function Evolucao() {
   const { dados, erro, tentarDeNovo } = useOfertas();
   const [q, setQ] = useState('');
+  // "Ver histórico completo" no cartão do produto (14/11) abre já com a busca: /evolucao?q=café pilão
+  useEffect(() => { const v = new URLSearchParams(window.location.search).get('q'); if (v) setQ(v); }, []);
   const [sel, setSel] = useState<Escolha | null>(null);
   const [dias, setDias] = useState<number>(30);
   // dias de histórico existentes (da 1ª coleta até hoje): define os períodos oferecidos
@@ -123,7 +125,7 @@ export default function Evolucao() {
     if (!window.confirm(`Criar alerta para "${termo}"${marca ? `, marca ${marca}` : ''}? Avisamos quando ficar 15% abaixo do normal ou no menor preço do mês.`)) return;
     await supabase.rpc('garantir_familia');
     const { error } = await supabase.from('item_interesse').insert({ familia_id: sessao.user.id, termo, marca, preco_alvo: null, origem: 'manual' });
-    mostrarAviso({ texto: error ? 'Não foi possível criar o alerta agora. Tente pela tela Alertas.' : `Alerta criado para "${termo}". Para pôr um preço-alvo, abra Alertas.` });
+    mostrarAviso({ texto: error ? 'Não foi possível criar o alerta agora. Tente de novo.' : `Alerta criado para "${termo}". Para pôr um preço-alvo, toque no sino do item na Cesta.` });
   };
 
   useEffect(() => {
@@ -222,7 +224,7 @@ export default function Evolucao() {
   return (
     <>
       <div>
-        <h1>Evolução de preços</h1>
+        <h1>Histórico de preços</h1>
         <p className="lead">Veja como o preço de um item mudou em cada mercado, desde o início das coletas.</p>
       </div>
 

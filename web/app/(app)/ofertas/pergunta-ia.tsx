@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { brl, filtrarFoco, marcaCasa, type Oferta, type Ofertas } from '@/lib/ofertas';
+import { brl, filtrarFoco, marcaCasa, ordenarPorMedida, type Oferta, type Ofertas } from '@/lib/ofertas';
 import { adicionarNaCesta } from '@/lib/cesta';
 import LinhaOferta from '../linha-oferta';
+import { OutrasFormas } from '../comparativo-mercados';
 
 type Interpretacao = {
   intencao: 'buscar' | 'cesta' | 'alerta' | 'outro'; busca: string; marca: string | null; mercado: string | null;
@@ -18,8 +19,9 @@ export const parecePergunta = (t: string) => /\?\s*$/.test(t)
 
 // Pergunta à IA (Groq): ela só traduz a pergunta em busca; os preços e a resposta saem dos dados de hoje do app.
 // Pôr na cesta e criar alerta sempre pedem confirmação.
-export default function PerguntaIA({ pergunta, dados, familiaId, distTxt, pedido = 0 }: {
+export default function PerguntaIA({ pergunta, dados, familiaId, distTxt, pedido = 0, aoBuscar }: {
   pergunta: string; dados: Ofertas | null; familiaId?: string; distTxt: (m: string) => string | null; pedido?: number;
+  aoBuscar?: (busca: string) => void;
 }) {
   const [estado, setEstado] = useState<'' | 'pensando' | 'erro'>('');
   const [erro, setErro] = useState('');
@@ -42,9 +44,10 @@ export default function PerguntaIA({ pergunta, dados, familiaId, distTxt, pedido
     if (i.marca) achados = achados.filter((o) => marcaCasa(o.marca, i.marca!));
     if (i.mercado) achados = achados.filter((o) => o.mercado === i.mercado);
     const desc = (o: Oferta) => (o.de > o.preco ? 1 - o.preco / o.de : 0);
-    achados.sort(i.ordenar === 'desconto' ? (a, b) => desc(b) - desc(a)
-      : i.ordenar === 'preco' ? (a, b) => a.preco - b.preco
-      : (a, b) => (a.ub === b.ub ? a.porUn - b.porUn : 0) || a.preco - b.preco);
+    // "mais barato" compara pela medida mais comum (quilo com quilo): cápsula por unidade não disputa com café em pó
+    if (i.ordenar === 'desconto') achados.sort((a, b) => desc(b) - desc(a));
+    else if (i.ordenar === 'preco') achados.sort((a, b) => a.preco - b.preco);
+    else achados = ordenarPorMedida(achados);
     setR({ i, achados, feita: pergunta }); setEstado('');
   };
 
@@ -63,7 +66,7 @@ export default function PerguntaIA({ pergunta, dados, familiaId, distTxt, pedido
     const { error } = await supabase.from('item_interesse').insert({
       familia_id: familiaId, termo: r.i.busca, marca: r.i.marca, preco_alvo: alvo, origem: 'manual',
     });
-    setAviso(error ? 'Não foi possível criar o alerta agora. Tente pela tela Alertas.' : 'Alerta criado. Você recebe o aviso quando o preço ficar bom.');
+    setAviso(error ? 'Não foi possível criar o alerta agora. Tente de novo.' : 'Alerta criado. Você recebe o aviso quando o preço ficar bom.');
   };
 
   // pedido vindo da tela (botão "Perguntar", exemplo ou Enter): pergunta sozinho, assim que os preços estiverem carregados
@@ -99,7 +102,11 @@ export default function PerguntaIA({ pergunta, dados, familiaId, distTxt, pedido
               {' '}<span className="muted">{atual.achados.length} {atual.achados.length === 1 ? 'preço encontrado' : 'preços encontrados'} para &quot;{atual.i.busca}&quot;{atual.i.marca ? `, ${atual.i.marca}` : ''}.</span>
             </p>
           )}
-          {melhor && <div className="lista">{atual.achados.slice(0, 3).map((o) => <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} />)}</div>}
+          {melhor && aoBuscar && dados && atual.i.busca && <OutrasFormas lista={dados.lista} consulta={atual.i.busca} aoEscolher={aoBuscar} />}
+          {melhor && <div className="lista">{atual.achados.slice(0, 3).map((o) => <LinhaOferta key={o.id} o={o} dist={distTxt(o.mercado)} termo={atual.i.busca} />)}</div>}
+          {melhor && aoBuscar && atual.achados.length > 3 && (
+            <button type="button" className="btn btn-link" onClick={() => aoBuscar([atual.i.busca, atual.i.marca].filter(Boolean).join(' '))}>Ver todos os {atual.achados.length} preços</button>
+          )}
           <div className="row">
             {atual.i.intencao === 'cesta' && <button type="button" className="btn btn-primary" onClick={confirmarCesta}>Pôr {atual.i.quantidade ?? 1}× na cesta</button>}
             {atual.i.intencao === 'alerta' && <button type="button" className="btn btn-primary" onClick={confirmarAlerta}>Criar alerta</button>}

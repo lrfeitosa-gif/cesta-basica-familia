@@ -1154,3 +1154,58 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .selo-menor { flex: none; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--destaque-escuro); color: #FFFFFF; white-space: nowrap; }
 @media (prefers-color-scheme: dark) { .selo-menor { color: #1A0A00; } }
 .selo-dif { border-radius: 999px; font-size: 11px; }
+
+/* ===== Navegação nova (14/11): abas Preços e Cesta no topo, sem a barra de baixo ===== */
+.abas-topo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-lg);
+  background: var(--card); border: 1px solid var(--card-borda); position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4;
+  margin-top: -8px; box-shadow: var(--card-sombra); }
+.abas-topo a { display: grid; place-items: center; min-height: 44px; border-radius: 12px; font-weight: 600; font-size: 15px;
+  color: var(--muted-foreground); text-decoration: none; }
+.abas-topo a[aria-current="page"] { background: var(--primary); color: var(--primary-foreground); }
+.abas-topo a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.app { padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
+.cta-fixo { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+.app:has(.cta-fixo) { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+.aviso { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+
+/* Cartão de preço: ações (Pôr na cesta, sino, Ver histórico) e links menores */
+.product-actions .card-btn-secundario { color: var(--foreground); }
+.card-btn-sino { flex: none; width: 46px; padding: 0; }
+.card-btn-sino svg, .sino svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.card-btn-sino.ativo, .sino.ligado { background: var(--destaque-claro); border-color: var(--destaque-escuro); color: var(--destaque-escuro); }
+.product-links { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.product-links a, .product-links button { font: inherit; color: var(--link-ink); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: none; }
+.product-links button { color: var(--muted-foreground); }
+.product-links button:only-child { margin-left: auto; }
+.alerta-rapido { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; align-items: center; background: var(--destaque-claro);
+  border-radius: 12px; padding: 10px 12px; font-size: 13px; color: var(--foreground); }
+.alerta-rapido .input { min-height: 40px; padding: 6px 10px; }
+.alerta-rapido .card-btn { grid-column: 1 / -1; }
+.alerta-rapido .muted { grid-column: 1 / -1; font-size: 12px; }
+.hist-mini { display: grid; gap: 6px; background: var(--muted-bg); border-radius: 12px; padding: 10px 12px; font-size: 12px; }
+.hist-resumo { font-size: 13px; color: var(--foreground); }
+.hist-link { color: var(--link-ink); font-weight: 600; text-decoration: none; font-size: 13px; }
+
+/* "Também tem" (forma de sempre) */
+.outras-formas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.chip-forma { border: 1px solid var(--chip-borda); background: var(--card); color: var(--foreground); }
+.chip-forma small { color: var(--muted-foreground); }
+
+/* Cesta: nota no topo e sino por item */
+.cesta-nota .section-title { margin: 0; }
+.cesta-nota .btn-link { justify-self: center; }
+.cesta-nota-link { justify-self: center; font-size: 13px; }
+.sino { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted-foreground);
+  display: grid; place-items: center; cursor: pointer; margin-left: 4px; }
+.lista.cesta .alvo-item, .lista.cesta .alvo-resumo { grid-column: 2 / -1; }
+.alvo-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--destaque-claro); border-radius: 12px; padding: 8px 10px; font-size: 13px; margin-top: 6px; }
+.alvo-item .input { width: 96px; min-height: 40px; padding: 6px 10px; }
+.alvo-item .help { flex-basis: 100%; font-size: 12px; }
+.alvo-resumo { justify-self: start; font: inherit; font-size: 12px; font-weight: 600; color: var(--destaque-escuro); background: var(--destaque-claro);
+  border: 0; border-radius: 999px; padding: 4px 10px; margin-top: 6px; cursor: pointer; }
+
+/* Meus dados: alertas e notas */
+.alertas-conta { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.alertas-conta li { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.conta-link { justify-content: space-between; text-decoration: none; color: var(--foreground); }
