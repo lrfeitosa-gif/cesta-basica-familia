@@ -1083,3 +1083,74 @@ nav.abas a[aria-current="page"] svg { background: var(--accent-bg); stroke-width
 .ordem-mercados { margin: 4px 0 8px; }
 .ordem-mercados button:disabled { opacity: .45; cursor: default; }
 .ordem-ajuda { display: block; font-size: 13px; margin: -2px 0 8px; }
+
+/* ===== Estilo 5 (14/11/2026): verde esmeralda + laranja só onde há vantagem, fundo branco e cinza gelo =====
+   Diretriz da Luciane: primária Verde Esmeralda #10B981, destaque Laranja #F97316 só em "Menor preço", descontos e economia,
+   fundo #FFFFFF / #F8FAFC, preços em #0F172A. Para texto branco sobre a cor ler bem no celular (contraste 4,5:1),
+   botões, cabeçalho e selos com texto usam tons mais escuros da mesma família (#047857 e #C2410C);
+   #10B981 e #F97316 ficam nos detalhes sem texto (barras, contornos, aba ativa, fundos claros). */
+:root {
+  --marca: #10B981; --marca-escura: #047857; --marca-clara: #ECFDF5;
+  --destaque: #F97316; --destaque-escuro: #C2410C; --destaque-claro: #FFF7ED;
+  --background: #F8FAFC; --card: #FFFFFF; --foreground: #0F172A; --card-foreground: #0F172A;
+  --primary: var(--marca-escura); --primary-hover: #065F46; --primary-foreground: #FFFFFF; --ring: var(--marca);
+  --accent-bg: var(--marca-clara); --accent-foreground: var(--marca-escura);
+  --muted-foreground: #475569; --muted: #475569; --border: #E2E8F0; --card-borda: #E2E8F0;
+  --shadow-lg: 0 4px 12px rgb(4 120 87 / .2);
+  --preco-ink: #0F172A; --preco-de: #64748B;
+  --desc-bg: var(--destaque-escuro); --desc-ink: #FFFFFF;
+  --total-ink: #0F172A; --link-ink: var(--marca-escura);
+  --topo-bg: var(--marca-escura); --topo-ink: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --marca: #34D399; --marca-escura: #10B981; --marca-clara: #064E3B;
+    --destaque: #FB923C; --destaque-escuro: #FB923C; --destaque-claro: #431407;
+    --background: #0B1220; --card: #111A2B; --foreground: #E2E8F0; --card-foreground: #E2E8F0;
+    --primary: #10B981; --primary-hover: #34D399; --primary-foreground: #04150E; --ring: #34D399;
+    --accent-bg: #064E3B; --accent-foreground: #6EE7B7;
+    --muted-foreground: #94A3B8; --muted: #94A3B8; --border: #1E293B; --card-borda: #1E293B;
+    --preco-ink: #F8FAFC; --preco-de: #94A3B8; --desc-bg: #FB923C; --desc-ink: #1A0A00;
+    --total-ink: #F8FAFC; --link-ink: #6EE7B7; --topo-bg: #064E3B; --topo-ink: #ECFDF5;
+  }
+}
+body:has(.barra-topo) { background: var(--background); }
+
+/* Cabeçalho verde de ponta a ponta, com a marca e a cidade */
+.barra-topo { background: var(--topo-bg); color: var(--topo-ink); box-shadow: 0 0 0 100vmax var(--topo-bg); clip-path: inset(0 -100vmax);
+  margin-top: calc(-20px - env(safe-area-inset-top, 0px)); padding-block: calc(12px + env(safe-area-inset-top, 0px)) 12px; position: relative; z-index: 5; }
+.topo-marca { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+.barra-topo .logo, .barra-topo .logo .logo-nome { color: var(--topo-ink); }
+.barra-topo .logo .logo-o { --logo-traco: var(--topo-ink); --logo-cesta: var(--topo-ink); --logo-seta: var(--destaque); }
+.topo-cidade { font-size: 14px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgb(255 255 255 / .16); white-space: nowrap; }
+.barra-topo .menu-conta summary { background: rgb(255 255 255 / .16); border-color: transparent; color: var(--topo-ink); }
+.barra-topo .menu-conta-caixa { color: var(--foreground); }
+
+/* Cartões de oferta: fundo branco, preço grande em cinza escuro, economia em laranja */
+.price-tag-container { background: none; border: 0; padding: 0; min-width: 0; }
+.current-price { font-size: 22px; font-weight: 800; color: var(--preco-ink); line-height: 1.1; }
+.old-price { font-size: 13px; color: var(--preco-de); }
+.discount-badge { background: var(--desc-bg); color: var(--desc-ink); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.product-card { border-radius: var(--radius-lg); }
+.badge-encarte { background: var(--destaque-claro); color: var(--destaque-escuro); }
+.filtro-linha .chip[aria-pressed="true"], .filtro-linha .chip:hover, .chip-cat[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+nav.abas a[aria-current="page"] { color: var(--marca-escura); border-top-color: var(--marca); }
+nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
+@media (prefers-color-scheme: dark) { nav.abas a[aria-current="page"] { color: #6EE7B7; border-top-color: #34D399; } }
+
+/* Comparar: cartões por mercado lado a lado (rolam para o lado), preço por quilo/litro marcado com "/ kg" */
+.compara-cards { list-style: none; margin: 0 -16px; padding: 2px 16px 6px; display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.compara-card { flex: 0 0 168px; scroll-snap-align: start; background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg);
+  padding: 12px; display: grid; gap: 6px; align-content: start; box-shadow: var(--card-sombra); }
+.compara-card.vencedor { border: 2px solid var(--marca); background: var(--marca-clara); }
+.compara-card-topo { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.compara-mercado { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compara-unit { font-size: 20px; font-weight: 800; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.compara-unit small { font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.compara-pacote { font-size: 12px; color: var(--muted-foreground); line-height: 1.35; }
+.compara-pacote b { color: var(--foreground); }
+.compara-extra { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted-foreground); }
+.selo-menor { flex: none; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--destaque-escuro); color: #FFFFFF; white-space: nowrap; }
+@media (prefers-color-scheme: dark) { .selo-menor { color: #1A0A00; } }
+.selo-dif { border-radius: 999px; font-size: 11px; }

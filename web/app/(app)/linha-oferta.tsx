@@ -15,7 +15,8 @@ export default function LinhaOferta({ o, extra, dist }: { o: Oferta; extra?: Rea
         <div className="price-tag-container">
           <b className="current-price">{brl(o.preco)}</b>
           {o.de > o.preco && <s className="old-price">de {brl(o.de)}</s>}
-          {extra && <span className="discount-badge">{extra}</span>}
+          {o.de > o.preco ? <span className="discount-badge">Economia de {brl(o.de - o.preco)}</span>
+            : extra && <span className="discount-badge">{extra}</span>}
         </div>
       </div>
       <div className="product-meta">

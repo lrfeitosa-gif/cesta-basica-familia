@@ -29,8 +29,7 @@ export default function Comparar() {
     for (const o of todos) if (o.ub === melhor.ub && !vistos.has(o.mercado)) vistos.set(o.mercado, o);
     return [...vistos.values()];
   }, [todos, melhor]);
-  const maior = porMercado.length ? porMercado[porMercado.length - 1].porUn : 0;
-
+  
   return (
     <>
       <div>
@@ -65,28 +64,27 @@ export default function Comparar() {
         <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
       ) : (
         <>
+          {/* Estilo 5 (14/11): cartões lado a lado só com o mercado e o preço por quilo/litro bem marcado como "/kg";
+              o preço do pacote fica embaixo, junto do tamanho, para não ler "5 kg" ao lado de um valor por quilo. */}
           <section className="comparativo" aria-label={`Menor preço por ${MEDIDA[melhor.ub] ?? melhor.ub} em cada mercado`}>
             <div className="comparativo-cab">
               <h2>Menor preço por {MEDIDA[melhor.ub] ?? melhor.ub} em cada mercado</h2>
               <span className="muted">{porMercado.length} {porMercado.length === 1 ? 'mercado' : 'mercados'}</span>
             </div>
-            <ol className="comparativo-lista">
+            <ol className="compara-cards">
               {porMercado.map((o, i) => {
                 const pct = melhor.porUn > 0 ? Math.round((o.porUn / melhor.porUn - 1) * 100) : 0;
                 return (
-                  <li key={o.mercado} className={i === 0 ? 'comparativo-item vencedor' : 'comparativo-item'}>
-                    <div className="comparativo-linha">
-                      <span className="comparativo-mercado">
-                        <b>{o.mercado}</b>{SO_SOCIOS.has(o.mercado) && <> <TagSocios /></>}
-                        {distTxt(o.mercado) && <span className="market-distance">📍 {distTxt(o.mercado)}</span>}
-                      </span>
-                      <span className="comparativo-valor">{brl(o.porUn)}<small>/{o.ub}</small></span>
+                  <li key={o.mercado} className={i === 0 ? 'compara-card vencedor' : 'compara-card'}>
+                    <div className="compara-card-topo">
+                      <b className="compara-mercado">{o.mercado}</b>
+                      {i === 0 ? <span className="selo-menor">Menor preço</span> : <span className="selo-dif">+{pct}%</span>}
                     </div>
-                    <span className="comparativo-barra" aria-hidden="true"><i style={{ width: `${maior ? Math.max(6, (o.porUn / maior) * 100) : 100}%` }} /></span>
-                    <div className="comparativo-linha comparativo-produto">
-                      <span>{o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome} <small>{emb(o)}</small> · {brl(o.preco)}</span>
-                      {i === 0 ? <span className="selo-melhor">Menor preço</span> : <span className="selo-dif">+{pct}%</span>}
-                    </div>
+                    <span className="compara-unit">{brl(o.porUn)} <small>/ {o.ub}</small></span>
+                    <span className="compara-pacote">{o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome} <small>{emb(o)}</small>: <b>{brl(o.preco)}</b></span>
+                    {(SO_SOCIOS.has(o.mercado) || distTxt(o.mercado)) && (
+                      <span className="compara-extra">{SO_SOCIOS.has(o.mercado) && <TagSocios />}{distTxt(o.mercado) && <span>📍 {distTxt(o.mercado)}</span>}</span>
+                    )}
                   </li>
                 );
               })}

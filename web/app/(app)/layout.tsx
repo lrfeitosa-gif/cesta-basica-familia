@@ -57,7 +57,10 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
   return (
     <>
       <header className="barra-topo">
-        <Link href="/ofertas" className="logo-link" aria-label="Ir para as ofertas"><Logo size={30} /></Link>
+        <span className="topo-marca">
+          <Link href="/ofertas" className="logo-link" aria-label="Ir para as ofertas"><Logo size={28} /></Link>
+          <span className="topo-cidade">Indaiatuba</span>
+        </span>
         <details className="menu-conta" ref={menu}>
           <summary aria-label="Conta">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
