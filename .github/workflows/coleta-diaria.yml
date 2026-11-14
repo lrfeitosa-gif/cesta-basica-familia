@@ -43,6 +43,10 @@ jobs:
           [ "$escolha" = "sites" ] && escolha="atacadao covabra paguemenos savegnago samsclub svicente goodbom"
           echo "lista=$escolha" >> "$GITHUB_OUTPUT"
           echo "Mercados: ${escolha:-todos}"
+      - name: Navegador para os encartes do Assaí e do Cato
+        # as páginas desses dois só mostram os encartes depois de abrir num navegador; os sites não precisam dele
+        if: steps.alvo.outputs.lista == '' || contains(steps.alvo.outputs.lista, 'assai') || contains(steps.alvo.outputs.lista, 'cato')
+        run: python -m playwright install --with-deps chromium
       - name: Coletar e gravar no Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
