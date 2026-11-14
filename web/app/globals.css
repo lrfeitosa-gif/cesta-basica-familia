@@ -1209,3 +1209,9 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .alertas-conta { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .alertas-conta li { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .conta-link { justify-content: space-between; text-decoration: none; color: var(--foreground); }
+
+/* Link do site/encarte de volta em destaque (14/11): botão com contorno, não só texto miúdo */
+.product-links { align-items: center; }
+.product-links .link-origem { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 12px; border-radius: 8px;
+  border: 1px solid var(--marca); color: var(--marca-escura); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .product-links .link-origem { color: #6EE7B7; } }
