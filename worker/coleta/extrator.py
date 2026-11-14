@@ -65,11 +65,16 @@ Liste todos os produtos com preço visível no encarte, um por item. Regras:
 - Datas de validade do encarte no formato AAAA-MM-DD; o ano atual é {ano}."""
 
 
-def _carregar(origem: str) -> tuple[bytes, str]:
+TIPOS_ACEITOS = {"application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+def _carregar(origem: str, headers: dict | None = None) -> tuple[bytes, str]:
     if origem.startswith(("http://", "https://")):
-        resp = httpx.get(origem, timeout=60, follow_redirects=True)
+        resp = httpx.get(origem, timeout=60, follow_redirects=True, headers=headers)
         resp.raise_for_status()
-        tipo = resp.headers.get("content-type", "").split(";")[0] or mimetypes.guess_type(origem)[0]
+        tipo = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+        if tipo not in TIPOS_ACEITOS:     # CDN que responde application/octet-stream: vale a extensão do arquivo
+            tipo = mimetypes.guess_type(origem.split("?")[0])[0] or tipo
         return resp.content, tipo or ""
     caminho = Path(origem)
     return caminho.read_bytes(), mimetypes.guess_type(caminho.name)[0] or ""
@@ -276,8 +281,10 @@ def _fatias(dados: bytes, tipo: str) -> list[tuple[bytes, str]]:
         topo = base - SOBRA
 
 
-def extrair(origem: str, client: anthropic.Anthropic | None = None, http: httpx.Client | None = None) -> Encarte:
-    dados, tipo = _carregar(origem)
+def extrair(origem: str, client: anthropic.Anthropic | None = None, http: httpx.Client | None = None,
+            headers: dict | None = None) -> Encarte:
+    """headers: cabeçalhos do download do arquivo (alguns CDNs pedem o site do mercado como origem)."""
+    dados, tipo = _carregar(origem, headers)
     nome = _leitor()
     if not nome:
         faixas = _fatias(dados, tipo)
