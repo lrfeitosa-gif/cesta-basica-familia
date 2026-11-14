@@ -122,7 +122,7 @@ export default function MinhaCompra() {
   const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
   const [todosMercados, setTodosMercados] = useState(false);   // mostra também os mercados com poucos preços hoje
   // Preferências de lojas (filtros da comparação), guardadas neste aparelho: valem para toda a análise de "Onde comprar".
-  type Pref = { ordem: 'preco' | 'perto'; semSocios: boolean; maxKm: number | null };
+  type Pref = { ordem: 'preco' | 'perto' | 'completo'; semSocios: boolean; maxKm: number | null };
   const [pref, setPrefEstado] = useState<Pref>({ ordem: 'preco', semSocios: false, maxKm: null });
   const [foraRoteiro, setForaRoteiro] = useState<string[]>([]);   // mercados tirados do roteiro de vários mercados
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -454,17 +454,20 @@ export default function MinhaCompra() {
   const melhorCompleto = top?.falta.length ? completos[0] : undefined;
   const fmt = (r: { valor: number; falta: string[] }) => `${r.falta.length ? '≈ ' : ''}${brl(r.valor)}`;
   // Compra dividida em 2 mercados: cada item no mais barato dos dois. Só pares com preço para a maioria dos itens.
-  type Dupla = { a: string; b: string; valor: number; emA: { c: ItemCesta; o: Oferta; valor: number }[]; emB: { c: ItemCesta; o: Oferta; valor: number }[]; estimado: number };
+  type Dupla = { a: string; b: string; valor: number; emA: { c: ItemCesta; o: Oferta; valor: number }[]; emB: { c: ItemCesta; o: Oferta; valor: number }[]; estimado: number; fora: { c: ItemCesta; valor: number }[] };
   let dupla: Dupla | null = null;
   const nomes = ranking.map((x) => x.m);
   for (let i = 0; i < nomes.length; i++) for (let j = i + 1; j < nomes.length; j++) {
     const [a, b] = [nomes[i], nomes[j]];
-    const d: Dupla = { a, b, valor: 0, emA: [], emB: [], estimado: 0 };
+    const d: Dupla = { a, b, valor: 0, emA: [], emB: [], estimado: 0, fora: [] };
     let faltam = 0;
     for (const c of itens) {
       const oa = porItem[c.id][a], ob = porItem[c.id][b];
       const va = oa ? v(c, oa) * sel[c.id] : Infinity, vb = ob ? v(c, ob) * sel[c.id] : Infinity;
-      if (va === Infinity && vb === Infinity) { faltam++; d.estimado += (media[c.id] ?? 0) * sel[c.id]; continue; }
+      if (va === Infinity && vb === Infinity) {
+        // Sem preço nos dois: entra no total pela mediana e aparece em "Fora destes 2 mercados" (14/11: arroz e café sumiam da lista)
+        faltam++; const est = (media[c.id] ?? 0) * sel[c.id]; d.estimado += est; d.fora.push({ c, valor: est }); continue;
+      }
       if (va <= vb) d.emA.push({ c, o: oa!, valor: va }); else d.emB.push({ c, o: ob!, valor: vb });
       d.valor += Math.min(va, vb);
     }
@@ -528,9 +531,12 @@ export default function MinhaCompra() {
     const meio = pts.slice(0, -1).join('|');
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}${meio ? `&waypoints=${encodeURIComponent(meio)}` : ''}`;
   };
+  // Ordem da lista (14/11): mais barato (padrão), mais perto, ou "tem tudo" = menos itens sem preço primeiro e, empatados, o mais barato
   const lista = pref.ordem === 'perto'
     ? [...ranking].sort((a, b) => (locais.distancia(a.m)?.km ?? 999) - (locais.distancia(b.m)?.km ?? 999))
-    : ranking;
+    : pref.ordem === 'completo'
+      ? [...ranking].sort((a, b) => a.falta.length - b.falta.length || a.valor - b.valor)
+      : ranking;
 
   return (
     <>
@@ -611,6 +617,16 @@ export default function MinhaCompra() {
                 </div>
               ))}
             </div>
+            {dupla.fora.length > 0 && (
+              <div className="dupla-fora">
+                <b>{dupla.fora.length === 1 ? '1 item sem preço' : `${dupla.fora.length} itens sem preço`} no {dupla.a} e no {dupla.b}</b>
+                <span className="muted">Entram no total com o preço do meio dos outros mercados (≈ {brl(dupla.estimado)}).</span>
+                <ul>{dupla.fora.map(({ c, valor }) => {
+                  const melhor = Object.values(porItem[c.id]).sort((x, y) => v(c, x) - v(c, y))[0];
+                  return <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: ≈ {brl(valor)}{melhor ? <> · mais barato no <b>{melhor.mercado}</b> ({brl(melhor.preco)})</> : ''}</li>;
+                })}</ul>
+              </div>
+            )}
             {entre !== null && <span className="muted">Distância entre as duas lojas: {fmtKm(entre)} em linha reta.</span>}
             <a className="btn-action-primary" href={linkRoteiro([dupla.a, dupla.b])} target="_blank" rel="noopener noreferrer">Ver roteiro de compra no mapa ↗</a>
           </div>
@@ -626,13 +642,20 @@ export default function MinhaCompra() {
           </button>
         </div>
       )}
+      {itens.length > 0 && (
+        <div className="segmentado ordem-mercados" role="radiogroup" aria-label="Ordenar os mercados">
+          {([['preco', 'Menor valor'], ['perto', 'Mais perto'], ['completo', 'Tem tudo']] as const).map(([k, t]) => (
+            <button key={k} type="button" role="radio" aria-checked={pref.ordem === k} className={pref.ordem === k ? 'ativo' : ''}
+              disabled={k === 'perto' && !locais.refs.length} title={k === 'perto' && !locais.refs.length ? 'Cadastre um endereço para ordenar pela distância' : undefined}
+              onClick={() => setPref({ ordem: k })}>{t}</button>
+          ))}
+        </div>
+      )}
+      {itens.length > 0 && pref.ordem === 'completo' && (
+        <span className="muted ordem-ajuda">Primeiro os mercados com preço para todos os itens da cesta, do menor para o maior valor.</span>
+      )}
       {itens.length > 0 && filtrosAbertos && (
         <div className="filtros-painel">
-          <div className="filtro-grupo" role="radiogroup" aria-label="Ordenar">
-            <span>Ordenar por</span>
-            <button type="button" className={`tab-button${pref.ordem === 'preco' ? ' active' : ''}`} aria-pressed={pref.ordem === 'preco'} onClick={() => setPref({ ordem: 'preco' })}>Mais barato</button>
-            <button type="button" className={`tab-button${pref.ordem === 'perto' ? ' active' : ''}`} aria-pressed={pref.ordem === 'perto'} onClick={() => setPref({ ordem: 'perto' })} disabled={!locais.refs.length}>Mais perto</button>
-          </div>
           <div className="filtro-grupo" role="radiogroup" aria-label="Distância máxima">
             <span>Distância máxima</span>
             {([null, 2, 3, 5] as const).map((k) => (
