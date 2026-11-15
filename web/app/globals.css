@@ -1215,3 +1215,11 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .product-links .link-origem { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 12px; border-radius: 8px;
   border: 1px solid var(--marca); color: var(--marca-escura); font-weight: 600; }
 @media (prefers-color-scheme: dark) { .product-links .link-origem { color: #6EE7B7; } }
+
+/* Cesta → Onde comprar (14/11): critério de compra no topo, antes da recomendação */
+.criterio-topo { display: grid; gap: 8px; background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 12px 14px; }
+.criterio-topo .section-header-bar { margin: 0; }
+.criterio-topo .section-title { margin: 0; font-size: 16px; }
+.criterio-topo .ordem-mercados { margin: 0; }
+.criterio-topo .ordem-ajuda { margin: 0; }
+.criterio-topo .filtros-painel { border: 0; padding: 4px 0 0; box-shadow: none; }

@@ -578,12 +578,57 @@ export default function MinhaCompra() {
     const meio = pts.slice(0, -1).join('|');
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}${meio ? `&waypoints=${encodeURIComponent(meio)}` : ''}`;
   };
+  // Mercado recomendado conforme o critério escolhido (14/11): menor preço (padrão), mais perto entre os que têm preço
+  // para a maior parte da cesta, ou o mais barato entre os que têm tudo.
+  const confiaveis = ranking.filter((r) => r.confiavel);
+  const rec = pref.ordem === 'perto' && locais.refs.length
+    ? [...(confiaveis.length ? confiaveis : ranking)].sort((a, b) => (locais.distancia(a.m)?.km ?? 999) - (locais.distancia(b.m)?.km ?? 999))[0] ?? top
+    : pref.ordem === 'completo' ? (completos[0] ?? [...ranking].sort((a, b) => a.falta.length - b.falta.length || a.valor - b.valor)[0]) : top;
+  const tituloRec = pref.ordem === 'perto' ? 'Mais perto de você, com a cesta quase toda'
+    : pref.ordem === 'completo' ? (completos.length ? 'Mais barato entre os que têm todos os itens' : 'Nenhum mercado tem todos os itens hoje; este é o que tem mais')
+    : 'Mais barato para comprar tudo num lugar só';
+
   // Ordem da lista (14/11): mais barato (padrão), mais perto, ou "tem tudo" = menos itens sem preço primeiro e, empatados, o mais barato
   const lista = pref.ordem === 'perto'
     ? [...ranking].sort((a, b) => (locais.distancia(a.m)?.km ?? 999) - (locais.distancia(b.m)?.km ?? 999))
     : pref.ordem === 'completo'
       ? [...ranking].sort((a, b) => a.falta.length - b.falta.length || a.valor - b.valor)
       : ranking;
+
+  // Lista de compras em PDF (14/11): a lista da opção escolhida (um mercado, dois ou o roteiro), agrupada por mercado,
+  // com caixinhas para marcar. Abre numa janela própria e chama a impressão do navegador ("Salvar como PDF";
+  // no iPhone, Compartilhar → Salvar em Arquivos).
+  type ItemPdf = { c: ItemCesta; o: Oferta; valor: number };
+  const grupoDe = (m: string, l: ItemPdf[], estimados: { c: ItemCesta; valor: number }[] = []) => {
+    const d = locais.distancia(m);
+    return {
+      mercado: m, onde: d ? `${d.loja.nome} · ${fmtKm(d.km)} de ${d.ref.rotulo}` : '',
+      linhas: [
+        ...l.map(({ c, o, valor }) => ({ txt: `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}`, prod: `${!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}${o.nome}`, valor: brl(valor) })),
+        ...estimados.map(({ c, valor }) => ({ txt: `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}`, prod: 'sem preço hoje neste mercado', valor: `≈ ${brl(valor)}` })),
+      ],
+      total: brl(l.reduce((t, x) => t + x.valor, 0) + estimados.reduce((t, x) => t + x.valor, 0)),
+    };
+  };
+  const pdfLista = (titulo: string, grupos: ReturnType<typeof grupoDe>[], total: number, avisos: string[] = []) => {
+    const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
+    const dia = dados?.dia ? dados.dia.split('-').reverse().join('/') : '';
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Lista de compras - Mercato</title>
+<style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0F172A;margin:24px;font-size:14px}
+h1{font-size:20px;margin:0 0 2px;color:#047857}h2{font-size:16px;margin:18px 0 2px}.m{color:#475569;font-size:12px}
+ul{list-style:none;padding:0;margin:6px 0}li{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #E2E8F0}
+.cx{width:14px;height:14px;border:1.5px solid #0F172A;border-radius:3px;flex:none;margin-top:2px}.p{flex:1}.v{white-space:nowrap;font-weight:600}
+.t{text-align:right;font-weight:700;margin-top:4px}.g{font-size:18px;font-weight:800;margin-top:16px}@media print{body{margin:12mm}}</style></head><body>
+<h1>Lista de compras · Mercato</h1><div class="m">${esc(titulo)} · preços de ${esc(dia)} coletados nos sites e encartes; podem mudar na loja.</div>
+${grupos.map((g) => `<h2>${esc(g.mercado)}</h2>${g.onde ? `<div class="m">${esc(g.onde)}</div>` : ''}<ul>${g.linhas.map((x) => `<li><span class="cx"></span><span class="p"><b>${esc(x.txt)}</b><br><span class="m">${esc(x.prod)}</span></span><span class="v">${esc(x.valor)}</span></li>`).join('')}</ul><div class="t">Subtotal: ${esc(g.total)}</div>`).join('')}
+${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
+<div class="g">Total: ${esc(brl(total))}</div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return mostrarAviso({ texto: 'O navegador bloqueou a nova janela. Permita pop-ups deste site para gerar o PDF.' });
+    w.document.write(html); w.document.close();
+    // espera o navegador desenhar a página antes de abrir a impressão (uma vez só)
+    setTimeout(() => { try { w.focus(); w.print(); } catch { /* a pessoa imprime pelo menu */ } }, 500);
+  };
 
   return (
     <>
@@ -607,32 +652,76 @@ export default function MinhaCompra() {
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
 
-      {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : top ? (
+      {/* Critério de compra no topo (14/11): a pessoa escolhe antes de ver a recomendação; vale para o mercado
+          recomendado e para a ordem da lista. Os filtros de lojas ficam junto. */}
+      {itens.length > 0 && (
+        <div className="criterio-topo">
+          <div className="section-header-bar">
+            <h2 className="section-title">Como você quer comprar?</h2>
+            <button type="button" className="btn-filter-toggle" aria-expanded={filtrosAbertos} onClick={() => setFiltrosAbertos(!filtrosAbertos)}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+              Filtros{ocultosFiltro > 0 ? ` (${ocultosFiltro} ocultos)` : ''} {filtrosAbertos ? '▴' : '▾'}
+            </button>
+          </div>
+      {itens.length > 0 && (
+        <div className="segmentado ordem-mercados" role="radiogroup" aria-label="Critério de compra">
+          {([['preco', 'Menor preço'], ['perto', 'Mais perto'], ['completo', 'Tem tudo']] as const).map(([k, t]) => (
+            <button key={k} type="button" role="radio" aria-checked={pref.ordem === k} className={pref.ordem === k ? 'ativo' : ''}
+              disabled={k === 'perto' && !locais.refs.length} title={k === 'perto' && !locais.refs.length ? 'Cadastre um endereço para ordenar pela distância' : undefined}
+              onClick={() => setPref({ ordem: k })}>{t}</button>
+          ))}
+        </div>
+      )}
+      {itens.length > 0 && (
+        <span className="muted ordem-ajuda">{pref.ordem === 'perto' ? 'Mostra primeiro o mercado mais perto do seu endereço que tem preço para a maior parte da cesta.'
+          : pref.ordem === 'completo' ? 'Mostra primeiro o mercado mais barato entre os que têm preço para todos os itens da cesta.'
+          : 'Mostra primeiro o mercado onde a cesta inteira sai mais barata.'}</span>
+      )}
+      {itens.length > 0 && filtrosAbertos && (
+        <div className="filtros-painel">
+          <div className="filtro-grupo" role="radiogroup" aria-label="Distância máxima">
+            <span>Distância máxima</span>
+            {([null, 2, 3, 5] as const).map((k) => (
+              <button key={String(k)} type="button" className={`tab-button${pref.maxKm === k ? ' active' : ''}`} aria-pressed={pref.maxKm === k}
+                disabled={k !== null && !locais.refs.length} onClick={() => setPref({ maxKm: k })}>{k === null ? 'Sem limite' : `até ${k} km`}</button>
+            ))}
+          </div>
+          <label className="filtro-check"><input type="checkbox" checked={pref.semSocios} onChange={(e) => setPref({ semSocios: e.target.checked })} /> Ocultar mercados só para sócios (Sam&apos;s Club)</label>
+          {poucos > 0 && ranking.length > poucos && (
+            <label className="filtro-check"><input type="checkbox" checked={todosMercados} onChange={(e) => setTodosMercados(e.target.checked)} /> Mostrar mercados com poucos preços hoje ({poucos})</label>
+          )}
+          <span className="muted">{!locais.refs.length ? 'Cadastre um endereço para ordenar e filtrar pela distância. ' : ''}Os filtros valem para toda a comparação (mais barato, 2 mercados e roteiro) e ficam guardados neste aparelho.</span>
+        </div>
+      )}
+        </div>
+      )}
+      {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : rec ? (
         <div className="recommendation-card">
-          <span className="muted">Mais barato para comprar tudo num lugar só</span>
-          <span className="recommendation-price">{fmt(top)}</span>
-          <span><b>{top.m}</b>{SO_SOCIOS.has(top.m) && <> <TagSocios /></>}{segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})`}</span>
-          {(() => { const d = locais.distancia(top.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
-          {top.falta.length > 0 && (
+          <span className="muted">{tituloRec}</span>
+          <span className="recommendation-price">{fmt(rec)}</span>
+          <span><b>{rec.m}</b>{SO_SOCIOS.has(rec.m) && <> <TagSocios /></>}{rec === top ? segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})` : top && ` · ${brl(rec.valor - top.valor)} a mais que o mais barato (${top.m})`}</span>
+          {(() => { const d = locais.distancia(rec.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
+          {rec.falta.length > 0 && (
             <span className="cond">
-              Sem preço hoje no {top.m}: {top.falta.join(', ')} (estimado pelo preço mediano dos outros mercados).
+              Sem preço hoje no {rec.m}: {rec.falta.join(', ')} (estimado pelo preço mediano dos outros mercados).
             </span>
           )}
-          {melhorCompleto && (
+          {rec === top && melhorCompleto && (
             <span className="muted">Melhor com todos os itens: <b>{melhorCompleto.m}</b>, {brl(melhorCompleto.valor)}</span>
           )}
-          {pior && pior !== segundo && pior !== top && (
+          {rec === top && pior && pior !== segundo && pior !== top && (
             <span className="muted">{brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m}{pior.falta.length ? ', total estimado' : ''})</span>
           )}
           {!semItem.length && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
-          <a className="btn-action-primary" href={linkLoja(top.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {top.m} ↗</a>
+          <a className="btn-action-primary" href={linkLoja(rec.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {rec.m} ↗</a>
+          <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Comprar tudo no ${rec.m}`, [grupoDe(rec.m, rec.escolhas.map(({ c, o }) => ({ c, o, valor: v(c, o) * sel[c.id] })), rec.estimados)], rec.valor)}>Gerar PDF da lista</button>
           <details className="rec-itens">
             <summary className="market-expand-link">Ver itens</summary>
             <ul>
-              {top.escolhas.map(({ c, o }) => (
+              {rec.escolhas.map(({ c, o }) => (
                 <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</b> · {brl(v(c, o) * sel[c.id])}</li>
               ))}
-              {top.estimados.map(({ c, valor }) => (
+              {rec.estimados.map(({ c, valor }) => (
                 <li key={c.id} className="estimado">{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: sem preço hoje, estimado ≈ {brl(valor)}</li>
               ))}
             </ul>
@@ -676,6 +765,9 @@ export default function MinhaCompra() {
             )}
             {entre !== null && <span className="muted">Distância entre as duas lojas: {fmtKm(entre)} em linha reta.</span>}
             <a className="btn-action-primary" href={linkRoteiro([dupla.a, dupla.b])} target="_blank" rel="noopener noreferrer">Ver roteiro de compra no mapa ↗</a>
+            <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Dividir entre ${dupla!.a} e ${dupla!.b}`,
+              [grupoDe(dupla!.a, dupla!.emA), grupoDe(dupla!.b, dupla!.emB)], dupla!.valor,
+              dupla!.fora.map(({ c, valor }) => `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}: sem preço nos dois (≈ ${brl(valor)})`))}>Gerar PDF da lista</button>
           </div>
         );
       })()}
@@ -683,38 +775,6 @@ export default function MinhaCompra() {
       {itens.length > 0 && (
         <div className="section-header-bar">
           <h2 className="section-title">Total em cada mercado</h2>
-          <button type="button" className="btn-filter-toggle" aria-expanded={filtrosAbertos} onClick={() => setFiltrosAbertos(!filtrosAbertos)}>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
-            Filtros{ocultosFiltro > 0 ? ` (${ocultosFiltro} ocultos)` : ''} {filtrosAbertos ? '▴' : '▾'}
-          </button>
-        </div>
-      )}
-      {itens.length > 0 && (
-        <div className="segmentado ordem-mercados" role="radiogroup" aria-label="Ordenar os mercados">
-          {([['preco', 'Menor valor'], ['perto', 'Mais perto'], ['completo', 'Tem tudo']] as const).map(([k, t]) => (
-            <button key={k} type="button" role="radio" aria-checked={pref.ordem === k} className={pref.ordem === k ? 'ativo' : ''}
-              disabled={k === 'perto' && !locais.refs.length} title={k === 'perto' && !locais.refs.length ? 'Cadastre um endereço para ordenar pela distância' : undefined}
-              onClick={() => setPref({ ordem: k })}>{t}</button>
-          ))}
-        </div>
-      )}
-      {itens.length > 0 && pref.ordem === 'completo' && (
-        <span className="muted ordem-ajuda">Primeiro os mercados com preço para todos os itens da cesta, do menor para o maior valor.</span>
-      )}
-      {itens.length > 0 && filtrosAbertos && (
-        <div className="filtros-painel">
-          <div className="filtro-grupo" role="radiogroup" aria-label="Distância máxima">
-            <span>Distância máxima</span>
-            {([null, 2, 3, 5] as const).map((k) => (
-              <button key={String(k)} type="button" className={`tab-button${pref.maxKm === k ? ' active' : ''}`} aria-pressed={pref.maxKm === k}
-                disabled={k !== null && !locais.refs.length} onClick={() => setPref({ maxKm: k })}>{k === null ? 'Sem limite' : `até ${k} km`}</button>
-            ))}
-          </div>
-          <label className="filtro-check"><input type="checkbox" checked={pref.semSocios} onChange={(e) => setPref({ semSocios: e.target.checked })} /> Ocultar mercados só para sócios (Sam&apos;s Club)</label>
-          {poucos > 0 && ranking.length > poucos && (
-            <label className="filtro-check"><input type="checkbox" checked={todosMercados} onChange={(e) => setTodosMercados(e.target.checked)} /> Mostrar mercados com poucos preços hoje ({poucos})</label>
-          )}
-          <span className="muted">{!locais.refs.length ? 'Cadastre um endereço para ordenar e filtrar pela distância. ' : ''}Os filtros valem para toda a comparação (mais barato, 2 mercados e roteiro) e ficam guardados neste aparelho.</span>
         </div>
       )}
       {itens.length > 0 && (
@@ -795,6 +855,8 @@ export default function MinhaCompra() {
             {semLocal.length ? ` (sem ${semLocal.join(' e ')}, que ainda não ${semLocal.length === 1 ? 'tem' : 'têm'} o endereço da loja no app)` : ''}.</span>
             : !locais.refs.length ? <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span> : null}
           {roteiro.length > 1 && <a className="btn-action-primary" href={linkRoteiro(roteiro.map((r) => r.m))} target="_blank" rel="noopener noreferrer">Abrir roteiro no mapa ↗</a>}
+          <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Roteiro por ${roteiro.length} ${roteiro.length === 1 ? 'mercado' : 'mercados'}`,
+            roteiro.map((r) => grupoDe(r.m, r.l)), ideal, semItem.map((x) => `${x}: fora do roteiro`))}>Gerar PDF da lista</button>
           </>}
         </section>
       )}
