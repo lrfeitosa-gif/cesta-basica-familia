@@ -205,3 +205,18 @@ def test_imagem_pequena_fica_inteira():
     buf = io.BytesIO()
     Image.new("RGB", (1200, 1600), "white").save(buf, format="JPEG")
     assert len(_fatias(buf.getvalue(), "image/jpeg")) == 1
+
+
+def test_roldao_so_cartoes_de_indaiatuba():
+    from coleta.encartes import _cartoes_da_cidade
+    base = "https://roldao.com.br/wp-content/uploads/2026/11/"
+    html = "".join([
+        f'<div class="jet-listing-grid__item"><img src="{base}ROLDAO-COMERCIANTE-scaled.jpg"><p>Principal da semana 09.11 a 15.11 Comerciante</p></div>',
+        f'<div class="jet-listing-grid__item"><img src="{base}ROLDAO-FDS-COMBATE-scaled.jpg"><p>Exclusivamente nas lojas: Osasco I e II, Salto, Itu e Indaiatuba.</p></div>',
+        f'<div class="jet-listing-grid__item"><img src="{base}ROLDAO-FDS-REDE-scaled.jpg"><p>Exclusivamente nas lojas: Mooca, Campinas, Jundiaí I.</p></div>',
+        f'<div class="jet-listing-grid__item"><img src="{base}REINAUGURACAO-FRANCO-DA-ROCHA-scaled.jpg"><p>Somente para Franco da Rocha</p></div>',
+    ])
+    bom = _cartoes_da_cidade(html, "jet-listing-grid__item", "Indaiatuba")
+    assert "COMERCIANTE" in bom and "FDS-COMBATE" in bom
+    assert "FDS-REDE" not in bom and "FRANCO-DA-ROCHA" not in bom
+    assert _cartoes_da_cidade("<div>sem cartões</div>", "jet-listing-grid__item", "Indaiatuba") == ""

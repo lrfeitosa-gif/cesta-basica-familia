@@ -79,14 +79,24 @@ export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extr
       )}
       {aberto === 'hist' && <HistoricoMini o={o} termo={alvoTermo} />}
       <div className="product-links">
-        {o.url && (
-          <a href={o.url} target="_blank" rel="noopener noreferrer">{o.fonte === 'site' ? `Ver no site do ${o.mercado}` : 'Ver encarte'} ↗</a>
+        {(o.url || PAGINA_ENCARTE[o.mercado]) && (
+          <a className="link-origem" href={o.url || PAGINA_ENCARTE[o.mercado]} target="_blank" rel="noopener noreferrer">
+            {o.fonte === 'site' ? `Ver no site do ${o.mercado}` : `Ver encarte do ${o.mercado}`} ↗
+          </a>
         )}
         <button type="button" onClick={() => avisarEsgotado(o)}>Avisar que acabou</button>
       </div>
     </article>
   );
 }
+
+// Encartes carregados pelas tarefas agendadas (Cato, Tenda, Assaí) chegam sem o endereço da imagem:
+// o link leva para a página de folhetos do mercado em Indaiatuba.
+const PAGINA_ENCARTE: Record<string, string> = {
+  'Cato': 'https://www.catosupermercados.com.br/folhetos',
+  'Tenda': 'https://www.tendaatacado.com.br/institucional/nossas-ofertas',
+  'Assaí': 'https://www.assai.com.br/ofertas/sao-paulo/assai-indaiatuba',
+};
 
 async function avisarEsgotado(o: Oferta) {
   const desfazer = await marcarEsgotado(o);
