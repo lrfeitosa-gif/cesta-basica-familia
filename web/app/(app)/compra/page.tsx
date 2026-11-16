@@ -12,6 +12,7 @@ import { garantirDonoDaCesta } from '@/lib/cesta';
 import EnviarNota from '../enviar-nota';
 import { mostrarAviso } from '../aviso';
 import Link from 'next/link';
+import { IconeAtencao, IconeLocal } from '../icones';
 
 // Item fixo da cesta (regras de palavra + embalagem) ou item adicionado pela pessoa (busca por palavras).
 type ItemCesta = { id: string; rotulo: string; inc?: string[]; q?: number; u?: string; exc?: RegExp; termo?: string; porKg?: boolean };
@@ -859,7 +860,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         <div className="recommendation-card resposta" id="resposta">
           <span className="resposta-titulo">{tituloRec}</span>
           <span className="resposta-mercado"><b>{rec.m}</b>{SO_SOCIOS.has(rec.m) && <> <TagSocios /></>}</span>
-          <span className="recommendation-price">{fmt(rec)}</span>
+          <span className="recommendation-price etiqueta-gondola">{fmt(rec)}</span>
           {rec === top
             ? segundo && <span className="resposta-economia">{brl(segundo.valor - top.valor)} a menos que o 2º mais barato ({segundo.m})</span>
             : top && <span className="resposta-info">{brl(rec.valor - top.valor)} a mais que o mais barato ({top.m})</span>}
@@ -894,7 +895,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           <div className="recommendation-card resposta" id="resposta">
             <span className="resposta-titulo">Dividindo a compra em 2 mercados</span>
             <span className="resposta-mercado"><b>{dupla.a}</b> e <b>{dupla.b}</b></span>
-            <span className="recommendation-price">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
+            <span className="recommendation-price etiqueta-gondola">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
             <span className="resposta-economia">{brl(economiaDupla)} a menos que comprar tudo no {top!.m}</span>
             {da && db && <span className="resposta-info">{fmtKm(da.km)} e {fmtKm(db.km)} de {da.ref.rotulo}{entre !== null ? ` · ${fmtKm(entre)} entre as lojas` : ''}</span>}
             {dupla.fora.length > 0 && (
@@ -931,7 +932,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           <span className="resposta-titulo">Cada item no mercado mais barato</span>
           {!roteiro.length ? <span className="cond">Nenhum mercado no roteiro. Escolha ao menos um em &quot;Mercados do roteiro&quot;.</span> : <>
           <span className="resposta-mercado"><b>{roteiro.length} {roteiro.length === 1 ? 'mercado' : 'mercados'}</b></span>
-          <span className="recommendation-price">{brl(ideal)}</span>
+          <span className="recommendation-price etiqueta-gondola">{brl(ideal)}</span>
           {top.valor - ideal > 0
             ? <span className="resposta-economia">{brl(top.valor - ideal)} a menos que comprar tudo no {top.m}</span>
             : <span className="resposta-info">Não compensa: sai {brl(ideal - top.valor)} a mais que comprar tudo no {top.m}</span>}
@@ -1032,13 +1033,13 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                 <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
               )}
               <div className="market-card-header">
-                <span><span className="market-name">{r.m}</span>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{distTxt(r.m) && <span className="market-distance">📍 {distTxt(r.m)}</span>}</span>
+                <span><span className="market-name">{r.m}</span>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{distTxt(r.m) && <span className="market-distance"><IconeLocal /> {distTxt(r.m)}</span>}</span>
                 <span className="market-total">{fmt(r)}</span>
               </div>
               {r.falta.length > 0 && <span className="est-resumo">{r.falta.length === 1 ? '1 item estimado' : `${r.falta.length} itens estimados`} de {itens.length}: ≈ {brl(r.estimado)} do total</span>}
               {r.falta.length > 0 && (
                 <span className="market-warning">
-                  <span aria-hidden="true">⚠</span>
+                  <IconeAtencao />
                   <span>Sem preço hoje: {r.falta.join(', ')}. Estimado pelo preço mediano dos outros mercados.</span>
                 </span>
               )}
@@ -1233,7 +1234,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                   <span className="encontrado">
                     <span className="encontrado-nome">{!kgs.has(c.id) && menor.marca && !norm(menor.nome).includes(norm(menor.marca)) ? `${menor.marca} · ` : ''}{menor.nome}
                       {!kgs.has(c.id) && !tamNoNomeItem(menor) && <span className="encontrado-emb"> {emb(menor)}</span>}</span>
-                    <span><b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span>
+                    <span><b className="preco-item">{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span>
                       {dados && <> · {Object.keys(porItem[c.id]).length} mercados</>}</span>
                   </span>
                 ) : !dados ? <span className="esq-texto" aria-hidden="true" />
