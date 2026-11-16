@@ -2,7 +2,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { supabase, mensagemErro } from '@/lib/supabase';
-import { TelaAcesso, CampoPilula, Seta } from '@/app/tela-acesso';
+import { TelaAcesso, CampoRotulo, ChecklistSenha } from '@/app/tela-acesso';
 
 // Destino do link "Esqueci a senha". O Supabase abre esta página já com uma sessão de recuperação
 // (lida do endereço pelo próprio cliente); aqui a pessoa escolhe a nova senha. Antes o link levava
@@ -38,12 +38,12 @@ export default function NovaSenha() {
   };
 
   return (
-    <TelaAcesso titulo="Crie uma" destaque="nova senha" sub="Use pelo menos 8 caracteres, misturando letras, números e um símbolo."
+    <TelaAcesso titulo="Crie uma nova senha"
       rodape={<>Lembrou a senha? <Link href="/entrar">Entrar</Link></>}>
       {feito ? (
         <div className="stack">
           <div className="alert alert-ok" role="status">Senha trocada. Você já está conectado.</div>
-          <Link href="/ofertas" className="ob-pill au-entrar ob-link">Ir para as ofertas<Seta /></Link>
+          <Link href="/compra" className="ob-pill au-entrar ob-link">Ir para a minha cesta</Link>
         </div>
       ) : pronto === 'sem-link' ? (
         <div className="alert alert-error" role="alert">
@@ -51,13 +51,13 @@ export default function NovaSenha() {
         </div>
       ) : (
         <form className="au-form" onSubmit={salvar} noValidate>
-          <CampoPilula icone="senha" rotulo="Nova senha" id="senha" type="password" autoComplete="new-password" required
-            value={senha} onChange={(e) => setSenha(e.target.value)} />
-          <CampoPilula icone="senha" rotulo="Repita a nova senha" id="repetir" type="password" autoComplete="new-password" required
+          <CampoRotulo rotulo="Nova senha" id="senha" type="password" autoComplete="new-password" required placeholder="Sua nova senha"
+            value={senha} onChange={(e) => setSenha(e.target.value)} ajuda={<ChecklistSenha senha={senha} />} />
+          <CampoRotulo rotulo="Repita a nova senha" id="repetir" type="password" autoComplete="new-password" required placeholder="A mesma senha"
             value={repetir} onChange={(e) => setRepetir(e.target.value)} />
           {erro && <div className="alert alert-error" role="alert">{erro}</div>}
           <button className="ob-pill au-entrar" disabled={enviando || pronto !== 'ok'}>
-            {pronto !== 'ok' ? 'Abrindo o link…' : enviando ? 'Salvando…' : 'Salvar nova senha'}<Seta />
+            {pronto !== 'ok' ? 'Abrindo o link…' : enviando ? 'Salvando…' : 'Salvar nova senha'}
           </button>
         </form>
       )}

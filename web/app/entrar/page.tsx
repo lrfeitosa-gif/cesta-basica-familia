@@ -1,5 +1,5 @@
 'use client';
-import { TelaAcesso, CampoPilula, Seta } from '@/app/tela-acesso';
+import { TelaAcesso, CampoRotulo } from '@/app/tela-acesso';
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -43,8 +43,8 @@ function Formulario() {
   };
 
   return (
-    <TelaAcesso titulo="Compre no preço" destaque="de oportunidade" sub="Entre para continuar"
-      rodape={<>Não tem conta? <Link href="/cadastro">Criar conta</Link></>}>
+    <TelaAcesso titulo="Veja onde está mais barato hoje" sub="Ofertas dos mercados de Indaiatuba num só lugar."
+      rodape={<>Ainda não tem conta? <Link href="/cadastro">Criar conta</Link></>}>
       {motivo === 'inatividade' && !erro && !aviso && (
         <div className="alert alert-ok" role="status">
           Por segurança, encerramos sua sessão depois de um tempo sem uso. Entre de novo para continuar de onde parou.
@@ -54,14 +54,14 @@ function Formulario() {
         <div className="alert alert-ok" role="status">Sua sessão expirou. Entre de novo para continuar de onde parou.</div>
       )}
       <form className="au-form" onSubmit={entrar} noValidate>
-        <CampoPilula icone="email" rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required
+        <CampoRotulo rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required placeholder="seu@email.com"
           value={email} onChange={(e) => setEmail(e.target.value)} />
-        <CampoPilula icone="senha" rotulo="Senha" id="senha" type="password" autoComplete="current-password" required
+        <CampoRotulo rotulo="Senha" id="senha" type="password" autoComplete="current-password" required placeholder="Sua senha"
+          acao={<button type="button" className="au-link au-link-rotulo" onClick={esqueci}>Esqueci a senha</button>}
           value={senha} onChange={(e) => setSenha(e.target.value)} />
-        <button type="button" className="au-link" onClick={esqueci}>Esqueci a senha</button>
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
         {aviso && <div className="alert alert-ok" role="status">{aviso}</div>}
-        <button className="ob-pill au-entrar" disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}<Seta /></button>
+        <button className="ob-pill au-entrar" disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}</button>
       </form>
       {googleAtivo && <>
         <div className="au-ou">ou</div>

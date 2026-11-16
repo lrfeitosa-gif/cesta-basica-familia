@@ -1346,3 +1346,29 @@ html, body { overflow-x: hidden; }
 @supports (overflow-x: clip) { html, body { overflow-x: clip; } }
 .barra-topo .menu-conta-caixa { z-index: 30; background: var(--card); border-color: var(--card-borda); }
 .barra-topo .menu-conta-caixa a { color: var(--foreground); }
+/* ===== Entrar e criar conta (15/11): rótulos acima dos campos, selo de privacidade, regras da senha ===== */
+.au-field { display: grid; gap: 6px; }
+.au-rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.au-rotulo-linha label { font-size: 14px; font-weight: 600; color: var(--foreground); }
+.au-link-rotulo { font: inherit; font-size: 13px; font-weight: 600; background: none; border: 0; padding: 4px 0; cursor: pointer; }
+.au-entrada { position: relative; }
+.au-entrada input { width: 100%; box-sizing: border-box; min-height: 48px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--card); color: var(--foreground); font: inherit; font-size: 16px; }
+.au-entrada input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgb(4 120 87 / .12); }
+.au-entrada input::placeholder { color: var(--muted-foreground); }
+.au-entrada:has(.au-olho) input { padding-right: 48px; }
+.au-entrada .au-olho { position: absolute; right: 6px; top: 50%; translate: 0 -50%; width: 40px; height: 40px; display: grid; place-items: center;
+  background: none; border: 0; cursor: pointer; }
+.au-selo { display: inline-flex; align-items: center; gap: 8px; margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;
+  background: var(--accent-bg); color: var(--accent-foreground); }
+.au-checklist { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; color: var(--muted-foreground); }
+.au-checklist li { display: flex; gap: 6px; align-items: center; }
+.au-checklist li.ok { color: var(--primary); font-weight: 600; }
+.au-ajuda { font-size: 13px; color: var(--muted-foreground); }
+.au-aceite { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; min-height: 44px; font-size: 14px; cursor: pointer; }
+.au-aceite input { width: 22px; height: 22px; flex: none; margin: 1px 0 0; }
+.au-ilustra { max-height: 18vh; }
+@media (max-height: 700px) { .au-ilustra { max-height: 13vh; } }
+.au-selo { text-align: left; justify-self: stretch; display: flex; }
+.au-selo svg { flex: none; }
+.au-field .au-ajuda { padding: 0; margin: 0; }

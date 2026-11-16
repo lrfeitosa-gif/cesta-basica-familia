@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase, mensagemErro } from '@/lib/supabase';
 import BotaoGoogle, { googleAtivo } from '@/app/botao-google';
 import { dominio, registrar } from '@/lib/eventos';
-import { TelaAcesso, CampoPilula, Seta } from '@/app/tela-acesso';
+import { TelaAcesso, CampoRotulo, ChecklistSenha, REGRAS_SENHA } from '@/app/tela-acesso';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -28,7 +28,8 @@ export default function Cadastro() {
     e.preventDefault();
     if (!convite.trim()) return setErro('Digite o código de convite que você recebeu.');
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErro('Digite um e-mail válido, como nome@gmail.com.');
-    if (senha.length < 8) return setErro('Crie uma senha com pelo menos 8 caracteres.');
+    const falta = REGRAS_SENHA.filter(([, ok]) => !ok(senha)).map(([t]) => t.toLowerCase());
+    if (falta.length) return setErro(`A senha ainda precisa de: ${falta.join(', ')}.`);
     if (!aceite) return setErro('Para criar a conta, aceite os termos de uso e a política de privacidade.');
     setErro(''); setEnviando(true);
     registrar('cadastro_inicio', dominio(email));
@@ -64,22 +65,23 @@ export default function Cadastro() {
   }
 
   return (
-    <TelaAcesso titulo="Crie sua conta" destaque="e economize" sub="Só pedimos e-mail. Nada de CPF ou endereço."
+    <TelaAcesso titulo="Crie sua conta e comece a economizar" selo="Só pedimos e-mail. Nada de CPF ou endereço."
       rodape={<>Já tem conta? <Link href="/entrar">Entrar</Link></>}>
       <form className="au-form" onSubmit={criar} noValidate>
-        <CampoPilula icone="convite" rotulo="Código de convite" id="convite" autoComplete="off" autoCapitalize="characters" required
-          aria-describedby="convite-ajuda" value={convite} onChange={(e) => setConvite(e.target.value)} />
-        <span id="convite-ajuda" className="au-ajuda">Teste fechado: peça o código a quem te convidou.</span>
-        <CampoPilula icone="email" rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required
+        <CampoRotulo rotulo="Código de convite" id="convite" autoComplete="off" autoCapitalize="characters" required placeholder="Ex.: MERC-1234"
+          aria-describedby="convite-ajuda" value={convite} onChange={(e) => setConvite(e.target.value)}
+          ajuda={<span id="convite-ajuda" className="au-ajuda">Estamos em teste fechado: peça o código a quem te convidou.</span>} />
+        <CampoRotulo rotulo="E-mail" id="email" type="email" autoComplete="email" inputMode="email" required placeholder="seu@email.com"
           value={email} onChange={(e) => setEmail(e.target.value)} />
-        <CampoPilula icone="senha" rotulo="Senha: 8+ caracteres, letras, números e símbolo" id="senha" type="password" autoComplete="new-password"
-          required minLength={8} aria-invalid={senhaCurta} value={senha} onChange={(e) => setSenha(e.target.value)} />
+        <CampoRotulo rotulo="Crie uma senha" id="senha" type="password" autoComplete="new-password" required minLength={8} placeholder="Sua senha"
+          aria-invalid={senhaCurta} aria-describedby="senha-regras" value={senha} onChange={(e) => setSenha(e.target.value)}
+          ajuda={<div id="senha-regras"><ChecklistSenha senha={senha} /></div>} />
         <label className="au-aceite">
           <input type="checkbox" id="aceite" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
           <span>Li e aceito os <Link href="/termos">termos de uso</Link> e a <Link href="/privacidade">política de privacidade</Link>.</span>
         </label>
         {erro && <div className="alert alert-error" role="alert">{erro}</div>}
-        <button className="ob-pill au-entrar" disabled={enviando}>{enviando ? 'Criando conta…' : 'Criar conta'}<Seta /></button>
+        <button className="ob-pill au-entrar" disabled={enviando}>{enviando ? 'Criando conta…' : 'Criar conta'}</button>
       </form>
       {googleAtivo && <>
         <div className="au-ou">ou</div>
