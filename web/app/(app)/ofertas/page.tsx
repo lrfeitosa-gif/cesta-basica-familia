@@ -28,6 +28,8 @@ export default function Oportunidades() {
   const familiaId = useSessao()?.user.id;
   const distTxt = useDistTexto(familiaId);
   const [mercado, setMercado] = useState('Todos');
+  // 15/11 (Fase 3): filtro por mercado e "Fontes de preço" ficam no botão Filtros, ao lado da busca
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [limite, setLimite] = useState(POR_PAGINA);
   const [q, setQ] = useState('');
   const [forcarIA, setForcarIA] = useState(false);   // botão "Perguntar" ou exemplo tocado: manda para a IA mesmo sem cara de pergunta
@@ -110,6 +112,7 @@ export default function Oportunidades() {
           {dados && <> · {dados.lista.length.toLocaleString('pt-BR')} preços de {dados.mercados.length} mercados em {dataBr(dados.dia)}</>}.
         </p>
       </div>
+      <div className="busca-linha">
       <form className="busca-topo" role="search" onSubmit={(e) => { e.preventDefault(); if (modoPergunta) perguntarAgora(); }}>
         <label htmlFor="busca" className="visually-hidden">Buscar produto ou perguntar à IA</label>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -118,6 +121,33 @@ export default function Oportunidades() {
           value={q} onChange={(e) => { setQ(e.target.value); setLimite(POR_PAGINA); setForcarIA(false); if (e.target.value.trim()) { setCat('Todas'); setMercado('Todos'); } }} />
         <button type="button" className="btn-ia" onClick={() => perguntarAgora()} aria-label="Perguntar à IA">✨ Perguntar</button>
       </form>
+      <button type="button" className={`btn-filtros${mercado !== 'Todos' ? ' ativo' : ''}`} aria-expanded={filtrosAbertos} aria-controls="painel-filtros"
+        onClick={() => setFiltrosAbertos(!filtrosAbertos)} aria-label={`Filtros${mercado !== 'Todos' ? ` (mercado: ${mercado})` : ''}`}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+        <span>Filtros{mercado !== 'Todos' ? ' (1)' : ''}</span>
+      </button>
+      </div>
+      {filtrosAbertos && (
+        <section className="painel-filtros" id="painel-filtros" aria-label="Filtros">
+          <span className="painel-filtros-rotulo">Mercado</span>
+          {dados ? (
+            <div className="chips" role="group" aria-label="Filtrar por mercado">
+              {mercados.map((m) => (
+                <button key={m} type="button" className="chip" aria-pressed={m === mercado}
+                  onClick={() => { setMercado(m); setLimite(POR_PAGINA); }}>{m}</button>
+              ))}
+            </div>
+          ) : <span className="muted">Carregando os mercados…</span>}
+          {dados && <Fontes dados={dados} />}
+        </section>
+      )}
+      {mercado !== 'Todos' && !filtrosAbertos && (
+        <div className="chips filtro-ativo">
+          <button type="button" className="chip" aria-pressed="true" onClick={() => setMercado('Todos')} aria-label={`Tirar o filtro do mercado ${mercado}`}>
+            {mercado} ×
+          </button>
+        </div>
+      )}
       {!q.trim() && (
         <LinhaRolagem rotulo="Exemplos de perguntas à IA" className="exemplos-ia">
           {EXEMPLOS_IA.map((t) => (
@@ -136,7 +166,6 @@ export default function Oportunidades() {
       {q.trim() && !modoPergunta && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando &quot;{q.trim()}&quot; em todos os preços de hoje…</p>
       )}
-      {dados && !q && <Fontes dados={dados} />}
       {!q && <PrimeirosPassos familiaId={familiaId} versao={bvFechou} />}
 
       {semNotas && !q && (
@@ -175,12 +204,6 @@ export default function Oportunidades() {
           )}
           {busca && <OutrasFormas lista={dados.lista} consulta={q} aoEscolher={buscarTexto} />}
           {busca && mercado === 'Todos' && <ComparativoMercados todos={busca} distTxt={distTxt} />}
-          <LinhaRolagem rotulo="Filtrar por mercado">
-            {mercados.map((m) => (
-              <button key={m} type="button" className="chip" aria-pressed={m === mercado}
-                onClick={() => { setMercado(m); setLimite(POR_PAGINA); }}>{m}</button>
-            ))}
-          </LinhaRolagem>
           {busca && !filtradas.length && (
             <div className="empty">Nenhum preço encontrado. Tente menos palavras, como &quot;arroz 5kg&quot;.</div>
           )}
