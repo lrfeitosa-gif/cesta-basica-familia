@@ -1154,6 +1154,11 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .selo-menor { flex: none; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--destaque-escuro); color: #FFFFFF; white-space: nowrap; }
 @media (prefers-color-scheme: dark) { .selo-menor { color: #1A0A00; } }
 .selo-dif { border-radius: 999px; font-size: 11px; }
+.compara-preco { font-size: 24px; font-weight: 800; line-height: 1.1; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.compara-preco small { font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.compara-por { font-size: 13px; font-weight: 600; color: var(--marca-escura); }
+@media (prefers-color-scheme: dark) { .compara-por { color: var(--marca); } }
+.comparativo-cab h2 small { display: block; font-size: 13px; font-weight: 500; }
 
 /* ===== Onde comprar (15/11, Fase 1): resumo das formas de comprar e itens estimados ===== */
 .resumo-opcoes { display: grid; gap: 8px; }
