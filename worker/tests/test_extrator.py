@@ -20,7 +20,7 @@ def ambiente(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "teste")
     monkeypatch.setenv("GEMINI_API_KEY", "teste")
     monkeypatch.setenv("EXTRATOR", "groq")
-    monkeypatch.setattr(extrator, "_carregar", lambda origem: (b"img", "image/jpeg"))
+    monkeypatch.setattr(extrator, "_carregar", lambda origem, headers=None: (b"img", "image/jpeg"))
     monkeypatch.setattr(extrator.time, "sleep", lambda s: None)
     chamadas = {"claude": 0}
 
@@ -82,7 +82,7 @@ def test_modo_json_reprovado_aproveita_o_texto(ambiente):
 
 
 def test_pdf_por_pagina_com_reserva_so_na_pagina_que_falhou(ambiente, monkeypatch):
-    monkeypatch.setattr(extrator, "_carregar", lambda origem: (b"%PDF", "application/pdf"))
+    monkeypatch.setattr(extrator, "_carregar", lambda origem, headers=None: (b"%PDF", "application/pdf"))
     monkeypatch.setattr(extrator, "_paginas", lambda dados, tipo: [(b"p1", "image/jpeg"), (b"p2", "image/jpeg")])
     ok = resposta_groq(json.dumps({"valido_ate": "2026-11-18", "ofertas": [ITEM]}))
     e = extrator.extrair("x.pdf", http=cliente(ok, httpx.Response(500)))

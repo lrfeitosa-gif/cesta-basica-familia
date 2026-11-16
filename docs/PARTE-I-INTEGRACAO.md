@@ -46,7 +46,9 @@ Prints enviados (Assaí, PdA) ──┘          ▲                            
 | Goodbom | Site, loja de Indaiatuba | Páginas de departamento (Mercafacil/Next.js) | robots.txt proíbe só /busca; preço do site, oferta e Clube Goodbom |
 | Roldão | Encarte | Imagens no site → extrator | Encarte "ITU-" é de outra cidade e é ignorado |
 | Sumerbol | Encarte | PDF no site → extrator | |
-| Assaí | Encarte | Prints enviados → extrator | Site bloqueia leitura automática |
+| Assaí | Encarte, loja de Indaiatuba | JSON público dos jornais (`ofertas_assai.json`, loja_id 178) → extrator | Validade vem do JSON; se o JSON direto falhar, abre a página num navegador (Playwright). Bloqueio ou CAPTCHA não é contornado |
+| Cato | Encarte | Página de folhetos aberta num navegador (Playwright) → imagens .webp → extrator | Validade lida no folheto; folheto que ainda não começou fica para o dia dele |
+| Revolução | Encarte | Imagem fixa `assets/indaiatuba.jpg` → extrator | |
 
 **Regras adotadas**
 - Só usamos fontes abertas. Sites que bloqueiam robôs não são contornados.
