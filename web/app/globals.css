@@ -529,7 +529,11 @@ body:has(.barra-topo), body:has(.barra-topo) { background:
 /* fundo da área logada recolorido: a imagem vai numa camada fixa com filtro */
 body:has(.barra-topo) { background: var(--background); }
 body:has(.barra-topo)::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: url('/img/fundo-app.jpg') center bottom / min(100vw, 420px) auto no-repeat; filter: var(--filtro-img); opacity: .45; }
+  background: url('/img/fundo-app.jpg') center bottom / min(100vw, 520px) auto no-repeat; filter: var(--filtro-img); opacity: .45;
+  /* 16/11: a imagem tinha 420 px e a coluna do app 520 px: no computador a borda da imagem aparecia como uma linha
+     dentro do conteúdo. Agora tem a largura da coluna e as bordas somem aos poucos. */
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(50% - 260px), #000 calc(50% - 200px), #000 calc(50% + 200px), transparent calc(50% + 260px));
+  mask-image: linear-gradient(90deg, transparent calc(50% - 260px), #000 calc(50% - 200px), #000 calc(50% + 200px), transparent calc(50% + 260px)); }
 @media (prefers-color-scheme: dark) { body:has(.barra-topo)::before { opacity: .18; } }
 
 /* Barra com 6 abas */
