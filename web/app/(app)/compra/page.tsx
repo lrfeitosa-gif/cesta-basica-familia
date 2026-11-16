@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { brl, chaveMarca, emb, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfertas, type Oferta } from '@/lib/ofertas';
-import { Carregando, ErroCarga, TagSocios } from '../linha-oferta';
+import { Carregando, TagSocios } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
 import { fmtKm, fmtTempo, km, minCarro, useLocais } from '@/lib/locais';
@@ -159,6 +159,12 @@ const BASICOS_MARCADOS = 6;
 
 export default function MinhaCompra() {
   const { dados, erro, tentarDeNovo } = useOfertas();
+  // 16/11 (harden): quando o celular volta a ter internet, busca os preços de novo sem a pessoa precisar tocar em nada
+  useEffect(() => {
+    if (!erro) return;
+    window.addEventListener('online', tentarDeNovo);
+    return () => window.removeEventListener('online', tentarDeNovo);
+  }, [erro]);   // eslint-disable-line react-hooks/exhaustive-deps
   const sessao = useSessao();
   const locais = useLocais(sessao?.user.id);
   const [sel, setSel] = useState<Record<string, number>>(PADRAO);
@@ -190,13 +196,35 @@ export default function MinhaCompra() {
   const setPref = (p: Partial<Pref>) => setPrefEstado((x) => { const n = { ...x, ...p }; try { localStorage.setItem('cesta-pref', JSON.stringify(n)); } catch {} return n; });
   const trocarRoteiro = (m: string) => setForaRoteiro((x) => { const n = x.includes(m) ? x.filter((y) => y !== m) : [...x, m]; try { localStorage.setItem('cesta-fora-roteiro', JSON.stringify(n)); } catch {} return n; });
   // a aba escolhida vale durante a visita: voltar de outra tela não perde o lugar
-  const setAba = (a: 'lista' | 'comparar') => { setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {} window.scrollTo(0, 0); };
+  // 16/11 (harden): ir para Onde comprar cria uma entrada no histórico (?ver=onde), para o "voltar" do celular voltar
+  // à lista em vez de sair da Cesta. Voltar pelo botão "Editar lista" usa o mesmo histórico quando ele existe.
+  const setAba = (a: 'lista' | 'comparar', historico = true) => {
+    setAbaEstado(a); try { sessionStorage.setItem('compra-aba', a); } catch {}
+    if (historico) {
+      try {
+        const veioDaLista = (window.history.state as { compraOnde?: boolean } | null)?.compraOnde;
+        const naOnde = new URLSearchParams(location.search).get('ver') === 'onde';
+        if (a === 'comparar' && !naOnde) {
+          // a entrada da lista fica marcada (?ver=lista): ao voltar, a página sabe que é a lista
+          window.history.replaceState(window.history.state, '', '/compra?ver=lista');
+          window.history.pushState({ ...window.history.state, compraOnde: true }, '', '/compra?ver=onde');
+        } else if (a === 'lista' && veioDaLista) { window.history.back(); return; }
+        else window.history.replaceState(window.history.state, '', a === 'comparar' ? '/compra?ver=onde' : '/compra?ver=lista');
+      } catch { /* sem histórico: a troca de passo continua valendo */ }
+    }
+    window.scrollTo(0, 0);
+  };
+  useEffect(() => {
+    const aoVoltar = () => { const v = new URLSearchParams(location.search).get('ver'); setAba(v === 'onde' ? 'comparar' : 'lista', false); };
+    window.addEventListener('popstate', aoVoltar);
+    return () => window.removeEventListener('popstate', aoVoltar);
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   // Passo inicial: ?nota=ID (Usar na cesta) e ?ver=lista abrem a Lista, para editar; ?ver=onde abre Onde comprar;
   // sem nada, volta ao passo em que a pessoa estava nesta visita.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.get('nota') || p.get('ver') === 'lista') return setAba('lista');
-    if (p.get('ver') === 'onde') return setAba('comparar');
+    if (p.get('nota') || p.get('ver') === 'lista') return setAba('lista', false);
+    if (p.get('ver') === 'onde') return setAba('comparar', false);
     try { if (sessionStorage.getItem('compra-aba') === 'comparar') setAbaEstado('comparar'); } catch {}
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -430,9 +458,17 @@ export default function MinhaCompra() {
     if (sai.termo) salvarExtras(extras.filter((x) => x.id !== sai.id));
     mudar(n);
   };
+  // 16/11 (harden): remover mostra "Desfazer" no aviso do rodapé; o item volta com a mesma quantidade e marca
   const remover = (id: string) => {
+    const extra = extras.find((x) => x.id === id); const qtd = sel[id]; const marca = marcas[id];
     salvarExtras(extras.filter((x) => x.id !== id));
     const n = { ...sel }; delete n[id]; mudar(n);
+    if (!extra) return;
+    mostrarAviso({ texto: `${extra.termo} saiu da cesta.`, acao: { rotulo: 'Desfazer', fazer: () => {
+      setExtras((l) => { const v = l.some((x) => x.id === id) ? l : [...l, extra]; try { localStorage.setItem('cesta-extra', JSON.stringify(v)); } catch {} return v; });
+      setSel((s0) => { const v = { ...s0, [id]: qtd ?? 1 }; try { localStorage.setItem('cesta-sel', JSON.stringify(v)); } catch {} return v; });
+      if (marca) fixarMarca(id, marca);
+    } } });
   };
   // itens vindos de notas antigas ainda podem ter abreviações: a busca usa a palavra inteira
   const todos: ItemCesta[] = useMemo(() => [...CESTA, ...extras.map((x) => ({ id: x.id, rotulo: semAbrev(x.termo) === norm(x.termo) ? x.termo : semAbrev(x.termo).replace(/^./, (c) => c.toUpperCase()), termo: semAbrev(x.termo), porKg: x.horti ?? pareceHortiFixo(x.termo) }))], [extras]);
@@ -531,7 +567,8 @@ export default function MinhaCompra() {
     return r;
   }, [candidatos, kgs, unis, refs, marcas, todos]);
 
-  if (erro) return <><h1>Minha cesta</h1><ErroCarga tentarDeNovo={tentarDeNovo} /></>;
+  // 16/11 (harden): sem os preços (internet fraca), a lista continua na tela; o aviso fica no topo, com "Tentar de novo"
+  const semPrecos = erro && !dados;
 
   const itens = todos.filter((c) => sel[c.id]);
   // mediana do item entre os mercados que têm preço: estimativa para quem não tem
@@ -808,18 +845,24 @@ ul{list-style:none;padding:0;margin:6px 0}li{display:flex;gap:10px;padding:6px 0
 <h1>Lista de compras · Mercato</h1><div class="m">${esc(titulo)} · preços de ${esc(dia)} coletados nos sites e encartes; podem mudar na loja.</div>
 ${grupos.map((g) => `<h2>${esc(g.mercado)}</h2>${g.onde ? `<div class="m">${esc(g.onde)}</div>` : ''}<ul>${g.linhas.map((x) => `<li><span class="cx"></span><span class="p"><b>${esc(x.txt)}</b><br><span class="m">${esc(x.prod)}</span></span><span class="v">${esc(x.valor)}</span></li>`).join('')}</ul><div class="t">Subtotal: ${esc(g.total)}</div>`).join('')}
 ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
-<div class="g">Total: ${esc(brl(total))}</div></body></html>`;
+<div class="g">Total: ${esc(brl(total))}</div>
+<script>
+// "Voltar" fecha a janela; se o sistema não deixar fechar (app instalado no iPhone, ou lista aberta na mesma aba), volta à Cesta.
+var volta = ${JSON.stringify(`${location.origin}/compra?ver=onde`)};
+document.getElementById('imprimir').onclick = function () { try { window.print(); } catch (e) {} };
+document.getElementById('voltar').onclick = function () {
+  try { window.close(); } catch (e) {}
+  setTimeout(function () { if (!window.closed) location.href = volta; }, 300);
+};
+</script></body></html>`;
     const w = window.open('', '_blank');
-    if (!w) return mostrarAviso({ texto: 'O navegador bloqueou a nova janela. Permita pop-ups deste site para gerar o PDF.' });
+    if (!w) {
+      // 16/11 (harden): janela bloqueada (comum no celular): abre a lista nesta aba; o botão "Voltar ao Mercato" traz de volta
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      window.location.assign(url);
+      return;
+    }
     w.document.write(html); w.document.close();
-    // 16/11: no app instalado no iPhone a lista abre sem barra do navegador; os botões dão o caminho de volta.
-    // "Voltar" fecha a janela; se o sistema não deixar fechar, abre a Cesta de novo nesta mesma tela.
-    const volta = `${location.origin}/compra?ver=onde`;
-    w.document.getElementById('imprimir')?.addEventListener('click', () => { try { w.print(); } catch { /* menu do navegador */ } });
-    w.document.getElementById('voltar')?.addEventListener('click', () => {
-      try { w.close(); } catch { /* segue para o plano B */ }
-      setTimeout(() => { try { if (!w.closed) w.location.href = volta; } catch { /* nada a fazer */ } }, 300);
-    });
     // espera o navegador desenhar a página antes de abrir a impressão (uma vez só)
     setTimeout(() => { try { w.focus(); w.print(); } catch { /* a pessoa imprime pelo menu */ } }, 500);
   };
@@ -845,11 +888,17 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </div>
       )}
 
+      {semPrecos && (
+        <div className="alert alert-error stack sem-precos" role="alert">
+          <span><b>Sem conexão com os preços agora.</b> Sua lista continua guardada; os preços aparecem quando a internet voltar.</span>
+          <button type="button" className="btn btn-secondary" onClick={tentarDeNovo}>Tentar de novo</button>
+        </div>
+      )}
       {aba === 'lista' && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando os preços de hoje nos mercados…</p>
       )}
 
-      {aba === 'comparar' && !dados && <Carregando />}
+      {aba === 'comparar' && !dados && !erro && <Carregando />}
       {aba === 'comparar' && dados && <>
 
       {/* 16/11 (layout): resposta e apoio em grupos. No celular, uma coluna; a partir de 960 px, duas: a resposta
@@ -1237,7 +1286,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                     <span><b className="preco-item">{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span>
                       {dados && <> · {Object.keys(porItem[c.id]).length} mercados</>}</span>
                   </span>
-                ) : !dados ? <span className="esq-texto" aria-hidden="true" />
+                ) : !dados ? (erro ? <span className="cond">preço indisponível agora</span> : <span className="esq-texto" aria-hidden="true" />)
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
                 {(nomeMarca || a) && (
                   <span className="item-escolhas">
@@ -1294,7 +1343,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           );
         })}
       </div>
-      {todos.some((c) => !sel[c.id]) && (
+      {itens.length > 0 && todos.some((c) => !sel[c.id]) && (
         <section className="fora-da-conta" aria-labelledby="fora-titulo">
           <h3 id="fora-titulo" className="fora-titulo">Pôr de volta na cesta</h3>
           <div className="chips" role="group" aria-labelledby="fora-titulo">

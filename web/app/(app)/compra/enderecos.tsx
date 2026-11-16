@@ -25,8 +25,9 @@ export default function Enderecos({ refs, adicionar, remover }: {
     setRotulo(''); setCep('');
   };
 
+  // 16/11 (harden): recolhido por padrão; antes abria o formulário no meio de Onde comprar
   return (
-    <details className="enderecos address-compact" open={refs.length === 0}>
+    <details className="enderecos address-compact">
       <summary>
         <span className="address-texto"><IconeLocal /> {refs.length ? `Distâncias a partir de: ${refs.map((r) => r.rotulo).join(', ')}` : 'Informe um CEP para ver a distância até cada mercado'}</span>
         <span className="address-acao">{refs.length ? 'Alterar' : 'Adicionar'}</span>

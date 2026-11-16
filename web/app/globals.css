@@ -348,7 +348,7 @@ h2 { margin-top: 4px; }
 .btn-remover, .btn-acabou, .link-site { min-height: 40px; display: inline-flex; align-items: center; }
 .btn-remover { padding: 0 8px; }
 .btn-link { min-height: 40px; }
-.qtd button { min-width: 40px; min-height: 40px; }
+.qtd button { min-width: 44px; min-height: 44px; }
 details > summary { min-height: 36px; display: flex; align-items: center; cursor: pointer; }
 .empty .btn { margin-top: 10px; }
 /* links com aparência de botão do design system de boas-vindas */
@@ -1445,3 +1445,7 @@ html, body { overflow-x: hidden; }
 .market-distance .icone, .address-texto .icone, .com-icone .icone { color: var(--marca-escura); margin-right: 2px; }
 @media (prefers-color-scheme: dark) { .market-distance .icone, .address-texto .icone, .com-icone .icone, .dicas-foto li .icone { color: var(--marca); } }
 .market-warning .icone { margin-top: 1px; }
+
+/* Robustez (16/11, harden): alvos de toque de 44 px e aviso de preços indisponíveis */
+.btn-lixeira { width: 44px; height: 44px; min-width: 44px; }
+.sem-precos .btn { justify-self: start; min-height: 44px; }
