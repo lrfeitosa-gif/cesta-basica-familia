@@ -1,5 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
+import { IconeLocal } from '../icones';
 import { MAX_REFERENCIAS, type Referencia } from '@/lib/locais';
 
 // Até 3 endereços de referência (casa, trabalho, escola) informados por CEP. Guardamos só rótulo e região (~1 km).
@@ -27,13 +28,13 @@ export default function Enderecos({ refs, adicionar, remover }: {
   return (
     <details className="enderecos address-compact" open={refs.length === 0}>
       <summary>
-        <span className="address-texto">📍 {refs.length ? `Distâncias a partir de: ${refs.map((r) => r.rotulo).join(', ')}` : 'Informe um CEP para ver a distância até cada mercado'}</span>
+        <span className="address-texto"><IconeLocal /> {refs.length ? `Distâncias a partir de: ${refs.map((r) => r.rotulo).join(', ')}` : 'Informe um CEP para ver a distância até cada mercado'}</span>
         <span className="address-acao">{refs.length ? 'Alterar' : 'Adicionar'}</span>
       </summary>
       <div className="stack" style={{ marginTop: 12 }}>
         {refs.map((r) => (
           <div key={r.id} className="row" style={{ justifyContent: 'space-between' }}>
-            <span>📍 {r.rotulo}</span>
+            <span className="com-icone"><IconeLocal /> {r.rotulo}</span>
             <button type="button" className="btn-remover" onClick={() => remover(r.id)}>remover</button>
           </div>
         ))}
