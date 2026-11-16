@@ -1221,6 +1221,11 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .product-card .old-price { display: inline; margin-right: 4px; }
 .product-card .discount-badge { margin-top: 2px; }
 .product-card .product-meta { border-top: 0; padding-top: 0; gap: 4px 10px; }
+.opcoes-variacao { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.opcoes-rotulo { font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.chip-opcao { min-height: 44px; padding: 4px 14px; font-size: 14px; }
+.chip-opcao[aria-checked="true"] { background: var(--marca-clara, #ECFDF5); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .chip-opcao[aria-checked="true"] { color: var(--foreground); } }
 /* celular: o botão Filtros fica só com o ícone, para a busca não perder espaço; o nome continua para leitores de tela */
 @media (max-width: 480px) {
   .btn-filtros { width: 48px; padding: 0; justify-content: center; position: relative; }

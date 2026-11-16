@@ -378,3 +378,44 @@ export function outrasFormas(lista: Oferta[], consulta: string): OutraForma[] {
   }
   return out.sort((a, b) => b.n - a.n);
 }
+
+// Variações quase iguais (15/11, Fase 3.2): no mesmo mercado, mesmo preço, marca e tamanho, nomes que começam pelas
+// mesmas palavras (pelo menos 2) e diferem só no fim (até 3 palavras, menos que a parte em comum) viram um card só,
+// com "N opções". Os dados não têm campo de sabor: a regra compara os nomes (aprovada em 16/11 com os dados de 15/11:
+// juntava 1.369 grupos, ex.: Tempera & Empana Maggi 60g Páprica e Parmesão no Savegnago).
+export type Opcao = { o: Oferta; rotulo: string };
+export type ItemLista<T extends { o: Oferta }> = T & { opcoes?: Opcao[]; titulo?: string };
+const SO_TAMANHO = /^(\d+([.,]\d+)?(g|kg|ml|l|lt|un|litros?)?|-|tp|c\/)$/i;
+const palavrasNome = (nome: string) => nome.split(/\s+/).filter(Boolean);
+const chaveNome = (w: string) => norm(w).replace(/[^a-z0-9%]/g, '');
+export function agruparVariacoes<T extends { o: Oferta }>(lista: T[]): ItemLista<T>[] {
+  const baldes = new Map<string, number[]>();
+  lista.forEach((x, i) => {
+    const ws = palavrasNome(x.o.nome).map(chaveNome);
+    const k = [x.o.mercado, x.o.preco, norm(x.o.marca), x.o.q, x.o.u, ws[0], ws[1]].join('|');
+    baldes.set(k, [...(baldes.get(k) ?? []), i]);
+  });
+  const juntar = new Map<number, Opcao[]>();   // índice do primeiro do grupo -> opções
+  const titulos = new Map<number, string>();
+  const fora = new Set<number>();
+  for (const idx of baldes.values()) {
+    if (idx.length < 2) continue;
+    const orig = idx.map((i) => palavrasNome(lista[i].o.nome));
+    const ws = orig.map((w) => w.map(chaveNome));
+    let pre = 0;
+    while (ws.every((w) => w.length > pre) && new Set(ws.map((w) => w[pre])).size === 1) pre++;
+    if (pre < 2) continue;
+    const resto = ws.map((w) => w.slice(pre));
+    if (resto.some((r) => !r.length || r.length > 3)) continue;
+    if (resto.some((r, k) => r.length >= ws[k].length * 0.6)) continue;
+    const opcoes = idx.map((i, k) => {
+      const r = orig[k].slice(pre).filter((w) => !SO_TAMANHO.test(w)).join(' ');
+      return { o: lista[i].o, rotulo: r || 'Tradicional' };
+    });
+    if (new Set(opcoes.map((x) => norm(x.rotulo))).size < opcoes.length) continue;   // rótulos repetidos: não junta
+    juntar.set(idx[0], opcoes);
+    titulos.set(idx[0], orig[0].slice(0, pre).join(' '));
+    idx.slice(1).forEach((i) => fora.add(i));
+  }
+  return lista.flatMap((x, i) => fora.has(i) ? [] : juntar.has(i) ? [{ ...x, opcoes: juntar.get(i), titulo: titulos.get(i) }] : [x]);
+}

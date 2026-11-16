@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
-import { brl, emb, marcarEsgotado, norm, SO_SOCIOS, type Oferta } from '@/lib/ofertas';
+import { brl, emb, marcarEsgotado, norm, SO_SOCIOS, type Oferta, type Opcao } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import { useSessao } from '@/lib/sessao';
 import { adicionarNaCesta } from '@/lib/cesta';
@@ -11,8 +11,13 @@ import HistoricoMini from './historico-mini';
 // Cartão de um preço. Ações (15/11, Fase 3): só "+ Cesta" à vista; as outras quatro (alerta, histórico, site/encarte
 // e "Avisar que acabou") ficam no botão "⋯", que fecha com Esc e com toque fora. `termo` é o que vai para a cesta e para o alerta: a busca da
 // pessoa quando houver ("café pilão"), senão o nome do produto.
-export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extra?: ReactNode; dist?: string | null; termo?: string }) {
+// `opcoes`/`titulo` (Fase 3.2): variações quase iguais juntas num card; a opção escolhida vale para a cesta, o alerta e os links.
+export default function LinhaOferta({ o: oBase, extra, dist, termo, opcoes, titulo }:
+  { o: Oferta; extra?: ReactNode; dist?: string | null; termo?: string; opcoes?: Opcao[]; titulo?: string }) {
   const sessao = useSessao(false);   // a página já exige a conta; aqui só lê, sem redirecionar
+  const [escolhida, setEscolhida] = useState(0);
+  const o = opcoes?.[escolhida]?.o ?? oBase;
+  const nomeCard = opcoes && titulo ? titulo : o.nome;
   const [aberto, setAberto] = useState<'' | 'alerta' | 'hist'>('');
   const [alvo, setAlvo] = useState(() => (Math.floor(o.preco * 0.95 * 10) / 10).toFixed(2).replace('.', ','));
   const [salvando, setSalvando] = useState(false);
@@ -51,12 +56,12 @@ export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extr
   };
   const comMarca = o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} ` : '';
   // o tamanho já está no nome ("Biscoito 90G")? então não repete ao lado
-  const nomeJunto = norm(o.nome).replace(/\s/g, '');
+  const nomeJunto = norm(nomeCard).replace(/\s/g, '');
   const tamNoNome = [String(o.q), String(o.q).replace('.', ',')].some((q) => nomeJunto.includes(`${q}${o.u}`));
   return (
     <article className="product-card">
       <div className="product-header">
-        <h3 className="product-title">{comMarca}{o.nome}{!tamNoNome && <> <small>{emb(o)}</small></>}</h3>
+        <h3 className="product-title">{comMarca}{nomeCard}{!tamNoNome && <> <small>{emb(o)}</small></>}</h3>
         <div className="price-tag-container">
           <b className="current-price">{brl(o.preco)}</b>
           {o.de > o.preco && <s className="old-price">de {brl(o.de)}</s>}
@@ -64,6 +69,15 @@ export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extr
             : extra && <span className="discount-badge">{extra}</span>}
         </div>
       </div>
+      {opcoes && (
+        <div className="opcoes-variacao" role="radiogroup" aria-label={`${opcoes.length} opções pelo mesmo preço`}>
+          <span className="opcoes-rotulo">{opcoes.length} opções:</span>
+          {opcoes.map((x, i) => (
+            <button key={x.o.id} type="button" role="radio" aria-checked={i === escolhida} className="chip chip-opcao"
+              onClick={() => setEscolhida(i)}>{x.rotulo}</button>
+          ))}
+        </div>
+      )}
       <div className="product-meta">
         <span className="mkt">{o.mercado}</span>
         {SO_SOCIOS.has(o.mercado) && <TagSocios />}

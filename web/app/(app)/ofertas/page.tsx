@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { brl, carregarPrevia, dataBr, filtrarFoco, GRUPOS, grupo, norm, ordenarPorMedida, useOfertas, type Oferta } from '@/lib/ofertas';
+import { agruparVariacoes, brl, carregarPrevia, dataBr, filtrarFoco, GRUPOS, grupo, norm, ordenarPorMedida, useOfertas, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
 import LinhaOferta, { Carregando, ErroCarga } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
@@ -100,7 +100,9 @@ export default function Oportunidades() {
   const categorias = ['Todas', ...GRUPOS.map(([g]) => g).filter((g) => dados?.lista.some((o) => grupo(o.categoria) === g))];
   const mercados = ['Todos', ...(dados?.mercados ?? []).filter((m) => base.some((x) => x.o.mercado === m))];
   const filtradas = base.filter((x) => mercado === 'Todos' || x.o.mercado === mercado);
-  const lista = filtradas.slice(0, limite);
+  // variações quase iguais (mesmo mercado, preço, marca e tamanho) viram um card com "N opções" (Fase 3.2)
+  const agrupadas = useMemo(() => agruparVariacoes(filtradas), [filtradas]);
+  const lista = agrupadas.slice(0, limite);
 
   return (
     <>
@@ -211,13 +213,13 @@ export default function Oportunidades() {
             <h2 className="section-title">Todos os preços <small className="muted">· {filtradas.length} {filtradas.length === 1 ? 'encontrado' : 'encontrados'}{filtradas.some((x) => x.o.ub !== filtradas[0].o.ub) ? '; os vendidos por outra medida vêm no fim' : ''}</small></h2>
           )}
           <div className="lista">
-            {lista.map(({ o, desc }, i) => (
-              <LinhaOferta key={i} o={o} dist={distTxt(o.mercado)} termo={busca ? q.trim() : undefined} extra={desc >= 0.01 ? <>−{Math.round(desc * 100)}%</> : undefined} />
+            {lista.map(({ o, desc, opcoes, titulo }, i) => (
+              <LinhaOferta key={i} o={o} opcoes={opcoes} titulo={titulo} dist={distTxt(o.mercado)} termo={busca ? q.trim() : undefined} extra={desc >= 0.01 ? <>−{Math.round(desc * 100)}%</> : undefined} />
             ))}
           </div>
-          {filtradas.length > limite && (
+          {agrupadas.length > limite && (
             <button type="button" className="btn btn-secondary btn-block" onClick={() => setLimite(limite + POR_PAGINA)}>
-              Carregar mais ({filtradas.length - limite} restantes)
+              Carregar mais ({agrupadas.length - limite} restantes)
             </button>
           )}
         </>
