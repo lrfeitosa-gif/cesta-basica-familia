@@ -13,6 +13,12 @@ export function km(a: { lat: number; lng: number }, b: { lat: number; lng: numbe
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 export const fmtKm = (d: number) => `${d < 10 ? d.toFixed(1).replace('.', ',') : Math.round(d)} km`;
+// Tempo de carro estimado (14/11): a distância é em linha reta e o endereço é guardado só pela região (~1 km),
+// então é uma estimativa. Pelas ruas o caminho é ~1,4× a linha reta; na cidade, média de 25 km/h, mais 2 min
+// para sair e estacionar. O tempo exato, com trânsito, fica no "Como chegar" (Google Maps).
+export const minCarro = (km: number) => Math.max(3, Math.round((km * 1.4) / 25 * 60 + 2));
+export const fmtTempo = (km: number) => `≈ ${minCarro(km)} min de carro`;
+export const fmtDist = (km: number) => `${fmtKm(km)} · ${fmtTempo(km)}`;
 
 // Lojas físicas (públicas) e os endereços de referência da família (até 3).
 export function useLocais(familiaId: string | undefined) {
@@ -89,6 +95,6 @@ export function useDistTexto(familiaId: string | undefined) {
   const { distancia } = useLocais(familiaId);
   return (mercado: string) => {
     const d = distancia(mercado);
-    return d ? `${fmtKm(d.km)} de ${d.ref.rotulo}` : null;
+    return d ? `${fmtKm(d.km)} de ${d.ref.rotulo} · ${fmtTempo(d.km)}` : null;
   };
 }
