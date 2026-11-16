@@ -112,13 +112,34 @@ export async function carregarPrevia(): Promise<Oferta[]> {
 
 const SEL = 'id,preco,preco_de,condicao,fonte,coletado_em,url,mercado(rede),produto(nome,marca,quantidade,unidade,categoria,ean)';
 let diaCache: Promise<string> | null = null;
+let diaCacheEm = 0;   // 16/11: no servidor a função fica viva por horas; o dia é conferido de novo a cada 10 min
 function diaAtual(): Promise<string> {
+  if (Date.now() - diaCacheEm > 10 * 60_000) { diaCache = null; diaCacheEm = Date.now(); }
   diaCache ??= (async () => {
     const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
     const ult = await supabase.from('oferta').select('valido_de').eq('fonte', 'ecommerce').lte('valido_de', hoje)
       .order('valido_de', { ascending: false }).limit(1).single();
     if (ult.error) { diaCache = null; throw ult.error; }
-    return ult.data.valido_de as string;
+    const novo = ult.data.valido_de as string;
+    // 16/11: durante a coleta da manhã os mercados gravam aos poucos, e o dia novo aparecia pela metade
+    // (itens "sem preço" em mercados que têm o produto). Enquanto o dia novo tiver menos de 80% das linhas
+    // do dia anterior e a última gravação for de menos de 40 min, continua no dia anterior.
+    try {
+      const ant = await supabase.from('oferta').select('valido_de').eq('fonte', 'ecommerce').lt('valido_de', novo)
+        .order('valido_de', { ascending: false }).limit(1).maybeSingle();
+      const diaAnt = ant.data?.valido_de as string | undefined;
+      if (!diaAnt) return novo;
+      const [cNovo, cAnt, recente] = await Promise.all([
+        supabase.from('oferta').select('id', { count: 'exact', head: true }).eq('valido_de', novo).eq('fonte', 'ecommerce'),
+        supabase.from('oferta').select('id', { count: 'exact', head: true }).eq('valido_de', diaAnt).eq('fonte', 'ecommerce'),
+        supabase.from('oferta').select('coletado_em').eq('valido_de', novo).eq('fonte', 'ecommerce').order('coletado_em', { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      const pela_metade = (cNovo.count ?? 0) < (cAnt.count ?? 0) * 0.8;
+      const gravando = recente.data?.coletado_em && Date.now() - Date.parse(recente.data.coletado_em as string) < 40 * 60_000;
+      return pela_metade && gravando ? diaAnt : novo;
+    } catch {
+      return novo;
+    }
   })();
   return diaCache;
 }
@@ -305,7 +326,9 @@ export function filtrarFoco(lista: Oferta[], consulta: string): Oferta[] {
 }
 
 // Grafias diferentes da mesma coisa nos sites dos mercados: a busca por uma acha também a outra.
-const GRAFIAS: string[][] = [['taiti', 'tahiti'], ['ketchup', 'catchup']];
+// 16/11: a mesma muçarela aparece como mussarela, muçarela e mozzarella conforme o mercado.
+const GRAFIAS: string[][] = [['taiti', 'tahiti'], ['ketchup', 'catchup'],
+  ['mussarela', 'mucarela', 'muzarela', 'mozzarella', 'mozarela', 'muzzarella']];
 // Plural acha o singular: "capsulas" acha "Cápsula 3 Corações" (a busca é por trecho, então "capsula" acha as duas).
 const singular = (t: string) => (t.length >= 5 && /[^s]s$/.test(t) && !/\d/.test(t) ? t.slice(0, -1) : t);
 const variantes = (t: string): string[] => GRAFIAS.find((g) => g.includes(t)) ?? [singular(t)];
