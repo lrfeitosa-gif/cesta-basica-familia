@@ -3,7 +3,9 @@ name: Coleta diária de ofertas
 on:
   schedule:
     # horários em UTC (Brasília = UTC-3)
-    - cron: "0 10 * * *"            # 07:00 todo dia: coleta completa (sites + encartes)
+    # 16/11: era 07:00 (10h UTC), mas o GitHub atrasa as tarefas de hora cheia (às vezes mais de 40 min) e a coleta
+    # leva ~25 min: os preços do dia chegavam depois das 8h. Agora 05:17, fora da hora cheia, para estar pronto antes das 7h.
+    - cron: "17 8 * * *"            # 05:17 todo dia: coleta completa (sites + encartes)
     - cron: "0 16 * * *"            # 13:00 todo dia: só sites (preço muda durante o dia)
     - cron: "0 13,20,23 28-31 * *"  # fim do mês, 10h, 17h e 20h: só sites (ofertas de virada de mês)
     - cron: "0 13,20,23 1-2 * *"    # começo do mês, 10h, 17h e 20h: só sites
