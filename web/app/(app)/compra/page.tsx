@@ -124,7 +124,9 @@ const PROCESSADO = /triturad|picad|frit|desidrat|pasta|conserva|em po|chips|pass
 
 // Cesta básica de referência. Próxima etapa: montar a partir da lista de interesse da família.
 const CHAVE_SYNC = 'cesta-atualizada';   // quando a lista deste aparelho mudou pela última vez (ms)
-const PET = /racao|pet\b|caes|gatos|pedigree|baw waw|whiskas|golden formula|premier pet|petisco|dog\b|cat\b/;
+// 16/11: "pet" sozinho saiu da lista: é a garrafa plástica em centenas de produtos ("Óleo de Soja Liza Pet 900ml",
+// "Leite Parmalat Pet 1L", águas e chás), que sumiam da Cesta. Produto de animal já sai pela categoria Pet e por estas palavras.
+const PET = /racao|caes|gatos|pedigree|baw waw|whiskas|golden formula|premier pet|petisco|dog\b|cat\b/;
 // marca sem espaços: "La Sante" = "Lasante"
 const marcaCompacta = (m: string) => chaveMarca(m).replace(/ /g, '');
 
