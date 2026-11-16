@@ -63,7 +63,8 @@ const contagem = (o: Oferta) => {
 // Fração máxima de itens estimados (sem preço no mercado) para o mercado entrar no topo do ranking por menor preço.
 // Acima disso ele vai para o fim, em "Poucos itens com preço hoje". Decisão de 15/11: 20%.
 const LIMITE_ESTIMADOS = 0.2;
-// Opção destacada como "Equilíbrio" no resumo de Onde comprar (decisão de 15/11: 2 mercados).
+// Opção destacada como "Equilíbrio" no resumo de Onde comprar (decisão de 15/11: 2 mercados). 16/11: o selo só aparece
+// quando ela vale a pena de fato: sai mais barata que comprar tudo num mercado só e não tem item estimado.
 const OPCAO_EQUILIBRIO: 'roteiro' | 'dupla' | 'um' | 'perto' = 'dupla';
 const estTxt = (n: number, valor: number) => n ? `${n} ${n === 1 ? 'item estimado' : 'itens estimados'}${valor > 0 ? ` (≈ ${brl(valor)})` : ''}` : '';
 // Itens repetidos (Fase 4.3, 15/11): mesmo produto depois de normalizar maiúsculas, acentos e unidades.
@@ -682,6 +683,8 @@ export default function MinhaCompra() {
     dist: locais.distancia(maisPerto.m) ? fmtKm(locais.distancia(maisPerto.m)!.km) : null, est: estTxt(maisPerto.falta.length, maisPerto.estimado),
     destino: 'opcao-mercado', aoTocar: () => setPref({ ordem: 'perto' }) });
   const referencia = opcoes.find((o) => o.k === 'perto') ?? opcoes.find((o) => o.k === 'um');
+  const umSo = opcoes.find((o) => o.k === 'um');
+  const ehEquilibrio = (o: Opcao) => o.k === OPCAO_EQUILIBRIO && !o.est && (!umSo || o === umSo || o.valor < umSo.valor);
   const nomeOpcao = (o: Opcao) => o.k === 'um' ? top!.m : o.k === 'perto' ? maisPerto!.m : o.k === 'dupla' ? `${dupla!.a} e ${dupla!.b}` : `${o.nMerc} mercados`;
   const irPara = (o: Opcao) => {
     o.aoTocar?.();
@@ -722,9 +725,9 @@ export default function MinhaCompra() {
           const economia = referencia.valor - o.valor;
           return (
             <li key={o.k}>
-              <button type="button" className={`opcao${o.k === OPCAO_EQUILIBRIO ? ' equilibrio' : ''}`} onClick={() => irPara(o)}
+              <button type="button" className={`opcao${ehEquilibrio(o) ? ' equilibrio' : ''}`} onClick={() => irPara(o)}
                 aria-label={`${o.titulo}: ${brl(o.valor)}, ${nomeOpcao(o)}. Ver detalhes`}>
-                <span className="opcao-titulo">{o.titulo}{o.k === OPCAO_EQUILIBRIO && <span className="selo-equilibrio">Equilíbrio</span>}</span>
+                <span className="opcao-titulo">{o.titulo}{ehEquilibrio(o) && <span className="selo-equilibrio">Equilíbrio</span>}</span>
                 <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈ ' : ''}{brl(o.valor)}</span>
                 <span className="opcao-onde">{nomeOpcao(o)}</span>
                 {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
