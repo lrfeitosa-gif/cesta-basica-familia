@@ -1117,7 +1117,7 @@ nav.abas a[aria-current="page"] svg { background: var(--accent-bg); stroke-width
 body:has(.barra-topo) { background: var(--background); }
 
 /* Cabeçalho verde de ponta a ponta, com a marca e a cidade */
-.barra-topo { background: var(--topo-bg); color: var(--topo-ink); box-shadow: 0 0 0 100vmax var(--topo-bg); clip-path: inset(0 -100vmax);
+.barra-topo { background: var(--topo-bg); color: var(--topo-ink);
   margin-top: calc(-20px - env(safe-area-inset-top, 0px)); padding-block: calc(12px + env(safe-area-inset-top, 0px)) 12px; position: relative; z-index: 5; }
 .topo-marca { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
 .barra-topo .logo, .barra-topo .logo .logo-nome { color: var(--topo-ink); }
@@ -1300,3 +1300,11 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .criterio-topo .ordem-mercados { margin: 0; }
 .criterio-topo .ordem-ajuda { margin: 0; }
 .criterio-topo .filtros-painel { border: 0; padding: 4px 0 0; box-shadow: none; }
+
+/* Cabeçalho verde de ponta a ponta sem cortar o menu da conta (14/11: o recorte com clip-path escondia o menu
+   do bonequinho, que abre abaixo do cabeçalho). O verde dos lados vem de um fundo atrás, não de um recorte. */
+.barra-topo::before { content: ""; position: absolute; top: 0; bottom: 0; left: -100vmax; right: -100vmax; background: var(--topo-bg); z-index: -1; }
+html, body { overflow-x: hidden; }
+@supports (overflow-x: clip) { html, body { overflow-x: clip; } }
+.barra-topo .menu-conta-caixa { z-index: 30; background: var(--card); border-color: var(--card-borda); }
+.barra-topo .menu-conta-caixa a { color: var(--foreground); }
