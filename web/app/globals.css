@@ -1409,3 +1409,22 @@ html, body { overflow-x: hidden; }
 .rec-itens .roteiro-mercados .chip { min-height: 44px; }
 .dobra-dica-neutra { color: var(--muted-foreground); }
 @media (prefers-color-scheme: dark) { .dobra-dica-neutra { color: var(--muted-foreground); } }
+
+/* ===== Onde comprar: grupos e duas colunas (16/11, layout) ===== */
+/* Escala de espaço da tela: 8 (dentro do grupo) · 12 (entre dobras) · 24 (entre resposta e apoio) */
+.onde-grade { display: grid; gap: 24px; }
+.onde-resposta, .onde-apoio { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.onde-apoio > .muted { margin: 4px 2px 0; font-size: 13px; }
+@media (min-width: 960px) {
+  .app:has(.onde-grade) { max-width: 1040px; }
+  .app:has(.onde-grade) .abas-topo { max-width: 520px; }
+  .onde-grade { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 32px; align-items: start; }
+  .onde-resposta { position: sticky; top: calc(84px + env(safe-area-inset-top, 0px)); }
+  .onde-resposta .resposta { padding: 24px; }
+  .onde-resposta .recommendation-price { font-size: 40px; }
+}
+.resposta .rec-itens { margin-top: 2px; }
+.resposta .rec-itens > summary { min-height: 40px; display: flex; align-items: center; }
+.resposta .btn-action-primary + .btn-action-secundario { margin-top: 8px; }
+.roteiro-mercados .chip-sem-uso, .roteiro-mercados .chip-sem-uso[aria-pressed="true"] { border-style: dashed; background: transparent; color: var(--muted-foreground); font-weight: 500; }
+.mostrar-poucos { justify-self: start; min-height: 44px; margin-inline: 14px; }

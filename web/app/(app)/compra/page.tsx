@@ -851,6 +851,10 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
 
+      {/* 16/11 (layout): resposta e apoio em grupos. No celular, uma coluna; a partir de 960 px, duas: a resposta
+          fica parada à esquerda e o apoio (outras formas, critério, endereço, mercados) rola à direita. */}
+      <div className="onde-grade">
+      <div className="onde-resposta">
       {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : rec && escolhaEf === 'mercado' ? (
         <div className="recommendation-card resposta" id="resposta">
           <span className="resposta-titulo">{tituloRec}</span>
@@ -949,19 +953,27 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           </details>
           </>}
           <details className="rec-itens">
-            <summary className="market-expand-link">Mercados do roteiro ({roteiro.length} de {candidatosRoteiro.length})</summary>
-            <span className="muted">Tire os mercados que você não quer visitar; o total se ajusta na hora.</span>
+            {/* 16/11: o título conta os mercados marcados (antes contava os que entraram no caminho e parecia que um estava desmarcado) */}
+            <summary className="market-expand-link">Mercados permitidos ({candidatosRoteiro.filter((m) => !foraRoteiro.includes(m)).length} de {candidatosRoteiro.length})</summary>
+            <span className="muted">Tire os mercados que você não quer visitar; o total se ajusta na hora. Os de borda tracejada estão permitidos, mas hoje não têm nenhum item mais barato.</span>
             <div className="chips roteiro-mercados" role="group" aria-label="Mercados do roteiro">
-              {candidatosRoteiro.map((m) => (
-                <button key={m} type="button" className="chip" aria-pressed={!foraRoteiro.includes(m)} onClick={() => trocarRoteiro(m)}>
-                  {foraRoteiro.includes(m) ? '＋' : '✓'} {m}
-                </button>
-              ))}
+              {/* os que estão no caminho vêm primeiro; permitidos sem nenhum item mais barato ficam tracejados */}
+              {[...candidatosRoteiro].sort((a, b) => Number(!roteiro.some((r) => r.m === a)) - Number(!roteiro.some((r) => r.m === b))).map((m) => {
+                const semUso = !foraRoteiro.includes(m) && !roteiro.some((r) => r.m === m);
+                return (
+                  <button key={m} type="button" className={`chip${semUso ? ' chip-sem-uso' : ''}`} aria-pressed={!foraRoteiro.includes(m)} onClick={() => trocarRoteiro(m)}
+                    aria-label={`${m}: ${foraRoteiro.includes(m) ? 'fora do roteiro, tocar para permitir' : semUso ? 'permitido, sem nenhum item mais barato hoje; tocar para tirar' : 'no caminho; tocar para tirar'}`}>
+                    {foraRoteiro.includes(m) ? '＋' : '✓'} {m}
+                  </button>
+                );
+              })}
             </div>
           </details>
         </section>
       )}
 
+      </div>
+      <div className="onde-apoio">
       {outrasFormas}
 
       {/* 16/11 (distill): critério e filtros saíram do topo e ficam recolhidos abaixo da resposta.
@@ -1003,14 +1015,18 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
 
       <Enderecos refs={locais.refs} adicionar={locais.adicionar} remover={locais.remover} />
 
-      {itens.length > 0 && (
+      {itens.length > 0 && (() => {
+        // 16/11: o título conta só os mercados que aparecem; os com poucos preços hoje abrem num botão no fim da lista
+        const visiveis = lista.filter((r) => todosMercados || r.confiavel || poucos === ranking.length);
+        const escondidos = ranking.length - visiveis.length;
+        return (
         <details className="dobra" id="todos-mercados">
           <summary>
             <span>Ver o total em cada mercado</span>
-            <span className="dobra-dica">{ranking.length} {ranking.length === 1 ? 'mercado' : 'mercados'}</span>
+            <span className="dobra-dica">{visiveis.length} {visiveis.length === 1 ? 'mercado' : 'mercados'}{escondidos > 0 ? ` (+${escondidos} com poucos preços)` : ''}</span>
           </summary>
         <div className="market-list">
-          {lista.filter((r) => todosMercados || r.confiavel || poucos === ranking.length).map((r, i, vis) => (
+          {visiveis.map((r, i, vis) => (
             <div key={r.m} id={`mercado-${slug(r.m)}`} className={`market-card${r.confiavel ? '' : ' poucos-precos'}`}>
               {!r.confiavel && ordem === 'preco' && (i === 0 || vis[i - 1].confiavel) && (
                 <span className="grupo-ranking">Poucos itens com preço hoje (total quase todo estimado)</span>
@@ -1055,14 +1071,24 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
             </div>
           ))}
         </div>
+        {(escondidos > 0 || (todosMercados && poucos > 0 && poucos < ranking.length)) && (
+          <button type="button" className="btn btn-secondary mostrar-poucos" onClick={() => setTodosMercados(!todosMercados)}>
+            {todosMercados ? 'Esconder os mercados com poucos preços hoje'
+              : `Mostrar mais ${escondidos} ${escondidos === 1 ? 'mercado' : 'mercados'} com poucos preços hoje`}
+          </button>
+        )}
+        {escondidos > 0 && <span className="muted">Nesses mercados, mais de {Math.round(LIMITE_ESTIMADOS * 100)}% da cesta não tem preço hoje, e o total sai quase todo estimado.</span>}
         </details>
-      )}
+        );
+      })()}
 
       <p className="muted">
         {(() => { const enc = ranking.map((r) => r.m).filter((m) => ENCARTE.has(m));
           return enc.length ? `${enc.join(', ').replace(/, ([^,]*)$/, ' e $1')} ${enc.length === 1 ? 'entra' : 'entram'} só com os itens em promoção no encarte. ` : ''; })()}
         Quando falta preço, o total usa o preço mediano dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
       </p>
+      </div>
+      </div>
       </>}
 
       {aba === 'lista' && <>
