@@ -39,7 +39,7 @@ export default function Lista() {
       {itens.length === 0 ? (
         <div className="card stack">
           <span>Ainda não há itens. Envie uma nota fiscal e os produtos aparecem aqui.</span>
-          <Link href="/notas" className="btn btn-primary">Enviar nota</Link>
+          <Link href="/compra?ver=lista" className="btn btn-primary">Enviar nota na Cesta</Link>
         </div>
       ) : (
         <div className="nota-lista">
@@ -52,7 +52,7 @@ export default function Lista() {
           ))}
         </div>
       )}
-      <Link href="/notas" className="btn btn-secondary btn-block" style={{ marginTop: 'auto' }}>Enviar mais notas</Link>
+      <Link href="/compra?ver=lista" className="btn btn-secondary btn-block" style={{ marginTop: 'auto' }}>Enviar mais notas na Cesta</Link>
     </>
   );
 }

@@ -107,15 +107,25 @@ def _tem_palavra(texto: str, palavra: str) -> bool:
     return limpa(palavra) in limpa(texto)
 
 
+def _formas(p: str) -> list[str]:
+    """Singular e plural da palavra ("capsula" acha "capsulas"; "grao" acha "graos"), como temForma no app (0030)."""
+    b = re.sub(r"s$", "", re.sub(r"(oe|ae)s$", "ao", p))
+    return [b, b + "s", re.sub(r"ao$", "aos", b), re.sub(r"ao$", "oes", b)]
+
+
+def _tem_forma(texto: str, palavra: str) -> bool:
+    return any(_tem_palavra(texto, f) for f in _formas(palavra))
+
+
 def filtrar_foco(lista: list[dict], consulta: str) -> list[dict]:
     termos, fora = _partes(lista, consulta)
     if not termos:
         return []
     q = norm(consulta)
-    regras = [x for t, x in EXCLUSOES if _tem_palavra(q, t) and not _tem_palavra(q, x)]
+    regras = [x for t, x in EXCLUSOES if _tem_palavra(q, t) and not _tem_forma(q, x)]
     achados = [o for o in lista if all(any(t in o["busca"] for t in vs) for vs in termos)
                and not any(t in o["busca"] for t in fora)
-               and not any(_tem_palavra(o["busca"], x) for x in regras)]
+               and not any(_tem_forma(o["busca"], x) for x in regras)]
     foco = [o for o in achados if norm(o["nome"]).startswith(termos[0][0])]
     return foco or achados
 
