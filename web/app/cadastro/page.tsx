@@ -42,12 +42,12 @@ export default function Cadastro() {
     }
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(), password: senha,
-      options: { emailRedirectTo: `${location.origin}/ofertas`, data: { convite: convite.trim().toUpperCase() } },
+      options: { emailRedirectTo: `${location.origin}/compra`, data: { convite: convite.trim().toUpperCase() } },
     });
     setEnviando(false);
     if (error) { registrar('cadastro_erro', `${dominio(email)}: ${error.message}`); return setErro(mensagemErro(error.message)); }
     registrar('cadastro_ok', dominio(email));
-    if (data.session) router.replace('/ofertas');   // confirmação de e-mail desligada no Supabase
+    if (data.session) router.replace('/compra');   // confirmação de e-mail desligada no Supabase
     else setConfirmar(true);                          // ligada: espera o clique no link
   };
 
@@ -85,7 +85,7 @@ export default function Cadastro() {
       </form>
       {googleAtivo && <>
         <div className="au-ou">ou</div>
-        <div className="au-google"><BotaoGoogle voltar="/ofertas" /></div>
+        <div className="au-google"><BotaoGoogle voltar="/compra" /></div>
       </>}
     </TelaAcesso>
   );

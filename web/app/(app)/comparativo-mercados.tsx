@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { brl, emb, norm, outrasFormas, SO_SOCIOS, type Oferta } from '@/lib/ofertas';
 import { TagSocios } from './linha-oferta';
 
@@ -18,6 +18,11 @@ export default function ComparativoMercados({ todos, distTxt }: { todos: Oferta[
     for (const o of todos) if (o.ub === melhor.ub && !vistos.has(o.mercado)) vistos.set(o.mercado, o);
     return [...vistos.values()];
   }, [todos, melhor]);
+  // 15/11: o React reaproveita a mesma faixa entre uma busca e outra e a rolagem lateral ficava guardada
+  // (a busca "arroz 5kg" abria em São Vicente, com o card "Menor preço" fora da tela). Volta ao início a cada resultado novo.
+  const faixa = useRef<HTMLOListElement>(null);
+  const assinatura = porMercado.map((o) => `${o.mercado}:${o.porUn}`).join('|');
+  useEffect(() => { if (faixa.current) faixa.current.scrollLeft = 0; }, [assinatura]);
   if (!melhor || porMercado.length < 2) return null;
   const medida = MEDIDA[melhor.ub] ?? melhor.ub;
   return (
@@ -26,7 +31,7 @@ export default function ComparativoMercados({ todos, distTxt }: { todos: Oferta[
         <h2>Menor preço por {medida} em cada mercado</h2>
         <span className="muted">{porMercado.length} mercados</span>
       </div>
-      <ol className="compara-cards">
+      <ol className="compara-cards" ref={faixa}>
         {porMercado.map((o, i) => {
           const pct = melhor.porUn > 0 ? Math.round((o.porUn / melhor.porUn - 1) * 100) : 0;
           return (

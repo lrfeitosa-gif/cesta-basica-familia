@@ -1117,7 +1117,7 @@ nav.abas a[aria-current="page"] svg { background: var(--accent-bg); stroke-width
 body:has(.barra-topo) { background: var(--background); }
 
 /* Cabeçalho verde de ponta a ponta, com a marca e a cidade */
-.barra-topo { background: var(--topo-bg); color: var(--topo-ink); box-shadow: 0 0 0 100vmax var(--topo-bg); clip-path: inset(0 -100vmax);
+.barra-topo { background: var(--topo-bg); color: var(--topo-ink);
   margin-top: calc(-20px - env(safe-area-inset-top, 0px)); padding-block: calc(12px + env(safe-area-inset-top, 0px)) 12px; position: relative; z-index: 5; }
 .topo-marca { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
 .barra-topo .logo, .barra-topo .logo .logo-nome { color: var(--topo-ink); }
@@ -1155,6 +1155,72 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 @media (prefers-color-scheme: dark) { .selo-menor { color: #1A0A00; } }
 .selo-dif { border-radius: 999px; font-size: 11px; }
 
+/* ===== Onde comprar (15/11, Fase 1): resumo das formas de comprar e itens estimados ===== */
+.resumo-opcoes { display: grid; gap: 8px; }
+#opcao-mercado, #opcao-dupla, #opcao-roteiro { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
+.resumo-opcoes ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 720px) { .resumo-opcoes ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.resumo-opcoes .opcao { width: 100%; height: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  text-align: left; font: inherit; color: var(--foreground); background: var(--card); border: 1px solid var(--card-borda);
+  border-radius: 14px; padding: 10px 12px; cursor: pointer; box-shadow: var(--card-sombra); }
+.resumo-opcoes .opcao:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.resumo-opcoes .opcao.equilibrio { border: 2px solid var(--marca-escura); padding: 9px 11px; }
+.opcao-titulo { font-size: 13px; font-weight: 600; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.selo-equilibrio { font-size: 11px; font-weight: 700; color: #fff; background: var(--marca-escura); border-radius: 999px; padding: 1px 8px; }
+.opcao-total { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.opcao-onde { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.opcao-info { font-size: 12px; color: var(--muted-foreground); }
+.opcao-economia { font-size: 13px; font-weight: 700; color: var(--marca-escura); }
+.opcao-est, .est-resumo { font-size: 12px; color: var(--destaque-escuro); }
+@media (prefers-color-scheme: dark) { .opcao-economia { color: var(--marca); } .opcao-est, .est-resumo { color: #FDBA74; } .selo-equilibrio { color: #022C22; } }
+
+/* ===== Minha cesta como tela inicial (15/11, Fase 2) ===== */
+.boas-vindas-cesta h1 { font-size: 24px; line-height: 1.2; text-wrap: balance; }
+.basicos .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.basicos .chip { min-height: 44px; padding: 8px 14px; font-size: 15px; }
+.basicos .chip[aria-pressed="true"] { background: var(--marca-clara); border-color: var(--marca-escura); color: var(--marca-escura); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .basicos .chip[aria-pressed="true"] { color: var(--foreground); } }
+.novidades { display: grid; gap: 6px; }
+.novidades ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.novidades li { background: var(--card); border: 1px solid var(--card-borda); border-left: 4px solid var(--destaque); border-radius: 12px;
+  padding: 10px 12px; font-size: 14px; line-height: 1.4; }
+.btn-camera { flex: none; min-width: 44px; min-height: 44px; padding: 0 10px; display: grid; place-items: center; }
+.btn-camera[aria-expanded="true"] { border-color: var(--marca-escura); color: var(--marca-escura); }
+.ofertas-hoje { display: grid; gap: 6px; }
+.ofertas-hoje .ver-todas { font-weight: 600; color: var(--link-ink, var(--primary)); min-height: 44px; display: inline-flex; align-items: center; }
+.ofertas-hoje ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ofertas-hoje li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; background: var(--card); border: 1px solid var(--card-borda);
+  border-radius: 12px; padding: 10px 12px; }
+.oh-nome { font-weight: 600; font-size: 14px; }
+.oh-onde { grid-column: 1; font-size: 13px; color: var(--muted-foreground); }
+.oh-preco { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; font-size: 14px; white-space: nowrap; }
+.oh-preco s { color: var(--muted-foreground); font-size: 12px; }
+.oh-pct { display: inline-block; margin-left: 4px; font-size: 12px; font-weight: 700; color: #fff; background: var(--destaque-escuro); border-radius: 999px; padding: 1px 6px; }
+
+/* ===== Edição da Cesta (15/11, Fase 4) ===== */
+.ajuda-lista { margin: 0; font-size: 14px; color: var(--muted-foreground); }
+.repetidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.repetidos li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 12px; border-radius: 12px;
+  background: var(--aviso-bg, #FFF7ED); border: 1px solid var(--destaque, #F97316); font-size: 14px; }
+.repetidos .btn { flex: none; min-height: 44px; }
+.btn-lixeira { width: 40px; height: 40px; min-width: 40px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--danger); cursor: pointer; }
+.btn-lixeira svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.encontrado { display: grid; gap: 2px; flex-basis: 100%; }
+.encontrado-nome { font-size: 14px; font-weight: 600; color: var(--foreground); }
+.encontrado-emb { font-weight: 700; color: var(--foreground); background: var(--chip-bg, rgb(15 23 42 / .06)); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+.btn-trocar { font: inherit; font-size: 13px; font-weight: 600; color: var(--link-ink, var(--primary)); background: none; border: 0; padding: 6px 0;
+  min-height: 44px; cursor: pointer; text-decoration: underline; }
+.ajustar-item summary { cursor: pointer; font-size: 13px; color: var(--muted-foreground); min-height: 44px; display: flex; align-items: center; }
+.horti-item { min-height: 44px; }
+.marca-botao { text-align: left; min-height: 44px; cursor: pointer; }
+.marca-busca { display: grid; gap: 6px; flex: 1; min-width: 0; }
+.marca-busca ul { list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--card-borda); border-radius: 10px; background: var(--card); }
+.marca-busca li button { width: 100%; min-height: 44px; text-align: left; padding: 6px 10px; border: 0; border-radius: 8px; background: none; font: inherit; color: var(--foreground); cursor: pointer; }
+.marca-busca li button[aria-pressed="true"] { background: color-mix(in srgb, var(--primary) 12%, transparent); font-weight: 600; }
+.marca-busca li button:hover, .marca-busca li button:focus-visible { background: color-mix(in srgb, var(--primary) 8%, transparent); outline: none; }
+.marca-nada { padding: 8px 10px; }
+
 /* ===== Navegação nova (14/11): abas Preços e Cesta no topo, sem a barra de baixo ===== */
 .abas-topo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-lg);
   background: var(--card); border: 1px solid var(--card-borda); position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4;
@@ -1163,6 +1229,20 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
   color: var(--muted-foreground); text-decoration: none; }
 .abas-topo a[aria-current="page"] { background: var(--primary); color: var(--primary-foreground); }
 .abas-topo a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+/* ===== 0.3 (15/11): faixa das abas presa no topo com fundo sólido de ponta a ponta e sombra; âncoras não ficam embaixo dela ===== */
+.abas-marco { height: 0; }
+.abas-faixa { position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4; margin-top: -8px; }
+.abas-faixa .abas-topo { position: static; margin-top: 0; }
+.abas-faixa::before { content: ""; position: absolute; z-index: -1; left: -100vmax; right: -100vmax;
+  top: calc(-8px - env(safe-area-inset-top, 0px)); bottom: -8px; background: var(--background);
+  opacity: 0; transition: opacity .15s; pointer-events: none; }
+.abas-faixa.presa::before { opacity: 1; box-shadow: 0 6px 12px -8px rgb(15 23 42 / .3); border-bottom: 1px solid var(--card-borda); }
+@media (prefers-reduced-motion: reduce) { .abas-faixa::before { transition: none; } }
+.app [id], .app .market-card { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
+html { scroll-padding-top: calc(84px + env(safe-area-inset-top, 0px)); }
+/* a faixa passa das bordas da tela: sem isto, o celular ganhava rolagem lateral (igual ao PR do menu da conta) */
+html, body { overflow-x: hidden; }
+@supports (overflow-x: clip) { html, body { overflow-x: clip; } }
 .app { padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
 .cta-fixo { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
 .app:has(.cta-fixo) { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
@@ -1173,6 +1253,41 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .product-actions .card-btn-secundario { color: var(--foreground); }
 .card-btn-sino { flex: none; width: 46px; padding: 0; }
 .card-btn-sino svg, .sino svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ===== Preços (15/11, Fase 3): card com uma ação principal + menu "⋯"; filtros no botão ao lado da busca ===== */
+.product-actions { position: relative; align-items: stretch; }
+.product-actions .card-btn { min-height: 44px; }
+.card-btn-mais { flex: none; width: 48px; padding: 0; display: grid; place-items: center; }
+.card-btn-mais svg { fill: currentColor; }
+.card-btn-mais[aria-expanded="true"] { border-color: var(--primary); color: var(--primary); }
+.acoes-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 6; list-style: none; margin: 0; padding: 6px; min-width: 240px;
+  background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; box-shadow: 0 12px 28px -8px rgb(15 23 42 / .3); }
+.acoes-menu button, .acoes-menu a { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px;
+  background: none; font: inherit; font-size: 15px; color: var(--foreground); text-align: left; text-decoration: none; cursor: pointer; }
+.acoes-menu button:hover, .acoes-menu a:hover, .acoes-menu button:focus-visible, .acoes-menu a:focus-visible { background: color-mix(in srgb, var(--primary) 9%, transparent); outline: none; }
+.acoes-menu li + li { border-top: 1px solid var(--card-borda); }
+.fechar-painel { justify-self: start; background: none; border: 0; padding: 8px 0; min-height: 44px; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--link-ink, var(--primary)); cursor: pointer; }
+.busca-linha { display: flex; gap: 8px; align-items: stretch; }
+.busca-linha .busca-topo { flex: 1; min-width: 0; }
+.btn-filtros { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 12px; font: inherit;
+  font-size: 14px; font-weight: 600; background: var(--card); color: var(--foreground); border: 1px solid var(--card-borda); cursor: pointer; }
+.btn-filtros svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.btn-filtros[aria-expanded="true"], .btn-filtros.ativo { border-color: var(--primary); color: var(--primary); }
+.painel-filtros { display: grid; gap: 8px; background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; padding: 12px; }
+.painel-filtros-rotulo { font-size: 13px; font-weight: 700; }
+.painel-filtros .chip { min-height: 40px; }
+.product-card { padding: 12px 14px; gap: 8px; }
+.product-card .price-tag-container { text-align: right; }
+.product-card .old-price { display: inline; margin-right: 4px; }
+.product-card .discount-badge { margin-top: 2px; }
+.product-card .product-meta { border-top: 0; padding-top: 0; gap: 4px 10px; }
+/* celular: o botão Filtros fica só com o ícone, para a busca não perder espaço; o nome continua para leitores de tela */
+@media (max-width: 480px) {
+  .btn-filtros { width: 48px; padding: 0; justify-content: center; position: relative; }
+  .btn-filtros span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .btn-filtros.ativo::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--destaque); }
+}
 .card-btn-sino.ativo, .sino.ligado { background: var(--destaque-claro); border-color: var(--destaque-escuro); color: var(--destaque-escuro); }
 .product-links { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .product-links a, .product-links button { font: inherit; color: var(--link-ink); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: none; }
@@ -1224,6 +1339,13 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .criterio-topo .ordem-ajuda { margin: 0; }
 .criterio-topo .filtros-painel { border: 0; padding: 4px 0 0; box-shadow: none; }
 
+/* Cabeçalho verde de ponta a ponta sem cortar o menu da conta (14/11: o recorte com clip-path escondia o menu
+   do bonequinho, que abre abaixo do cabeçalho). O verde dos lados vem de um fundo atrás, não de um recorte. */
+.barra-topo::before { content: ""; position: absolute; top: 0; bottom: 0; left: -100vmax; right: -100vmax; background: var(--topo-bg); z-index: -1; }
+html, body { overflow-x: hidden; }
+@supports (overflow-x: clip) { html, body { overflow-x: clip; } }
+.barra-topo .menu-conta-caixa { z-index: 30; background: var(--card); border-color: var(--card-borda); }
+.barra-topo .menu-conta-caixa a { color: var(--foreground); }
 /* ===== Entrar e criar conta (15/11): rótulos acima dos campos, selo de privacidade, regras da senha ===== */
 .au-field { display: grid; gap: 6px; }
 .au-rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }

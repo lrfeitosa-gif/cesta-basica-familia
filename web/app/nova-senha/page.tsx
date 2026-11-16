@@ -43,7 +43,7 @@ export default function NovaSenha() {
       {feito ? (
         <div className="stack">
           <div className="alert alert-ok" role="status">Senha trocada. Você já está conectado.</div>
-          <Link href="/ofertas" className="ob-pill au-entrar ob-link">Ir para os preços</Link>
+          <Link href="/compra" className="ob-pill au-entrar ob-link">Ir para a minha cesta</Link>
         </div>
       ) : pronto === 'sem-link' ? (
         <div className="alert alert-error" role="alert">

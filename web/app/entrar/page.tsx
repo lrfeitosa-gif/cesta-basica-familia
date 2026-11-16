@@ -10,7 +10,7 @@ import { dominio, registrar } from '@/lib/eventos';
 function Formulario() {
   const router = useRouter();
   const params = useSearchParams();
-  const voltar = params.get('voltar') || '/ofertas';
+  const voltar = params.get('voltar') || '/compra';
   const motivo = params.get('motivo');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
