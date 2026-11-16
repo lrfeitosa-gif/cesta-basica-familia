@@ -75,3 +75,11 @@ def test_leitura_vazia_nao_apaga():
     db.t["oferta"] = [{"id": 1, "produto_id": 500, "mercado_id": 9, "valido_de": "2026-11-16", "fonte": "tabloide"}]
     rodar_coleta.gravar(db, "Tenda", [], ["2026-11-16"], substituir_encarte=True)
     assert len(db.t["oferta"]) == 1
+
+
+def test_lote_so_com_ofertas_vencidas_nao_chama_upsert_vazio():
+    db = _DB()
+    db.t["oferta"] = []
+    vencida = {"produto": "Arroz branco tipo 1", "marca": "Select", "quantidade": 1, "unidade": "kg", "preco": 3.49,
+               "mercado": "Tenda", "fonte": "tabloide", "validoAte": "2026-11-15"}
+    assert rodar_coleta.gravar(db, "Tenda", [vencida], ["2026-11-16"], substituir_encarte=True) == 0
