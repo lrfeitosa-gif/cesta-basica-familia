@@ -146,6 +146,8 @@ def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None,
                   for n in lote for dia in dias
                   if (not n["oferta"]["valido_ate"] or n["oferta"]["valido_ate"] >= dia)
                   and vale_no_dia(n["oferta"]["condicao"], dia)]
+        if not linhas:
+            continue      # 16/11: lote só com ofertas vencidas; upsert vazio dava erro PGRST100 (Revolução)
         tentar(lambda: db.table("oferta").upsert(linhas, on_conflict="produto_id,mercado_id,valido_de,fonte").execute())
         for l in linhas:
             if l.get("fonte") == "tabloide":
