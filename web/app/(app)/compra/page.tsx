@@ -4,7 +4,7 @@ import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfert
 import { Carregando, ErroCarga, TagSocios } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
-import { fmtKm, km, useLocais } from '@/lib/locais';
+import { fmtKm, fmtTempo, km, minCarro, useLocais } from '@/lib/locais';
 import Enderecos from './enderecos';
 import { registrar } from '@/lib/eventos';
 import { CHAVE_CESTA } from '../primeiros-passos';
@@ -525,7 +525,7 @@ export default function MinhaCompra() {
   const economiaDupla = dupla && top ? top.valor - dupla.valor : 0;
   const distTxt = (m: string) => {
     const d = locais.distancia(m);
-    return d ? `${fmtKm(d.km)} de ${d.ref.rotulo}` : null;
+    return d ? `${fmtKm(d.km)} de ${d.ref.rotulo} · ${fmtTempo(d.km)}` : null;
   };
 
   // Cada item no mercado mais barato (item 5 de 12/11): total, mercados do roteiro e o percurso aproximado
@@ -602,7 +602,7 @@ export default function MinhaCompra() {
   const grupoDe = (m: string, l: ItemPdf[], estimados: { c: ItemCesta; valor: number }[] = []) => {
     const d = locais.distancia(m);
     return {
-      mercado: m, onde: d ? `${d.loja.nome} · ${fmtKm(d.km)} de ${d.ref.rotulo}` : '',
+      mercado: m, onde: d ? `${d.loja.nome} · ${fmtKm(d.km)} de ${d.ref.rotulo} · ${fmtTempo(d.km)} (estimativa)` : '',
       linhas: [
         ...l.map(({ c, o, valor }) => ({ txt: `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}`, prod: `${!kgs.has(c.id) && o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}${o.nome}`, valor: brl(valor) })),
         ...estimados.map(({ c, valor }) => ({ txt: `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}`, prod: 'sem preço hoje neste mercado', valor: `≈ ${brl(valor)}` })),
@@ -700,7 +700,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           <span className="muted">{tituloRec}</span>
           <span className="recommendation-price">{fmt(rec)}</span>
           <span><b>{rec.m}</b>{SO_SOCIOS.has(rec.m) && <> <TagSocios /></>}{rec === top ? segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})` : top && ` · ${brl(rec.valor - top.valor)} a mais que o mais barato (${top.m})`}</span>
-          {(() => { const d = locais.distancia(rec.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome})</span>; })()}
+          {(() => { const d = locais.distancia(rec.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome}) · {fmtTempo(d.km)}</span>; })()}
           {rec.falta.length > 0 && (
             <span className="cond">
               Sem preço hoje no {rec.m}: {rec.falta.join(', ')} (estimado pelo preço mediano dos outros mercados).
@@ -714,6 +714,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           )}
           {!semItem.length && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
           <a className="btn-action-primary" href={linkLoja(rec.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {rec.m} ↗</a>
+          <span className="muted rec-tempo">O tempo com o trânsito de agora aparece no Google Maps.</span>
           <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Comprar tudo no ${rec.m}`, [grupoDe(rec.m, rec.escolhas.map(({ c, o }) => ({ c, o, valor: v(c, o) * sel[c.id] })), rec.estimados)], rec.valor)}>Gerar PDF da lista</button>
           <details className="rec-itens">
             <summary className="market-expand-link">Ver itens</summary>
@@ -746,7 +747,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                 <div key={m}>
                   <b>{m}</b>
                   <span>{l.length} {l.length === 1 ? 'item' : 'itens'} · {brl(tot)} ({pct(tot)}%)</span>
-                  {d && <span className="muted">📍 {fmtKm(d.km)} de {d.ref.rotulo}</span>}
+                  {d && <span className="muted">📍 {fmtKm(d.km)} de {d.ref.rotulo} · {fmtTempo(d.km)}</span>}
                   <details><summary>Ver itens</summary>
                     <ul>{l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(o.preco)}{sel[c.id] !== 1 ? ` cada = ${brl(valor)}` : ''}</li>)}</ul>
                   </details>
@@ -843,7 +844,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           <ul className="ideal-mercados">
             {roteiro.map((r) => (
               <li key={r.m}>
-                <span><b>{r.m}</b>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{r.d && <span className="dist"> · 📍 {fmtKm(r.d.km)} de {r.d.ref.rotulo}</span>}</span>
+                <span><b>{r.m}</b>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{r.d && <span className="dist"> · 📍 {fmtKm(r.d.km)} de {r.d.ref.rotulo} · {fmtTempo(r.d.km)}</span>}</span>
                 <span>{r.l.length} {r.l.length === 1 ? 'item' : 'itens'} · {brl(r.total)}</span>
                 <details><summary>Ver itens</summary>
                   <ul>{r.l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(valor)}</li>)}</ul>
@@ -851,7 +852,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
               </li>
             ))}
           </ul>
-          {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta, saindo de {percurso.de} e voltando
+          {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta (≈ {minCarro(percurso.km) + 2 * (roteiro.length - 1)} min de carro, sem contar o tempo dentro das lojas), saindo de {percurso.de} e voltando
             {semLocal.length ? ` (sem ${semLocal.join(' e ')}, que ainda não ${semLocal.length === 1 ? 'tem' : 'têm'} o endereço da loja no app)` : ''}.</span>
             : !locais.refs.length ? <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span> : null}
           {roteiro.length > 1 && <a className="btn-action-primary" href={linkRoteiro(roteiro.map((r) => r.m))} target="_blank" rel="noopener noreferrer">Abrir roteiro no mapa ↗</a>}
