@@ -693,6 +693,7 @@ export default function MinhaCompra() {
     destino: 'opcao-mercado', aoTocar: () => setPref({ ordem: 'perto' }) });
   const referencia = opcoes.find((o) => o.k === 'perto') ?? opcoes.find((o) => o.k === 'um');
   const umSo = opcoes.find((o) => o.k === 'um');
+  const maisBarata = opcoes.length ? opcoes.reduce((a, b) => (b.valor < a.valor ? b : a)) : undefined;
   const economiaMax = referencia && opcoes.length > 1 ? referencia.valor - Math.min(...opcoes.map((o) => o.valor)) : 0;
   const ehEquilibrio = (o: Opcao) => o.k === OPCAO_EQUILIBRIO && !o.est && (!umSo || o === umSo || o.valor < umSo.valor);
   const nomeOpcao = (o: Opcao) => o.k === 'um' ? top!.m : o.k === 'perto' ? maisPerto!.m : o.k === 'dupla' ? `${dupla!.a} e ${dupla!.b}` : `${o.nMerc} mercados`;
@@ -746,10 +747,11 @@ export default function MinhaCompra() {
                 aria-label={`${o.titulo}${ehEquilibrio(o) ? ' (equilíbrio)' : ''}: ${brl(o.valor)}, ${nomeOpcao(o)}. ${aba === 'comparar' ? 'Escolher' : 'Ver detalhes'}`}>
                 {aba === 'comparar' && escolhida(o) && <span className="opcao-escolhida" aria-hidden="true">✓ Escolhida</span>}
                 <span className="opcao-titulo">{o.titulo}{ehEquilibrio(o) && <span className="selo-equilibrio">Equilíbrio</span>}</span>
-                <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈ ' : ''}{brl(o.valor)}</span>
+                <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈\u00a0' : ''}{brl(o.valor)}</span>
                 <span className="opcao-onde">{nomeOpcao(o)}</span>
                 {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
                 {o === referencia ? <span className="opcao-info">Referência da economia</span>
+                  : Math.abs(economia) < 0.01 ? <span className="opcao-info">{o.k === 'um' && referencia.k === 'perto' && nomeOpcao(o) === nomeOpcao(referencia) ? 'É também o mais perto' : 'Mesmo valor da referência'}</span>
                   : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos</span>
                   : <span className="opcao-info">{brl(-economia)} a mais</span>}
                 {o.est && <span className="opcao-est">{o.est}</span>}
@@ -1293,7 +1295,10 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         <div className="cta-fixo">
           <button type="button" className="cta-fixo-btn" onClick={() => setAba('comparar')}>
             <span>Ver onde comprar mais barato ➔</span>
-            {top && <small>{itens.length} {itens.length === 1 ? 'item' : 'itens'} · a partir de {fmt(top)} no {top.m}</small>}
+            {/* 16/11: "a partir de" é o menor total entre as formas de comprar (antes era o melhor mercado único,
+                que parecia o mais barato de todos) */}
+            {maisBarata ? <small>{itens.length} {itens.length === 1 ? 'item' : 'itens'} · a partir de {maisBarata.est && maisBarata.k !== 'roteiro' ? '≈ ' : ''}{brl(maisBarata.valor)} ({maisBarata.k === 'roteiro' ? `cada item no mais barato, ${maisBarata.nMerc} mercados` : maisBarata.k === 'dupla' ? `${dupla!.a} e ${dupla!.b}` : `tudo no ${nomeOpcao(maisBarata)}`})</small>
+              : top && <small>{itens.length} {itens.length === 1 ? 'item' : 'itens'} · a partir de {fmt(top)} no {top.m}</small>}
           </button>
         </div>
       )}
