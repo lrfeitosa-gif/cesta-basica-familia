@@ -691,6 +691,7 @@ export default function MinhaCompra() {
     destino: 'opcao-mercado', aoTocar: () => setPref({ ordem: 'perto' }) });
   const referencia = opcoes.find((o) => o.k === 'perto') ?? opcoes.find((o) => o.k === 'um');
   const umSo = opcoes.find((o) => o.k === 'um');
+  const economiaMax = referencia && opcoes.length > 1 ? referencia.valor - Math.min(...opcoes.map((o) => o.valor)) : 0;
   const ehEquilibrio = (o: Opcao) => o.k === OPCAO_EQUILIBRIO && !o.est && (!umSo || o === umSo || o.valor < umSo.valor);
   const nomeOpcao = (o: Opcao) => o.k === 'um' ? top!.m : o.k === 'perto' ? maisPerto!.m : o.k === 'dupla' ? `${dupla!.a} e ${dupla!.b}` : `${o.nMerc} mercados`;
   // forma escolhida que não existe hoje (ex.: sem compra em 2 mercados que valha a pena) volta para "um mercado só"
@@ -816,7 +817,9 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       ) : (
         <div>
           <h1>Minha cesta</h1>
-          <p className="lead">Marque os itens e ajuste as quantidades. Depois, veja onde sai mais barato.</p>
+          {/* 16/11: texto direto, com a economia possível hoje (maior diferença entre a referência e a forma mais barata) */}
+          <p className="lead">Veja quanto você vai economizar na sua próxima compra.
+            {economiaMax >= 1 && <> <b className="economia-destaque">Hoje, até {brl(economiaMax)} a menos.</b></>}</p>
         </div>
       )) : (
         <div className="passo-topo">
