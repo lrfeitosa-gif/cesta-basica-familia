@@ -1223,3 +1223,18 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .criterio-topo .ordem-mercados { margin: 0; }
 .criterio-topo .ordem-ajuda { margin: 0; }
 .criterio-topo .filtros-painel { border: 0; padding: 4px 0 0; box-shadow: none; }
+
+/* ===== 0.3 (15/11): faixa das abas presa no topo com fundo sólido de ponta a ponta e sombra; âncoras não ficam embaixo dela ===== */
+.abas-marco { height: 0; }
+.abas-faixa { position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4; margin-top: -8px; }
+.abas-faixa .abas-topo { position: static; margin-top: 0; }
+.abas-faixa::before { content: ""; position: absolute; z-index: -1; left: -100vmax; right: -100vmax;
+  top: calc(-8px - env(safe-area-inset-top, 0px)); bottom: -8px; background: var(--background);
+  opacity: 0; transition: opacity .15s; pointer-events: none; }
+.abas-faixa.presa::before { opacity: 1; box-shadow: 0 6px 12px -8px rgb(15 23 42 / .3); border-bottom: 1px solid var(--card-borda); }
+@media (prefers-reduced-motion: reduce) { .abas-faixa::before { transition: none; } }
+.app [id], .app .market-card { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
+html { scroll-padding-top: calc(84px + env(safe-area-inset-top, 0px)); }
+/* a faixa passa das bordas da tela: sem isto, o celular ganhava rolagem lateral (igual ao PR do menu da conta) */
+html, body { overflow-x: hidden; }
+@supports (overflow-x: clip) { html, body { overflow-x: clip; } }
