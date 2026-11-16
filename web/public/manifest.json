@@ -2,7 +2,7 @@
   "name": "Mercato",
   "short_name": "Mercato",
   "description": "Notifica quando o preço do que sua família consome está bem mais em conta.",
-  "start_url": "/ofertas",
+  "start_url": "/compra",
   "display": "standalone",
   "background_color": "#F8F9FA",
   "theme_color": "#00875A",
