@@ -69,3 +69,18 @@ def test_cabecalhos_do_site_vao_para_o_download(monkeypatch):
                         vistos.append(headers) or Encarte(valido_de=None, valido_ate=None, ofertas=[]))
     encartes.coletar("cato")
     assert vistos[0]["Referer"] == "https://www.catosupermercados.com.br/"
+
+
+def test_tenda_folhetos_vigentes_da_loja():
+    from datetime import date
+    from coleta.encartes import folhetos_tenda
+    base = "https://d3gdr9n5lqb5z7.cloudfront.net/fotos/"
+    dados = {"data": [
+        {"branch": {"id": 21, "address": {"city": "Indaiatuba"}}, "startDate": "2026-11-13", "endDate": "2026-11-16",
+         "pages": [{"order": 2, "image": base + "b.jpeg"}, {"order": 1, "image": base + "a.jpeg"}]},
+        {"branch": {"id": 21}, "startDate": "2026-11-20", "endDate": "2026-11-23", "pages": [{"order": 1, "image": base + "futuro.jpeg"}]},
+        {"branch": {"id": 21}, "startDate": "2026-11-06", "endDate": "2026-11-09", "pages": [{"order": 1, "image": base + "vencido.jpeg"}]},
+        {"branch": {"id": 7, "address": {"city": "Itu"}}, "startDate": "2026-11-13", "endDate": "2026-11-16", "pages": [{"order": 1, "image": base + "itu.jpeg"}]},
+    ]}
+    assert folhetos_tenda(dados, date(2026, 11, 15)) == [
+        (base + "a.jpeg", "2026-11-13", "2026-11-16"), (base + "b.jpeg", "2026-11-13", "2026-11-16")]

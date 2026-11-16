@@ -1,4 +1,4 @@
-"""Coletor de encartes publicados como PDF/imagem no site do mercado (Sumerbol, Roldão, Revolução, Assaí, Cato).
+"""Coletor de encartes publicados como PDF/imagem no site do mercado (Sumerbol, Roldão, Revolução, Assaí, Cato, Tenda).
 
 Acha os arquivos na página de ofertas e passa cada um pelo extrator.
 
@@ -31,6 +31,11 @@ ASSAI_LOJA_ID = 178          # "Assaí Indaiatuba" na lista de lojas do mesmo JS
 CATO_PAGINA = "https://www.catosupermercados.com.br/folhetos"
 CATO_IMAGEM = re.compile(r"https://cdn\.regexsolutions\.com\.br/production/folheto/[^\"'\s)]+\.(?:webp|jpe?g|png|pdf)", re.I)
 
+# Tenda: a página "Nossas ofertas" monta o folheto da loja com esta API pública (a mesma que o site chama ao escolher
+# a cidade e a loja). Loja 21 = Indaiatuba (Alameda Filtros Mann, 670). Cada folheto traz início, fim e as páginas.
+TENDA_API = "https://api.tendaatacado.com.br/api/public/branch/21/flyers?per_page=12"
+TENDA_PAGINA = "https://www.tendaatacado.com.br/institucional/nossas-ofertas"
+
 # pagina: onde os encartes ficam; padrao: regex do arquivo; ignorar: nomes que não são encarte
 SITES = {
     "sumerbol": {
@@ -61,6 +66,11 @@ SITES = {
         "mercado": "Assaí",
         "buscar": lambda: assai_jornais(),
         "cabecalhos": {"Referer": "https://www.assai.com.br/", "User-Agent": UA_NAVEGADOR},
+    },
+    "tenda": {
+        "mercado": "Tenda",
+        "buscar": lambda: tenda_folhetos(),
+        "cabecalhos": {"Referer": "https://www.tendaatacado.com.br/", "User-Agent": UA_NAVEGADOR},
     },
     "cato": {
         "mercado": "Cato",
@@ -126,6 +136,35 @@ def _json_assai() -> dict:
 
 def assai_jornais() -> list[tuple[str, str | None, str | None]]:
     return jornais_da_loja(_json_assai())
+
+
+def folhetos_tenda(dados: dict, hoje: date | None = None) -> list[tuple[str, str | None, str | None]]:
+    """Páginas dos folhetos do Tenda vigentes hoje: (endereço da imagem, início, fim), na ordem das páginas.
+    Folheto que ainda não começou entra no dia dele; vencido não entra. Só a loja de Indaiatuba (id 21)."""
+    hoje_iso = (hoje or date.today()).isoformat()
+    saida, vistos = [], set()
+    for folheto in dados.get("data") or []:
+        loja = (folheto.get("branch") or {})
+        if loja.get("id") not in (21, "21") and ((loja.get("address") or {}).get("city") or "") != "Indaiatuba":
+            continue
+        de, ate = folheto.get("startDate"), folheto.get("endDate")
+        if (de and de > hoje_iso) or (ate and ate < hoje_iso):
+            continue
+        for pagina in sorted(folheto.get("pages") or [], key=lambda x: x.get("order") or 0):
+            url = pagina.get("image")
+            if url and url not in vistos:
+                vistos.add(url)
+                saida.append((url, de, ate))
+    return saida
+
+
+def tenda_folhetos() -> list[tuple[str, str | None, str | None]]:
+    resp = httpx.get(TENDA_API, timeout=30, follow_redirects=True,
+                     headers={"User-Agent": UA_NAVEGADOR, "Referer": TENDA_PAGINA, "Origin": "https://www.tendaatacado.com.br",
+                              "Accept": "application/json"})
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Tenda respondeu {resp.status_code} (não contornado)")
+    return folhetos_tenda(resp.json())
 
 
 def paginas_do_folheto(enderecos: list[str]) -> list[str]:
