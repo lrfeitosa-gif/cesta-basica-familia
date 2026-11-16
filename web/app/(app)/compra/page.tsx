@@ -755,6 +755,17 @@ export default function MinhaCompra() {
     setTimeout(() => document.getElementById('resposta')?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' }), 60);
   };
 
+  // 16/11 (clarify): de quando são os preços e o aviso de que podem mudar na loja, no topo dos dois passos
+  const frescor = (() => {
+    if (!dados?.atualizado) return null;
+    const quando = new Date(dados.atualizado);
+    if (Number.isNaN(quando.getTime())) return null;
+    const hora = quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+    const dia = quando.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+    const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+    return <p className="frescor">Preços {dia === hoje ? 'de hoje' : `de ${dia}`}, atualizados às {hora}. Podem mudar na loja.</p>;
+  })();
+
   // Novidades na sua cesta (2.4): alerta atingido, alerta a menos de 10% do alvo e item com preço "de/por" hoje.
   // Usa o menor preço do item (o mesmo valor que o sino sugere como alvo).
   type Novidade = { k: string; ordem: number; texto: ReactNode };
@@ -880,11 +891,13 @@ document.getElementById('voltar').onclick = function () {
           {/* 16/11: texto direto, com a economia possível hoje (maior diferença entre a referência e a forma mais barata) */}
           <p className="lead">Veja quanto você vai economizar na sua próxima compra.
             {economiaMax >= 1 && <> <b className="economia-destaque">Hoje, até {brl(economiaMax)} a menos.</b></>}</p>
+          {frescor}
         </div>
       )) : (
         <div className="passo-topo">
           <button type="button" className="voltar-lista" onClick={() => setAba('lista')}>← Editar lista ({itens.length} {itens.length === 1 ? 'item' : 'itens'})</button>
           <h1>Onde comprar</h1>
+          {frescor}
         </div>
       )}
 
@@ -1089,7 +1102,7 @@ document.getElementById('voltar').onclick = function () {
               {r.falta.length > 0 && (
                 <span className="market-warning">
                   <IconeAtencao />
-                  <span>Sem preço hoje: {r.falta.join(', ')}. Estimado pelo preço mediano dos outros mercados.</span>
+                  <span>Sem preço hoje: {r.falta.join(', ')}. Estimado pelo preço típico dos outros mercados.</span>
                 </span>
               )}
               {r.escolhas.length > 0 && (
@@ -1104,7 +1117,7 @@ document.getElementById('voltar').onclick = function () {
                     {r.estimados.map(({ c, valor, outrasMarcas }) => (
                       <li key={c.id} className="estimado">
                         {sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}{tamTxt(c)}: {!marcas[c.id] ? 'sem preço neste mercado'
-                          : 'sem preço para esta marca'}, estimado pelo preço mediano {outrasMarcas ? 'das outras marcas deste mercado'
+                          : 'sem preço para esta marca'}, estimado pelo preço típico {outrasMarcas ? 'das outras marcas deste mercado'
                           : `de ${nMedia[c.id] ?? 0} ${nMedia[c.id] === 1 ? 'mercado' : 'mercados'}`}
                         {refs[c.id] && !kgs.has(c.id) && valor > 0 && <> ({brl(valor / sel[c.id] / refs[c.id].base)}/{unTxt(c)} × {fmtTam(refs[c.id])})</>}{' '}
                         <span className="subtotal">≈ {brl(valor)}</span>
@@ -1135,7 +1148,7 @@ document.getElementById('voltar').onclick = function () {
       <p className="muted">
         {(() => { const enc = ranking.map((r) => r.m).filter((m) => ENCARTE.has(m));
           return enc.length ? `${enc.join(', ').replace(/, ([^,]*)$/, ' e $1')} ${enc.length === 1 ? 'entra' : 'entram'} só com os itens em promoção no encarte. ` : ''; })()}
-        Quando falta preço, o total usa o preço mediano dos outros mercados e aparece com ≈. A lista vai do menor para o maior valor.
+        <b>≈ quer dizer valor estimado:</b> quando um mercado não tem preço de um item hoje, usamos o preço típico dos outros mercados.
       </p>
       </div>
       </div>
@@ -1284,6 +1297,7 @@ document.getElementById('voltar').onclick = function () {
                     <span className="encontrado-nome">{!kgs.has(c.id) && menor.marca && !norm(menor.nome).includes(norm(menor.marca)) ? `${menor.marca} · ` : ''}{menor.nome}
                       {!kgs.has(c.id) && !tamNoNomeItem(menor) && <span className="encontrado-emb"> {emb(menor)}</span>}</span>
                     <span><b className="preco-item">{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span>
+                      {' '}<span className={menor.fonte === 'site' ? 'badge-site' : 'badge-encarte'} title={menor.fonte === 'site' ? 'Preço do site do mercado' : 'Preço de promoção do encarte'}>{menor.fonte === 'site' ? 'site' : 'encarte'}</span>
                       {dados && <> · {Object.keys(porItem[c.id]).length} mercados</>}</span>
                   </span>
                 ) : !dados ? (erro ? <span className="cond">preço indisponível agora</span> : <span className="esq-texto" aria-hidden="true" />)

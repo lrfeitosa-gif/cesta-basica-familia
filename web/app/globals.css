@@ -1449,3 +1449,6 @@ html, body { overflow-x: hidden; }
 /* Robustez (16/11, harden): alvos de toque de 44 px e aviso de preços indisponíveis */
 .btn-lixeira { width: 44px; height: 44px; min-width: 44px; }
 .sem-precos .btn { justify-self: start; min-height: 44px; }
+/* Clarify (16/11): de quando são os preços */
+.frescor { margin: 4px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.encontrado .badge-site, .encontrado .badge-encarte { font-size: 12px; }
