@@ -1159,7 +1159,9 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .resumo-opcoes { display: grid; gap: 8px; }
 #opcao-mercado, #opcao-dupla, #opcao-roteiro { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
 .resumo-opcoes ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-@media (min-width: 720px) { .resumo-opcoes ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* 16/11: a coluna do app tem ~490 px também no computador; 4 lado a lado só quando o próprio resumo tem espaço */
+.resumo-opcoes { container-type: inline-size; }
+@container (min-width: 640px) { .resumo-opcoes ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .resumo-opcoes .opcao { width: 100%; height: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   text-align: left; font: inherit; color: var(--foreground); background: var(--card); border: 1px solid var(--card-borda);
   border-radius: 14px; padding: 10px 12px; cursor: pointer; box-shadow: var(--card-sombra); }
@@ -1172,8 +1174,8 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 @media (prefers-color-scheme: dark) { .opcao-escolhida { color: var(--marca); } }
 .opcao-titulo { font-size: 13px; font-weight: 600; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .selo-equilibrio { font-size: 11px; font-weight: 700; color: #fff; background: var(--destaque-escuro); border-radius: 999px; padding: 1px 8px; }
-.opcao-total { font-size: 20px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
-@media (min-width: 720px) and (max-width: 860px) { .opcao-total { font-size: 18px; } }
+.opcao-total { font-size: clamp(17px, 5.2cqi, 22px); font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+@container (min-width: 640px) { .opcao-total { font-size: clamp(16px, 2.9cqi, 22px); } }
 .opcao-onde { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 .opcao-info { font-size: 12px; color: var(--muted-foreground); }
 .opcao-economia { font-size: 13px; font-weight: 700; color: var(--marca-escura); }

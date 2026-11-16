@@ -750,17 +750,17 @@ export default function MinhaCompra() {
                 <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈\u00a0' : ''}{brl(o.valor)}</span>
                 <span className="opcao-onde">{nomeOpcao(o)}</span>
                 {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
-                {o === referencia ? <span className="opcao-info">Referência da economia</span>
+                {o === referencia ? <span className="opcao-info">{o.k === 'perto' ? 'O mais perto de você: base da comparação' : 'Base da comparação'}</span>
                   : Math.abs(economia) < 0.01 ? <span className="opcao-info">{o.k === 'um' && referencia.k === 'perto' && nomeOpcao(o) === nomeOpcao(referencia) ? 'É também o mais perto' : 'Mesmo valor da referência'}</span>
-                  : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos</span>
-                  : <span className="opcao-info">{brl(-economia)} a mais</span>}
+                  : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos que no {nomeOpcao(referencia)}</span>
+                  : <span className="opcao-info">{brl(-economia)} a mais que no {nomeOpcao(referencia)}</span>}
                 {o.est && <span className="opcao-est">{o.est}</span>}
               </button>
             </li>
           );
         })}
       </ul>
-      <span className="muted">Economia comparada com {referencia.k === 'perto' ? `comprar tudo no mais perto (${maisPerto!.m})` : `comprar tudo no ${top!.m}`}. {aba === 'comparar' ? 'Toque numa opção: a lista, o mapa e o PDF dela aparecem logo abaixo.' : 'Toque numa opção para ver a lista, o mapa e o PDF.'}</span>
+      <span className="muted">{aba === 'comparar' ? 'Toque numa opção: a lista, o mapa e o PDF dela aparecem logo abaixo.' : 'Toque numa opção para ver a lista, o mapa e o PDF.'}</span>
     </section>
   ) : null;
 
