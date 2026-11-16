@@ -782,7 +782,11 @@ export default function MinhaCompra() {
 h1{font-size:20px;margin:0 0 2px;color:#047857}h2{font-size:16px;margin:18px 0 2px}.m{color:#475569;font-size:12px}
 ul{list-style:none;padding:0;margin:6px 0}li{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #E2E8F0}
 .cx{width:14px;height:14px;border:1.5px solid #0F172A;border-radius:3px;flex:none;margin-top:2px}.p{flex:1}.v{white-space:nowrap;font-weight:600}
-.t{text-align:right;font-weight:700;margin-top:4px}.g{font-size:18px;font-weight:800;margin-top:16px}@media print{body{margin:12mm}}</style></head><body>
+.t{text-align:right;font-weight:700;margin-top:4px}.g{font-size:18px;font-weight:800;margin-top:16px}@media print{body{margin:12mm}.barra{display:none}}
+.barra{position:sticky;top:0;display:flex;gap:8px;padding:10px 0 12px;background:#fff;border-bottom:1px solid #E2E8F0;margin-bottom:14px}
+.barra button{flex:1;min-height:44px;border-radius:10px;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.barra .voltar{background:#fff;color:#047857;border:1.5px solid #047857}.barra .imprimir{background:#047857;color:#fff;border:0}</style></head><body>
+<div class="barra"><button type="button" class="voltar" id="voltar">← Voltar ao Mercato</button><button type="button" class="imprimir" id="imprimir">Salvar PDF / Imprimir</button></div>
 <h1>Lista de compras · Mercato</h1><div class="m">${esc(titulo)} · preços de ${esc(dia)} coletados nos sites e encartes; podem mudar na loja.</div>
 ${grupos.map((g) => `<h2>${esc(g.mercado)}</h2>${g.onde ? `<div class="m">${esc(g.onde)}</div>` : ''}<ul>${g.linhas.map((x) => `<li><span class="cx"></span><span class="p"><b>${esc(x.txt)}</b><br><span class="m">${esc(x.prod)}</span></span><span class="v">${esc(x.valor)}</span></li>`).join('')}</ul><div class="t">Subtotal: ${esc(g.total)}</div>`).join('')}
 ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
@@ -790,6 +794,14 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
     const w = window.open('', '_blank');
     if (!w) return mostrarAviso({ texto: 'O navegador bloqueou a nova janela. Permita pop-ups deste site para gerar o PDF.' });
     w.document.write(html); w.document.close();
+    // 16/11: no app instalado no iPhone a lista abre sem barra do navegador; os botões dão o caminho de volta.
+    // "Voltar" fecha a janela; se o sistema não deixar fechar, abre a Cesta de novo nesta mesma tela.
+    const volta = `${location.origin}/compra?ver=onde`;
+    w.document.getElementById('imprimir')?.addEventListener('click', () => { try { w.print(); } catch { /* menu do navegador */ } });
+    w.document.getElementById('voltar')?.addEventListener('click', () => {
+      try { w.close(); } catch { /* segue para o plano B */ }
+      setTimeout(() => { try { if (!w.closed) w.location.href = volta; } catch { /* nada a fazer */ } }, 300);
+    });
     // espera o navegador desenhar a página antes de abrir a impressão (uma vez só)
     setTimeout(() => { try { w.focus(); w.print(); } catch { /* a pessoa imprime pelo menu */ } }, 500);
   };
