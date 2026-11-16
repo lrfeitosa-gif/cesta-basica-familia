@@ -37,7 +37,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             escolha="${{ inputs.mercados }}"
-          elif [ "${{ github.event.schedule }}" = "0 10 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "17 8 * * *" ]; then   # a coleta completa da manhã (mesmo texto do cron acima)
             escolha=""
           else
             escolha="sites"
