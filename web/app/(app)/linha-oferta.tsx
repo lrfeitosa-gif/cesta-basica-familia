@@ -1,5 +1,5 @@
 'use client';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { brl, emb, marcarEsgotado, norm, SO_SOCIOS, type Oferta } from '@/lib/ofertas';
 import { supabase } from '@/lib/supabase';
@@ -8,14 +8,27 @@ import { adicionarNaCesta } from '@/lib/cesta';
 import { mostrarAviso } from './aviso';
 import HistoricoMini from './historico-mini';
 
-// Cartão de um preço. Ações (14/11): Pôr na cesta, alerta (sininho com preço-alvo) e Ver histórico; o site/encarte
-// e "Avisar que acabou" ficam como links menores. `termo` é o que vai para a cesta e para o alerta: a busca da
+// Cartão de um preço. Ações (15/11, Fase 3): só "+ Cesta" à vista; as outras quatro (alerta, histórico, site/encarte
+// e "Avisar que acabou") ficam no botão "⋯", que fecha com Esc e com toque fora. `termo` é o que vai para a cesta e para o alerta: a busca da
 // pessoa quando houver ("café pilão"), senão o nome do produto.
 export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extra?: ReactNode; dist?: string | null; termo?: string }) {
   const sessao = useSessao(false);   // a página já exige a conta; aqui só lê, sem redirecionar
   const [aberto, setAberto] = useState<'' | 'alerta' | 'hist'>('');
   const [alvo, setAlvo] = useState(() => (Math.floor(o.preco * 0.95 * 10) / 10).toFixed(2).replace('.', ','));
   const [salvando, setSalvando] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const caixaMenu = useRef<HTMLDivElement>(null);
+  const botaoMenu = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const fora = (e: PointerEvent) => { if (!caixaMenu.current?.contains(e.target as Node)) setMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenu(false); botaoMenu.current?.focus(); } };
+    document.addEventListener('pointerdown', fora); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', fora); document.removeEventListener('keydown', esc); };
+  }, [menu]);
+  const escolher = (f: () => void) => { setMenu(false); f(); };
+  const linkOrigem = o.url || PAGINA_ENCARTE[o.mercado];
+  const pct = o.de > o.preco ? Math.round((1 - o.preco / o.de) * 100) : 0;
   const alvoTermo = (termo ?? o.nome).trim();
   const porNaCesta = async () => {
     if (!sessao) return;
@@ -47,7 +60,7 @@ export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extr
         <div className="price-tag-container">
           <b className="current-price">{brl(o.preco)}</b>
           {o.de > o.preco && <s className="old-price">de {brl(o.de)}</s>}
-          {o.de > o.preco ? <span className="discount-badge">Economia de {brl(o.de - o.preco)}</span>
+          {pct > 0 ? <span className="discount-badge" aria-label={`${pct}% de desconto`}>−{pct}%</span>
             : extra && <span className="discount-badge">{extra}</span>}
         </div>
       </div>
@@ -61,13 +74,24 @@ export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extr
         {dist && <span className="dist">📍 {dist}</span>}
         {o.cond && <span className="cond">{o.cond}</span>}
       </div>
-      <div className="product-actions">
-        <button type="button" className="card-btn card-btn-primario" onClick={porNaCesta}>Pôr na cesta</button>
-        <button type="button" className={`card-btn card-btn-secundario card-btn-sino${aberto === 'alerta' ? ' ativo' : ''}`} aria-expanded={aberto === 'alerta'}
-          aria-label={`Criar alerta para ${o.nome}`} onClick={() => setAberto(aberto === 'alerta' ? '' : 'alerta')}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+      <div className="product-actions" ref={caixaMenu}>
+        <button type="button" className="card-btn card-btn-primario" onClick={porNaCesta} aria-label={`Pôr ${o.nome} na cesta`}>+ Cesta</button>
+        <button type="button" ref={botaoMenu} className="card-btn card-btn-secundario card-btn-mais" aria-label="Mais ações" aria-expanded={menu}
+          aria-controls={`acoes-${o.id}`} onClick={() => setMenu(!menu)}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
         </button>
-        <button type="button" className="card-btn card-btn-secundario" aria-expanded={aberto === 'hist'} onClick={() => setAberto(aberto === 'hist' ? '' : 'hist')}>Ver histórico</button>
+        {menu && (
+          <ul className="acoes-menu" id={`acoes-${o.id}`}>
+            <li><button type="button" onClick={() => escolher(() => setAberto('alerta'))}>Criar alerta de preço</button></li>
+            <li><button type="button" onClick={() => escolher(() => setAberto('hist'))}>Ver histórico de preço</button></li>
+            {linkOrigem && (
+              <li><a href={linkOrigem} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(false)}>
+                {o.fonte === 'site' ? `Ver no site do ${o.mercado}` : `Ver encarte do ${o.mercado}`} ↗
+              </a></li>
+            )}
+            <li><button type="button" onClick={() => escolher(() => avisarEsgotado(o))}>Avisar que acabou</button></li>
+          </ul>
+        )}
       </div>
       {aberto === 'alerta' && (
         <form className="alerta-rapido" onSubmit={criarAlerta}>
@@ -78,14 +102,7 @@ export default function LinhaOferta({ o, extra, dist, termo }: { o: Oferta; extr
         </form>
       )}
       {aberto === 'hist' && <HistoricoMini o={o} termo={alvoTermo} />}
-      <div className="product-links">
-        {(o.url || PAGINA_ENCARTE[o.mercado]) && (
-          <a className="link-origem" href={o.url || PAGINA_ENCARTE[o.mercado]} target="_blank" rel="noopener noreferrer">
-            {o.fonte === 'site' ? `Ver no site do ${o.mercado}` : `Ver encarte do ${o.mercado}`} ↗
-          </a>
-        )}
-        <button type="button" onClick={() => avisarEsgotado(o)}>Avisar que acabou</button>
-      </div>
+      {aberto && <button type="button" className="fechar-painel" onClick={() => setAberto('')}>Fechar {aberto === 'hist' ? 'histórico' : 'alerta'}</button>}
     </article>
   );
 }
