@@ -348,7 +348,7 @@ h2 { margin-top: 4px; }
 .btn-remover, .btn-acabou, .link-site { min-height: 40px; display: inline-flex; align-items: center; }
 .btn-remover { padding: 0 8px; }
 .btn-link { min-height: 40px; }
-.qtd button { min-width: 40px; min-height: 40px; }
+.qtd button { min-width: 44px; min-height: 44px; }
 details > summary { min-height: 36px; display: flex; align-items: center; cursor: pointer; }
 .empty .btn { margin-top: 10px; }
 /* links com aparência de botão do design system de boas-vindas */
@@ -943,7 +943,7 @@ button, a, summary { -webkit-tap-highlight-color: transparent; }
 .dicas-foto { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .dicas-foto li { display: grid; justify-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); text-align: center;
   background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; padding: 8px 4px; }
-.dicas-foto li span { font-size: 18px; }
+.dicas-foto li .icone { color: var(--marca-escura); }
 .link-dicas { justify-self: start; font: inherit; font-size: 13px; font-weight: 600; color: var(--link-ink); background: none; border: 0; padding: 4px 0; cursor: pointer; }
 .dicas-texto { margin: 0; font-size: 13px; }
 
@@ -1158,7 +1158,7 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 @media (prefers-color-scheme: dark) { .basicos .chip[aria-pressed="true"] { color: var(--foreground); } }
 .novidades { display: grid; gap: 6px; }
 .novidades ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.novidades li { background: var(--card); border: 1px solid var(--card-borda); border-left: 4px solid var(--destaque); border-radius: 12px;
+.novidades li { background: var(--preco-bg); border: 1px solid color-mix(in srgb, var(--preco-borda) 55%, transparent); border-radius: 8px;
   padding: 10px 12px; font-size: 14px; line-height: 1.4; }
 .btn-camera { flex: none; min-width: 44px; min-height: 44px; padding: 0 10px; display: grid; place-items: center; }
 .btn-camera[aria-expanded="true"] { border-color: var(--marca-escura); color: var(--marca-escura); }
@@ -1428,3 +1428,24 @@ html, body { overflow-x: hidden; }
 .resposta .btn-action-primary + .btn-action-secundario { margin-top: 8px; }
 .roteiro-mercados .chip-sem-uso, .roteiro-mercados .chip-sem-uso[aria-pressed="true"] { border-style: dashed; background: transparent; color: var(--muted-foreground); font-weight: 500; }
 .mostrar-poucos { justify-self: start; min-height: 44px; margin-inline: 14px; }
+
+/* ===== Cara de mercado (16/11, bolder): a etiqueta de preço da tela Preços também na Compra ===== */
+/* Mesmo vocabulário do .price-tag-container: fundo --preco-bg, borda --preco-borda, número em --preco-ink. */
+.etiqueta-gondola { justify-self: start; display: inline-block; background: var(--preco-bg); color: var(--preco-ink);
+  border: 1px solid var(--preco-borda); border-radius: 8px; padding: 4px 14px 6px; margin: 6px 0 8px; line-height: 1.1; }
+.resposta .etiqueta-gondola { color: var(--preco-ink); }
+/* economia em verde, como no resto da Compra ("Hoje, até R$ X a menos"); o laranja do sistema fica para o "−%" das ofertas */
+.resposta-economia { display: inline-block; justify-self: start; background: var(--marca-clara); color: var(--marca-escura);
+  border-radius: 6px; padding: 4px 10px; font-size: 14px; }
+@media (prefers-color-scheme: dark) { .resposta-economia { background: color-mix(in srgb, var(--marca) 16%, var(--card)); color: var(--marca); } }
+.forma-valor > b, .preco-item, .market-total { background: var(--preco-bg); color: var(--preco-ink); border: 1px solid color-mix(in srgb, var(--preco-borda) 70%, transparent);
+  border-radius: 6px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.preco-item { font-size: 14px; }
+.icone { flex: none; vertical-align: -0.15em; }
+.market-distance .icone, .address-texto .icone, .com-icone .icone { color: var(--marca-escura); margin-right: 2px; }
+@media (prefers-color-scheme: dark) { .market-distance .icone, .address-texto .icone, .com-icone .icone, .dicas-foto li .icone { color: var(--marca); } }
+.market-warning .icone { margin-top: 1px; }
+
+/* Robustez (16/11, harden): alvos de toque de 44 px e aviso de preços indisponíveis */
+.btn-lixeira { width: 44px; height: 44px; min-width: 44px; }
+.sem-precos .btn { justify-self: start; min-height: 44px; }

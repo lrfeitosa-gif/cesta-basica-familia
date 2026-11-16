@@ -1,5 +1,6 @@
 'use client';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { IconeCelular, IconeLuz, IconeNota, IconeReta } from './icones';
 import dynamic from 'next/dynamic';
 import { useSessao } from '@/lib/sessao';
 
@@ -79,10 +80,10 @@ export default function EnviarNota({ aoLer, acoes, textoBotao = 'Fotografar ou e
             disabled={status?.tipo === 'lendo'}
             onChange={(e) => { enviarFoto(e.target.files?.[0]); e.target.value = ''; }} />
           <ul className="dicas-foto" aria-label="Dicas para a foto">
-            <li><span aria-hidden="true">🧾</span>Nota inteira</li>
-            <li><span aria-hidden="true">💡</span>Boa luz</li>
-            <li><span aria-hidden="true">📐</span>Reta</li>
-            <li><span aria-hidden="true">📱</span>Print vale</li>
+            <li><IconeNota />Nota inteira</li>
+            <li><IconeLuz />Boa luz</li>
+            <li><IconeReta />Reta</li>
+            <li><IconeCelular />Print vale</li>
           </ul>
           <button type="button" className="link-dicas" aria-expanded={dicas} onClick={() => setDicas(!dicas)}>
             Dicas para uma leitura perfeita {dicas ? '▴' : '▾'}
