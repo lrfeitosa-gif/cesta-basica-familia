@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfertas, type Oferta } from '@/lib/ofertas';
+import { brl, chaveMarca, emb, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga, TagSocios } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
 import { supabase } from '@/lib/supabase';
@@ -66,6 +66,31 @@ const LIMITE_ESTIMADOS = 0.2;
 // Opção destacada como "Equilíbrio" no resumo de Onde comprar (decisão de 15/11: 2 mercados).
 const OPCAO_EQUILIBRIO: 'roteiro' | 'dupla' | 'um' | 'perto' = 'dupla';
 const estTxt = (n: number, valor: number) => n ? `${n} ${n === 1 ? 'item estimado' : 'itens estimados'}${valor > 0 ? ` (≈ ${brl(valor)})` : ''}` : '';
+// Itens repetidos (Fase 4.3, 15/11): mesmo produto depois de normalizar maiúsculas, acentos e unidades.
+// "arroz 5kg" x "Arroz branco 5 kg"; "café" x "Café torrado 500 g". Só avisa; quem junta é a pessoa.
+const LIGACAO = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'com']);
+const TAM_ITEM = /(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|lt|litros?|un)\b/;
+function tamItem(q: number | undefined, u: string | undefined, termo: string): string | null {
+  if (q && u) return u === 'kg' || u === 'l' ? `${q * 1000}${u === 'kg' ? 'g' : 'ml'}` : `${q}${u}`;
+  const m = norm(termo).match(TAM_ITEM);
+  if (!m) return null;
+  const n = Number(m[1].replace(',', '.')); const un = m[2];
+  return un === 'kg' ? `${n * 1000}g` : un === 'l' || un.startsWith('lt') || un.startsWith('litro') ? `${n * 1000}ml` : `${n}${un}`;
+}
+const palavrasItem = (t: string) => norm(t).replace(TAM_ITEM, ' ').split(/[^a-z0-9]+/).filter((w) => w && !LIGACAO.has(w) && !/^\d/.test(w));
+function pareceRepetido(a: ItemCesta, b: ItemCesta): boolean {
+  const ta = a.termo ?? a.rotulo, tb = b.termo ?? b.rotulo;
+  const wa = palavrasItem(a.inc ? `${a.rotulo} ${a.inc.join(' ')}` : ta), wb = palavrasItem(b.inc ? `${b.rotulo} ${b.inc.join(' ')}` : tb);
+  if (!wa.length || !wb.length || palavrasItem(ta)[0] !== palavrasItem(tb)[0]) return false;
+  const sa = tamItem(a.q, a.u, ta), sb = tamItem(b.q, b.u, tb);
+  if (sa && sb && sa !== sb) return false;
+  // item fixo da cesta: o outro não pode ser uma variante excluída dele ("leite condensado" não é o leite longa vida)
+  if (a.exc?.test(norm(tb)) || b.exc?.test(norm(ta))) return false;
+  const [menor, maior] = palavrasItem(ta).length <= palavrasItem(tb).length ? [palavrasItem(ta), new Set(b.inc ? wb : palavrasItem(tb))] : [palavrasItem(tb), new Set(a.inc ? wa : palavrasItem(ta))];
+  return menor.every((w) => maior.has(w));
+}
+// o tamanho já está no nome ("Arroz 5kg")? então não repete ao lado (4.6)
+const tamNoNomeItem = (o: Oferta) => { const n = norm(o.nome).replace(/\s/g, ''); return [String(o.q), String(o.q).replace('.', ',')].some((q) => n.includes(`${q}${o.u}`)); };
 const mediana = (xs: number[]) => {
   const o = [...xs].sort((a, b) => a - b), k = Math.floor(o.length / 2);
   return o.length % 2 ? o[k] : (o[k - 1] + o[k]) / 2;
@@ -138,7 +163,8 @@ export default function MinhaCompra() {
   const [novo, setNovo] = useState('');
   const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
   const [avisoNovo, setAvisoNovo] = useState('');
-  const [notaAberta, setNotaAberta] = useState(false);   // painel da nota, recolhido quando a cesta já tem itens (2.5)
+  const [notaAberta, setNotaAberta] = useState(false);
+  const [trocando, setTrocando] = useState<string | null>(null);   // item com a escolha de marca aberta por "Não é esse? Trocar" (4.6)   // painel da nota, recolhido quando a cesta já tem itens (2.5)
   const [basicos, setBasicos] = useState<string[]>(BASICOS.slice(0, BASICOS_MARCADOS).map((b) => b.rotulo));
   const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
   const [todosMercados, setTodosMercados] = useState(false);   // mostra também os mercados com poucos preços hoje
@@ -388,6 +414,12 @@ export default function MinhaCompra() {
     setSinoAberto(null);
   };
 
+  // 4.3: soma as quantidades no item que fica (o fixo da cesta, se houver) e tira o outro
+  const juntarItens = (fica: ItemCesta, sai: ItemCesta) => {
+    const n = { ...sel, [fica.id]: (sel[fica.id] ?? 0) + (sel[sai.id] ?? 0) }; delete n[sai.id];
+    if (sai.termo) salvarExtras(extras.filter((x) => x.id !== sai.id));
+    mudar(n);
+  };
   const remover = (id: string) => {
     salvarExtras(extras.filter((x) => x.id !== id));
     const n = { ...sel }; delete n[id]; mudar(n);
@@ -1084,20 +1116,34 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </section>
       )}
       {!vazia && <>
+      <p className="ajuda-lista">Itens marcados entram na conta. Desmarque para deixar um item de fora sem apagar.</p>
+      {(() => {
+        const marcados = todos.filter((c) => sel[c.id]);
+        const pares: [ItemCesta, ItemCesta][] = [];
+        for (let i = 0; i < marcados.length; i++) for (let j = i + 1; j < marcados.length; j++) {
+          if (pareceRepetido(marcados[i], marcados[j])) pares.push(marcados[i].inc || !marcados[j].inc ? [marcados[i], marcados[j]] : [marcados[j], marcados[i]]);
+        }
+        return pares.length > 0 && (
+          <ul className="repetidos" aria-label="Itens que parecem repetidos">
+            {pares.slice(0, 3).map(([a, b]) => (
+              <li key={`${a.id}-${b.id}`}>
+                <span>Parece repetido: <b>{a.rotulo}</b> e <b>{b.rotulo}</b></span>
+                <button type="button" className="btn btn-secondary" onClick={() => juntarItens(a, b)}
+                  aria-label={`Juntar ${b.rotulo} em ${a.rotulo}, somando as quantidades`}>Juntar</button>
+              </li>
+            ))}
+          </ul>
+        );
+      })()}
       <div className="lista cesta">
         {todos.map((c) => {
           const ativo = !!sel[c.id];
           const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
           return (
             <div className="item" key={c.id}>
-              <input type="checkbox" className="check" id={`ck-${c.id}`} checked={ativo}
+              <input type="checkbox" className="check" id={`ck-${c.id}`} checked={ativo} aria-label={`Incluir ${c.rotulo} na conta`}
                 onChange={(e) => { const n = { ...sel }; if (e.target.checked) n[c.id] = 1; else delete n[c.id]; mudar(n); }} />
-              <label className="nome" htmlFor={`ck-${c.id}`}>
-                {c.rotulo}
-                {c.termo && (
-                  <button type="button" className="btn-remover" onClick={() => remover(c.id)} aria-label={`Remover ${c.rotulo}`}>remover</button>
-                )}
-              </label>
+              <label className="nome" htmlFor={`ck-${c.id}`}>{c.rotulo}</label>
               <div className="qtd">
                 {ativo && <>
                   <button type="button" aria-label={`Menos ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: Math.max(1, sel[c.id] - 1) })}>−</button>
@@ -1109,6 +1155,11 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                     aria-label={alertaDoItem(c) ? `Alerta de ${c.rotulo} ligado: mudar` : `Criar alerta para ${c.rotulo}`}
                     onClick={() => abrirSino(c, menor && v(c, menor))}>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+                  </button>
+                )}
+                {c.termo && (
+                  <button type="button" className="btn-lixeira" onClick={() => remover(c.id)} aria-label={`Remover ${c.rotulo}`} title="Remover da cesta">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
                   </button>
                 )}
               </div>
@@ -1129,31 +1180,55 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                 );
               })()}
               <div className="meta">
-                {menor
-                  ? <span>{kgs.has(c.id) ? menor.nome : menor.marca || 'Sem marca'} · <b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span></span>
-                  : !dados ? <span className="esq-texto" aria-hidden="true" />
+                {menor ? (
+                  <span className="encontrado">
+                    <span className="encontrado-nome">{!kgs.has(c.id) && menor.marca && !norm(menor.nome).includes(norm(menor.marca)) ? `${menor.marca} · ` : ''}{menor.nome}
+                      {!kgs.has(c.id) && !tamNoNomeItem(menor) && <span className="encontrado-emb"> {emb(menor)}</span>}</span>
+                    <span><b>{brl(v(c, menor))}{kgs.has(c.id) ? '/kg' : ''}</b>{refs[c.id] ? ` por ${fmtTam(refs[c.id])}` : ''} no <span className="mkt">{menor.mercado}</span>
+                      {dados && <> · {Object.keys(porItem[c.id]).length} mercados</>}</span>
+                  </span>
+                ) : !dados ? <span className="esq-texto" aria-hidden="true" />
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
-                {dados && <span>{Object.keys(porItem[c.id]).length} mercados</span>}
-                {c.termo && (
-                  <label className="row" style={{ gap: 6 }}>
-                    <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
-                    hortifruti (por kg)
-                  </label>
+                {menor && ativo && !kgs.has(c.id) && marcasDe(c.id).length > 1 && trocando !== c.id && (
+                  <button type="button" className="btn-trocar" onClick={() => {
+                    if (marcasDe(c.id).length > 10) return setTrocando(c.id);
+                    const el = document.getElementById(`marca-${c.id}`) as HTMLSelectElement | null;
+                    el?.focus(); try { el?.showPicker?.(); } catch { /* navegador sem showPicker: o foco basta */ }
+                  }}>Não é esse? Trocar</button>
                 )}
-                {ativo && !kgs.has(c.id) && (marcasDe(c.id).length > 1 || marcas[c.id]) && (
+                {ativo && !kgs.has(c.id) && (marcasDe(c.id).length > 1 || marcas[c.id]) && (marcasDe(c.id).length <= 10 || trocando === c.id || marcas[c.id]) && (
                   <span className="row" style={{ gap: 6, flexBasis: '100%' }}>
-                    <select className="marca-sel" aria-label={`Marca de ${c.rotulo}`} value={marcaCompacta(marcas[c.id] ?? '')}
-                      onChange={(e) => fixarMarca(c.id, e.target.value)}>
-                      <option value="">Qualquer marca</option>
-                      {marcasDe(c.id).map((m) => (
-                        <option key={m.chave} value={m.chave}>{m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
-                      ))}
-                    </select>
+                    {marcasDe(c.id).length > 10 ? (
+                      <MarcaBusca id={`marca-${c.id}`} rotulo={`Marca de ${c.rotulo}`} valor={marcaCompacta(marcas[c.id] ?? '')} opcoes={marcasDe(c.id)}
+                        abrir={trocando === c.id} aoEscolher={(k) => { fixarMarca(c.id, k); setTrocando(null); }} aoFechar={() => setTrocando(null)} />
+                    ) : (
+                      <select className="marca-sel" id={`marca-${c.id}`} aria-label={`Marca de ${c.rotulo}`} value={marcaCompacta(marcas[c.id] ?? '')}
+                        onChange={(e) => { fixarMarca(c.id, e.target.value); setTrocando(null); }}>
+                        <option value="">Qualquer marca</option>
+                        {marcasDe(c.id).map((m) => (
+                          <option key={m.chave} value={m.chave}>{m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
+                        ))}
+                      </select>
+                    )}
                     {marcas[c.id] && (
                       <button type="button" className="chip" onClick={() => fixarMarca(c.id, '')}>× qualquer marca</button>
                     )}
                   </span>
                 )}
+                {c.termo && (pareceHorti(c.termo) || kgs.has(c.id) ? (
+                  <label className="row horti-item" style={{ gap: 6 }}>
+                    <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
+                    hortifrúti (por kg)
+                  </label>
+                ) : (
+                  <details className="ajustar-item">
+                    <summary>Ajustar item</summary>
+                    <label className="row" style={{ gap: 6 }}>
+                      <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
+                      Comparar como hortifrúti (pelo preço do quilo, sem marca)
+                    </label>
+                  </details>
+                ))}
               </div>
             </div>
           );
@@ -1187,5 +1262,44 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       )}
       </>}
     </>
+  );
+}
+
+// Escolha de marca com busca (Fase 4.4): com mais de 10 marcas, um campo filtra a lista enquanto se digita;
+// "Qualquer marca" fica sempre no topo. Fecha com Esc.
+function MarcaBusca({ id, rotulo, valor, opcoes, abrir, aoEscolher, aoFechar }: {
+  id: string; rotulo: string; valor: string; opcoes: { chave: string; nome: string; mercados: number }[];
+  abrir: boolean; aoEscolher: (chave: string) => void; aoFechar: () => void;
+}) {
+  const [aberta, setAberta] = useState(abrir);
+  const [busca, setBusca] = useState('');
+  const campo = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (abrir) setAberta(true); }, [abrir]);
+  useEffect(() => { if (aberta) campo.current?.focus(); }, [aberta]);
+  const atual = opcoes.find((m) => m.chave === valor);
+  const filtradas = opcoes.filter((m) => !busca.trim() || norm(m.nome).includes(norm(busca.trim())));
+  const fechar = () => { setAberta(false); setBusca(''); aoFechar(); };
+  const escolher = (k: string) => { aoEscolher(k); setAberta(false); setBusca(''); };
+  if (!aberta) {
+    return (
+      <button type="button" className="marca-sel marca-botao" id={id} aria-label={`${rotulo}: ${atual ? atual.nome : 'qualquer marca'}. Trocar`}
+        onClick={() => setAberta(true)}>{atual ? atual.nome : 'Qualquer marca'} ▾</button>
+    );
+  }
+  return (
+    <div className="marca-busca" onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); fechar(); } }}>
+      <label htmlFor={`${id}-busca`} className="visually-hidden">{rotulo}: buscar marca</label>
+      <input ref={campo} id={`${id}-busca`} className="input" type="search" autoComplete="off" placeholder={`Buscar entre ${opcoes.length} marcas`}
+        value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <ul aria-label={`${rotulo}: ${filtradas.length + 1} opções`}>
+        <li><button type="button" aria-pressed={!valor} onClick={() => escolher('')}>Qualquer marca</button></li>
+        {filtradas.map((m) => (
+          <li key={m.chave}><button type="button" aria-pressed={m.chave === valor} onClick={() => escolher(m.chave)}>
+            {m.nome} <span className="muted">({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</span></button></li>
+        ))}
+        {!filtradas.length && <li className="muted marca-nada">Nenhuma marca com &quot;{busca.trim()}&quot;.</li>}
+      </ul>
+      <button type="button" className="btn btn-link" onClick={fechar}>Cancelar</button>
+    </div>
   );
 }
