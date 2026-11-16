@@ -838,9 +838,6 @@ body { font-family: var(--body); }
 
 .section-header-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
 .section-title { font-size: 18px; font-weight: 700; margin: 0; color: var(--foreground); }
-.btn-filter-toggle { flex: none; display: flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
-  background: var(--chip-bg); color: var(--foreground); border: 1px solid var(--chip-borda); }
-.btn-filter-toggle[aria-pressed="true"] { border-color: var(--primary); color: var(--link-ink); }
 
 .market-list { display: grid; gap: 12px; }
 .market-card { background: var(--card); border: 1px solid var(--card-borda); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
@@ -1161,29 +1158,12 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .comparativo-cab h2 small { display: block; font-size: 13px; font-weight: 500; }
 
 /* ===== Onde comprar (15/11, Fase 1): resumo das formas de comprar e itens estimados ===== */
-.resumo-opcoes { display: grid; gap: 8px; }
-#opcao-mercado, #opcao-dupla, #opcao-roteiro { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
-.resumo-opcoes ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-@media (min-width: 720px) { .resumo-opcoes ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.resumo-opcoes .opcao { width: 100%; height: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  text-align: left; font: inherit; color: var(--foreground); background: var(--card); border: 1px solid var(--card-borda);
-  border-radius: 14px; padding: 10px 12px; cursor: pointer; box-shadow: var(--card-sombra); }
-.resumo-opcoes .opcao:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.resumo-opcoes .opcao[aria-pressed="true"] { border: 2px solid var(--marca-escura); padding: 9px 11px; background: var(--marca-clara); }
-@media (prefers-color-scheme: dark) { .resumo-opcoes .opcao[aria-pressed="true"] { background: color-mix(in srgb, var(--marca) 14%, var(--card)); } }
-.opcao-escolhida { font-size: 12px; font-weight: 700; color: var(--marca-escura); }
+#resposta, .dobra { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
 .economia-destaque { color: var(--marca-escura); white-space: nowrap; }
 @media (prefers-color-scheme: dark) { .economia-destaque { color: var(--marca); } }
-@media (prefers-color-scheme: dark) { .opcao-escolhida { color: var(--marca); } }
-.opcao-titulo { font-size: 13px; font-weight: 600; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .selo-equilibrio { font-size: 11px; font-weight: 700; color: #fff; background: var(--destaque-escuro); border-radius: 999px; padding: 1px 8px; }
-.opcao-total { font-size: 20px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
-@media (min-width: 720px) and (max-width: 860px) { .opcao-total { font-size: 18px; } }
-.opcao-onde { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
-.opcao-info { font-size: 12px; color: var(--muted-foreground); }
-.opcao-economia { font-size: 13px; font-weight: 700; color: var(--marca-escura); }
 .opcao-est, .est-resumo { font-size: 12px; color: var(--destaque-escuro); }
-@media (prefers-color-scheme: dark) { .opcao-economia { color: var(--marca); } .opcao-est, .est-resumo { color: #FDBA74; } .selo-equilibrio { color: #022C22; } }
+@media (prefers-color-scheme: dark) { .opcao-est, .est-resumo { color: #FDBA74; } .selo-equilibrio { color: #022C22; } }
 
 /* ===== Minha cesta como tela inicial (15/11, Fase 2) ===== */
 .boas-vindas-cesta h1 { font-size: 24px; line-height: 1.2; text-wrap: balance; }
@@ -1220,9 +1200,6 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .encontrado { display: grid; gap: 2px; flex-basis: 100%; }
 .encontrado-nome { font-size: 14px; font-weight: 600; color: var(--foreground); }
 .encontrado-emb { font-weight: 700; color: var(--foreground); background: var(--chip-bg, rgb(15 23 42 / .06)); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
-.btn-trocar { font: inherit; font-size: 13px; font-weight: 600; color: var(--link-ink, var(--primary)); background: none; border: 0; padding: 6px 0;
-  min-height: 44px; cursor: pointer; text-decoration: underline; }
-.ajustar-item summary { cursor: pointer; font-size: 13px; color: var(--muted-foreground); min-height: 44px; display: flex; align-items: center; }
 .horti-item { min-height: 44px; }
 .marca-botao { text-align: left; min-height: 44px; cursor: pointer; }
 .marca-busca { display: grid; gap: 6px; flex: 1; min-width: 0; }
@@ -1324,12 +1301,10 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .cesta-nota-link { justify-self: center; font-size: 13px; }
 .sino { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted-foreground);
   display: grid; place-items: center; cursor: pointer; margin-left: 4px; }
-.lista.cesta .alvo-item, .lista.cesta .alvo-resumo { grid-column: 2 / -1; }
+.lista.cesta .alvo-item { grid-column: 2 / -1; }
 .alvo-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--destaque-claro); border-radius: 12px; padding: 8px 10px; font-size: 13px; margin-top: 6px; }
 .alvo-item .input { width: 96px; min-height: 40px; padding: 6px 10px; }
 .alvo-item .help { flex-basis: 100%; font-size: 12px; }
-.alvo-resumo { justify-self: start; font: inherit; font-size: 12px; font-weight: 600; color: var(--destaque-escuro); background: var(--destaque-claro);
-  border: 0; border-radius: 999px; padding: 4px 10px; margin-top: 6px; cursor: pointer; }
 
 /* Meus dados: alertas e notas */
 .alertas-conta { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -1343,12 +1318,6 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 @media (prefers-color-scheme: dark) { .product-links .link-origem { color: #6EE7B7; } }
 
 /* Cesta → Onde comprar (14/11): critério de compra no topo, antes da recomendação */
-.criterio-topo { display: grid; gap: 8px; background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg); padding: 12px 14px; }
-.criterio-topo .section-header-bar { margin: 0; }
-.criterio-topo .section-title { margin: 0; font-size: 16px; }
-.criterio-topo .ordem-mercados { margin: 0; }
-.criterio-topo .ordem-ajuda { margin: 0; }
-.criterio-topo .filtros-painel { border: 0; padding: 4px 0 0; box-shadow: none; }
 
 /* Cabeçalho verde de ponta a ponta sem cortar o menu da conta (14/11: o recorte com clip-path escondia o menu
    do bonequinho, que abre abaixo do cabeçalho). O verde dos lados vem de um fundo atrás, não de um recorte. */
@@ -1383,3 +1352,68 @@ html, body { overflow-x: hidden; }
 .au-selo { text-align: left; justify-self: stretch; display: flex; }
 .au-selo svg { flex: none; }
 .au-field .au-ajuda { padding: 0; margin: 0; }
+
+/* ===== Onde comprar enxuto (16/11, distill): uma resposta no topo; o resto recolhido em dobras ===== */
+.resposta { gap: 2px; }
+.resposta-titulo { font-size: 14px; color: var(--muted-foreground); }
+.resposta-mercado { font-size: 20px; line-height: 1.25; margin-top: 2px; }
+.resposta .recommendation-price { font-size: 32px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 2px; }
+.resposta-economia { font-size: 15px; font-weight: 700; color: var(--marca-escura); }
+.resposta-info { font-size: 14px; color: var(--muted-foreground); }
+.resposta .est-resumo { font-size: 13px; margin-top: 4px; }
+.resposta .btn-action-primary { margin-top: 14px; min-height: 48px; font-size: 16px; }
+.resposta .btn-action-secundario { min-height: 44px; }
+@media (prefers-color-scheme: dark) { .resposta-economia { color: var(--marca); } }
+
+.dobra { background: var(--card); border: 1px solid var(--card-borda); border-radius: var(--radius-lg, 14px); }
+.dobra > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 52px;
+  padding: 10px 14px; cursor: pointer; list-style: none; font-weight: 700; color: var(--foreground); border-radius: inherit; }
+.dobra > summary::-webkit-details-marker { display: none; }
+.dobra > summary::after { content: ""; grid-column: 2; grid-row: 1 / span 2; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .2s cubic-bezier(.22, 1, .36, 1); }
+.dobra[open] > summary::after { transform: rotate(-135deg); }
+.dobra > summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.dobra-dica { grid-column: 1; font-size: 14px; font-weight: 600; color: var(--marca-escura); }
+@media (prefers-color-scheme: dark) { .dobra-dica { color: var(--marca); } }
+.dobra[open] { padding-bottom: 12px; }
+.dobra[open] > :not(summary) { margin-inline: 14px; }
+.dobra[open] > * + * { margin-top: 8px; }
+.dobra .market-list { margin-inline: 10px; }
+.dobra > .muted { display: block; font-size: 13px; }
+.dobra .filtros-painel { border: 0; padding: 0; box-shadow: none; background: none; }
+
+.formas { list-style: none; padding: 0; display: grid; gap: 6px; }
+.forma { width: 100%; min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left;
+  font: inherit; color: var(--foreground); background: var(--background); border: 1px solid var(--card-borda); border-radius: 12px;
+  padding: 10px 12px; cursor: pointer; }
+.forma:hover { border-color: var(--marca-escura); }
+.forma:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.forma[aria-pressed="true"] { border: 2px solid var(--marca-escura); padding: 9px 11px; background: var(--marca-clara); }
+@media (prefers-color-scheme: dark) { .forma[aria-pressed="true"] { background: color-mix(in srgb, var(--marca) 14%, var(--card)); } }
+.forma-nome { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; font-size: 15px; }
+.forma-onde { flex-basis: 100%; font-size: 13px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.forma-valor { display: grid; justify-items: end; flex: none; font-size: 17px; font-variant-numeric: tabular-nums; }
+.forma-dif { font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.forma-menos { color: var(--marca-escura); }
+@media (prefers-color-scheme: dark) { .forma-menos { color: var(--marca); } }
+
+/* Itens da cesta: o essencial na linha, os ajustes recolhidos */
+.item-escolhas { display: flex; flex-wrap: wrap; gap: 4px 12px; flex-basis: 100%; font-size: 13px; font-weight: 600; color: var(--foreground); }
+.lista.cesta .ajustar { grid-column: 2 / -1; }
+.ajustar > summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; font-size: 14px; font-weight: 600;
+  color: var(--link-ink, var(--primary)); list-style: none; }
+.ajustar > summary::-webkit-details-marker { display: none; }
+.ajustar > summary::after { content: ""; width: 6px; height: 6px; margin-left: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px); }
+.ajustar[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.ajustar-corpo { display: grid; gap: 10px; padding: 4px 0 6px; }
+.ajustar-linha { display: grid; gap: 4px; }
+.ajustar-rotulo { font-size: 13px; font-weight: 600; color: var(--muted-foreground); }
+.ajustar .marca-sel { min-height: 44px; font-size: 15px; padding: 8px 12px; }
+.ajustar .ajustar-alerta { justify-self: start; display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 44px;
+  width: auto; max-width: 100%; padding: 8px 16px; font-size: 15px; text-align: left; white-space: normal; }
+.ajustar-alerta svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ajustar .alvo-item { margin-top: 0; }
+.fora-da-conta { display: grid; gap: 8px; }
+.fora-titulo { margin: 0; font-size: 15px; font-weight: 700; color: var(--foreground); }
+.fora-da-conta .chip { min-height: 44px; padding: 8px 14px; font-size: 15px; }

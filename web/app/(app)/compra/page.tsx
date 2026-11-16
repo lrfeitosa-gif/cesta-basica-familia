@@ -167,7 +167,6 @@ export default function MinhaCompra() {
   const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
   const [avisoNovo, setAvisoNovo] = useState('');
   const [notaAberta, setNotaAberta] = useState(false);
-  const [trocando, setTrocando] = useState<string | null>(null);   // item com a escolha de marca aberta por "Não é esse? Trocar" (4.6)   // painel da nota, recolhido quando a cesta já tem itens (2.5)
   const [basicos, setBasicos] = useState<string[]>(BASICOS.slice(0, BASICOS_MARCADOS).map((b) => b.rotulo));
   const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
   const [todosMercados, setTodosMercados] = useState(false);   // mostra também os mercados com poucos preços hoje
@@ -175,7 +174,6 @@ export default function MinhaCompra() {
   type Pref = { ordem: 'preco' | 'perto' | 'completo'; semSocios: boolean; maxKm: number | null };
   const [pref, setPrefEstado] = useState<Pref>({ ordem: 'preco', semSocios: false, maxKm: null });
   const [foraRoteiro, setForaRoteiro] = useState<string[]>([]);   // mercados tirados do roteiro de vários mercados
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   // Forma de comprar escolhida nos cards do resumo (16/11): o detalhe dela (lista, mapa, PDF) aparece logo abaixo dos cards
   type Escolha = 'roteiro' | 'dupla' | 'mercado';
   const [escolha, setEscolhaEstado] = useState<Escolha>('mercado');
@@ -691,8 +689,10 @@ export default function MinhaCompra() {
   if (maisPerto) opcoes.push({ k: 'perto', titulo: 'Mais perto', valor: maisPerto.valor, nMerc: 1,
     dist: locais.distancia(maisPerto.m) ? fmtKm(locais.distancia(maisPerto.m)!.km) : null, est: estTxt(maisPerto.falta.length, maisPerto.estimado),
     destino: 'opcao-mercado', aoTocar: () => setPref({ ordem: 'perto' }) });
-  const referencia = opcoes.find((o) => o.k === 'perto') ?? opcoes.find((o) => o.k === 'um');
-  const umSo = opcoes.find((o) => o.k === 'um');
+  // 16/11 (distill): uma base só para toda economia da tela: comprar tudo no mercado mais barato ("Um mercado só").
+  // Antes a base virava "Mais perto" quando havia endereço, e os "a menos" dos cartões não batiam com o do resumo.
+  const referencia = opcoes.find((o) => o.k === 'um');
+  const umSo = referencia;
   const maisBarata = opcoes.length ? opcoes.reduce((a, b) => (b.valor < a.valor ? b : a)) : undefined;
   const economiaMax = referencia && opcoes.length > 1 ? referencia.valor - Math.min(...opcoes.map((o) => o.valor)) : 0;
   const ehEquilibrio = (o: Opcao) => o.k === OPCAO_EQUILIBRIO && !o.est && (!umSo || o === umSo || o.valor < umSo.valor);
@@ -707,8 +707,9 @@ export default function MinhaCompra() {
     o.aoTocar?.();
     setEscolha(o.k === 'roteiro' ? 'roteiro' : o.k === 'dupla' ? 'dupla' : 'mercado');
     if (aba !== 'comparar') { setAba('comparar'); return; }   // da Minha cesta: abre Onde comprar no topo, com a opção marcada
+    // a opção escolhida vira a resposta do topo: volta para ela
     const reduzir = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setTimeout(() => document.getElementById(o.destino)?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'nearest' }), 60);
+    setTimeout(() => document.getElementById('resposta')?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' }), 60);
   };
 
   // Novidades na sua cesta (2.4): alerta atingido, alerta a menos de 10% do alvo e item com preço "de/por" hoje.
@@ -735,33 +736,38 @@ export default function MinhaCompra() {
   const ofertasHoje = (dados?.lista ?? []).filter((o) => o.de > o.preco && o.preco / o.de >= 0.4)
     .sort((a, b) => a.preco / a.de - b.preco / b.de).slice(0, 3);
 
-  const blocoResumo = itens.length > 0 && opcoes.length > 1 && referencia ? (
-    <section className="resumo-opcoes" aria-labelledby="resumo-titulo">
-      <h2 id="resumo-titulo" className="section-title">{aba === 'lista' ? 'Onde a sua cesta sai mais barata' : 'Quanto sai cada forma de comprar'}</h2>
-      <ul>
+  // 16/11 (distill): as formas de comprar saíram da grade de cartões no topo. A escolhida vira a resposta do topo;
+  // as outras ficam um toque abaixo, numa lista curta, todas comparadas com a mesma base (tudo no mais barato).
+  const outrasFormas = itens.length > 0 && opcoes.length > 1 && referencia ? (
+    <details className="dobra" id="outras-formas">
+      <summary>
+        <span>Outras formas de comprar</span>
+        {economiaMax >= 1 && <span className="dobra-dica">até {brl(economiaMax)} a menos</span>}
+      </summary>
+      <ul className="formas" aria-label="Formas de comprar">
         {opcoes.map((o) => {
           const economia = referencia.valor - o.valor;
           return (
             <li key={o.k}>
-              <button type="button" className="opcao" onClick={() => irPara(o)} aria-pressed={aba === 'comparar' ? escolhida(o) : undefined}
-                aria-label={`${o.titulo}${ehEquilibrio(o) ? ' (equilíbrio)' : ''}: ${brl(o.valor)}, ${nomeOpcao(o)}. ${aba === 'comparar' ? 'Escolher' : 'Ver detalhes'}`}>
-                {aba === 'comparar' && escolhida(o) && <span className="opcao-escolhida" aria-hidden="true">✓ Escolhida</span>}
-                <span className="opcao-titulo">{o.titulo}{ehEquilibrio(o) && <span className="selo-equilibrio">Equilíbrio</span>}</span>
-                <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈\u00a0' : ''}{brl(o.valor)}</span>
-                <span className="opcao-onde">{nomeOpcao(o)}</span>
-                {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
-                {o === referencia ? <span className="opcao-info">Referência da economia</span>
-                  : Math.abs(economia) < 0.01 ? <span className="opcao-info">{o.k === 'um' && referencia.k === 'perto' && nomeOpcao(o) === nomeOpcao(referencia) ? 'É também o mais perto' : 'Mesmo valor da referência'}</span>
-                  : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos</span>
-                  : <span className="opcao-info">{brl(-economia)} a mais</span>}
-                {o.est && <span className="opcao-est">{o.est}</span>}
+              <button type="button" className="forma" onClick={() => irPara(o)} aria-pressed={escolhida(o)}>
+                <span className="forma-nome">
+                  <b>{o.titulo}</b>{ehEquilibrio(o) && <span className="selo-equilibrio">Equilíbrio</span>}
+                  <span className="forma-onde">{nomeOpcao(o)}{o.dist ? ` · ${o.dist}` : ''}</span>
+                  {o.est && <span className="opcao-est">{o.est}</span>}
+                </span>
+                <span className="forma-valor">
+                  <b>{o.est && o.k !== 'roteiro' ? '≈ ' : ''}{brl(o.valor)}</b>
+                  {o === referencia || Math.abs(economia) < 0.01 ? <span className="forma-dif">base</span>
+                    : economia > 0 ? <span className="forma-dif forma-menos">{brl(economia)} a menos</span>
+                    : <span className="forma-dif">{brl(-economia)} a mais</span>}
+                </span>
               </button>
             </li>
           );
         })}
       </ul>
-      <span className="muted">Economia comparada com {referencia.k === 'perto' ? `comprar tudo no mais perto (${maisPerto!.m})` : `comprar tudo no ${top!.m}`}. {aba === 'comparar' ? 'Toque numa opção: a lista, o mapa e o PDF dela aparecem logo abaixo.' : 'Toque numa opção para ver a lista, o mapa e o PDF.'}</span>
-    </section>
+      <span className="muted">A diferença é sempre comparada com comprar tudo no {top!.m}, o mercado mais barato.</span>
+    </details>
   ) : null;
 
   // Lista de compras em PDF (14/11): a lista da opção escolhida (um mercado, dois ou o roteiro), agrupada por mercado,
@@ -839,73 +845,20 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
 
-      {blocoResumo}
-
-      {/* Critério de compra no topo (14/11): a pessoa escolhe antes de ver a recomendação; vale para o mercado
-          recomendado e para a ordem da lista. Os filtros de lojas ficam junto. */}
-      {itens.length > 0 && (
-        <div className="criterio-topo">
-          <div className="section-header-bar">
-            <h2 className="section-title">{escolhaEf === 'mercado' ? 'Qual mercado?' : 'Mercados considerados'}</h2>
-            <button type="button" className="btn-filter-toggle" aria-expanded={filtrosAbertos} onClick={() => setFiltrosAbertos(!filtrosAbertos)}>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
-              Filtros{ocultosFiltro > 0 ? ` (${ocultosFiltro} ocultos)` : ''} {filtrosAbertos ? '▴' : '▾'}
-            </button>
-          </div>
-      {itens.length > 0 && escolhaEf === 'mercado' && (
-        <div className="segmentado ordem-mercados" role="radiogroup" aria-label="Critério de compra">
-          {([['preco', 'Menor preço'], ['perto', 'Mais perto'], ['completo', 'Tem tudo']] as const).map(([k, t]) => (
-            <button key={k} type="button" role="radio" aria-checked={ordem === k} className={ordem === k ? 'ativo' : ''}
-              disabled={k === 'perto' && !locais.refs.length} title={k === 'perto' && !locais.refs.length ? 'Cadastre um endereço para ordenar pela distância' : undefined}
-              onClick={() => setPref({ ordem: k })}>{t}</button>
-          ))}
-        </div>
-      )}
-      {itens.length > 0 && escolhaEf === 'mercado' && (
-        <span className="muted ordem-ajuda">{ordem === 'perto' ? 'Mostra primeiro o mercado mais perto do seu endereço que tem preço para a maior parte da cesta.'
-          : ordem === 'completo' ? 'Mostra primeiro o mercado mais barato entre os que têm preço para todos os itens da cesta.'
-          : 'Mostra primeiro o mercado onde a cesta inteira sai mais barata.'}</span>
-      )}
-      {itens.length > 0 && filtrosAbertos && (
-        <div className="filtros-painel">
-          <div className="filtro-grupo" role="radiogroup" aria-label="Distância máxima">
-            <span>Distância máxima</span>
-            {([null, 2, 3, 5] as const).map((k) => (
-              <button key={String(k)} type="button" className={`tab-button${pref.maxKm === k ? ' active' : ''}`} aria-pressed={pref.maxKm === k}
-                disabled={k !== null && !locais.refs.length} onClick={() => setPref({ maxKm: k })}>{k === null ? 'Sem limite' : `até ${k} km`}</button>
-            ))}
-          </div>
-          <label className="filtro-check"><input type="checkbox" checked={pref.semSocios} onChange={(e) => setPref({ semSocios: e.target.checked })} /> Ocultar mercados só para sócios (Sam&apos;s Club)</label>
-          {poucos > 0 && ranking.length > poucos && (
-            <label className="filtro-check"><input type="checkbox" checked={todosMercados} onChange={(e) => setTodosMercados(e.target.checked)} /> Mostrar mercados com poucos preços hoje ({poucos})</label>
-          )}
-          <span className="muted">{!locais.refs.length ? 'Cadastre um endereço para ordenar e filtrar pela distância. ' : ''}Os filtros valem para toda a comparação (mais barato, 2 mercados e roteiro) e ficam guardados neste aparelho.</span>
-        </div>
-      )}
-        </div>
-      )}
       {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : rec && escolhaEf === 'mercado' ? (
-        <div className="recommendation-card" id="opcao-mercado">
-          <span className="muted">{tituloRec}</span>
+        <div className="recommendation-card resposta" id="resposta">
+          <span className="resposta-titulo">{tituloRec}</span>
+          <span className="resposta-mercado"><b>{rec.m}</b>{SO_SOCIOS.has(rec.m) && <> <TagSocios /></>}</span>
           <span className="recommendation-price">{fmt(rec)}</span>
-          {rec.falta.length > 0 && <span className="est-resumo">{rec.falta.length === 1 ? '1 item estimado' : `${rec.falta.length} itens estimados`}: ≈ {brl(rec.estimado)} do total</span>}
-          <span><b>{rec.m}</b>{SO_SOCIOS.has(rec.m) && <> <TagSocios /></>}{rec === top ? segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})` : top && ` · ${brl(rec.valor - top.valor)} a mais que o mais barato (${top.m})`}</span>
-          {(() => { const d = locais.distancia(rec.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome}) · {fmtTempo(d.km)}</span>; })()}
+          {rec === top
+            ? segundo && <span className="resposta-economia">{brl(segundo.valor - top.valor)} a menos que o 2º mais barato ({segundo.m})</span>
+            : top && <span className="resposta-info">{brl(rec.valor - top.valor)} a mais que o mais barato ({top.m})</span>}
+          {(() => { const d = locais.distancia(rec.m); return d && <span className="resposta-info">{fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome}) · {fmtTempo(d.km)}</span>; })()}
           {rec.falta.length > 0 && (
-            <span className="cond">
-              Sem preço hoje no {rec.m}: {rec.falta.join(', ')} (estimado pelo preço mediano dos outros mercados).
-            </span>
+            <span className="est-resumo">Sem preço hoje no {rec.m}: {rec.falta.join(', ')}. Entra no total por estimativa (≈ {brl(rec.estimado)}).</span>
           )}
-          {rec === top && melhorCompleto && (
-            <span className="muted">Melhor com todos os itens: <b>{melhorCompleto.m}</b>, {brl(melhorCompleto.valor)}</span>
-          )}
-          {rec === top && pior && pior !== segundo && pior !== top && (
-            <span className="muted">{brl(pior.valor - top.valor)} a menos que o mais caro ({pior.m}{pior.falta.length ? ', total estimado' : ''})</span>
-          )}
-          {!semItem.length && roteiro.length > 1 && <span className="muted">Comprando cada item no mais barato: {brl(ideal)} ({roteiro.length} mercados, veja o roteiro inteligente no fim)</span>}
           <a className="btn-action-primary" href={linkLoja(rec.m)} target="_blank" rel="noopener noreferrer">Como chegar ao {rec.m} ↗</a>
-          <span className="muted rec-tempo">O tempo com o trânsito de agora aparece no Google Maps.</span>
-          <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Comprar tudo no ${rec.m}`, [grupoDe(rec.m, rec.escolhas.map(({ c, o }) => ({ c, o, valor: v(c, o) * sel[c.id] })), rec.estimados)], rec.valor)}>Gerar PDF da lista</button>
+          <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Comprar tudo no ${rec.m}`, [grupoDe(rec.m, rec.escolhas.map(({ c, o }) => ({ c, o, valor: v(c, o) * sel[c.id] })), rec.estimados)], rec.valor)}>Lista de compras (PDF)</button>
           <details className="rec-itens">
             <summary className="market-expand-link">Ver itens</summary>
             <ul>
@@ -927,7 +880,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         const da = locais.distancia(dupla.a), db = locais.distancia(dupla.b);
         const entre = da && db ? km(da.loja, db.loja) : locais.entre(dupla.a, dupla.b);
         return (
-          <div className="dupla" id="opcao-dupla">
+          <div className="dupla resposta" id="resposta">
             <span className="muted">Dividindo em 2 mercados</span>
             <span className="grande">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
             {dupla.fora.length > 0 && <span className="est-resumo">{dupla.fora.length === 1 ? '1 item estimado' : `${dupla.fora.length} itens estimados`}: ≈ {brl(dupla.estimado)} do total</span>}
@@ -958,13 +911,13 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
             <a className="btn-action-primary" href={linkRoteiro([dupla.a, dupla.b])} target="_blank" rel="noopener noreferrer">Ver roteiro de compra no mapa ↗</a>
             <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Dividir entre ${dupla!.a} e ${dupla!.b}`,
               [grupoDe(dupla!.a, dupla!.emA), grupoDe(dupla!.b, dupla!.emB)], dupla!.valor,
-              dupla!.fora.map(({ c, valor }) => `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}: sem preço nos dois (≈ ${brl(valor)})`))}>Gerar PDF da lista</button>
+              dupla!.fora.map(({ c, valor }) => `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}: sem preço nos dois (≈ ${brl(valor)})`))}>Lista de compras (PDF)</button>
           </div>
         );
       })()}
 
       {temRoteiro && top && escolhaEf === 'roteiro' && (
-        <section className="ideal" id="opcao-roteiro">
+        <section className="ideal resposta" id="resposta">
           <span className="ideal-titulo">Roteiro: cada item no mercado mais barato</span>
           <span className="muted">Cada item no mercado mais barato. Toque nos mercados para tirar do roteiro os que você não quer visitar; o total se ajusta na hora.</span>
           <div className="chips roteiro-mercados" role="group" aria-label="Mercados do roteiro">
@@ -995,19 +948,58 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
             : !locais.refs.length ? <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span> : null}
           {roteiro.length > 1 && <a className="btn-action-primary" href={linkRoteiro(roteiro.map((r) => r.m))} target="_blank" rel="noopener noreferrer">Abrir roteiro no mapa ↗</a>}
           <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Roteiro por ${roteiro.length} ${roteiro.length === 1 ? 'mercado' : 'mercados'}`,
-            roteiro.map((r) => grupoDe(r.m, r.l)), ideal, semItem.map((x) => `${x}: fora do roteiro`))}>Gerar PDF da lista</button>
+            roteiro.map((r) => grupoDe(r.m, r.l)), ideal, semItem.map((x) => `${x}: fora do roteiro`))}>Lista de compras (PDF)</button>
           </>}
         </section>
+      )}
+
+      {outrasFormas}
+
+      {/* 16/11 (distill): critério e filtros saíram do topo e ficam recolhidos abaixo da resposta.
+          Continuam valendo para a resposta, para as outras formas de comprar e para a ordem da lista. */}
+      {itens.length > 0 && (
+        <details className="dobra" id="criterio">
+          <summary>
+            <span>Mudar critério ou filtros</span>
+            <span className="dobra-dica">{escolhaEf === 'mercado' ? (ordem === 'perto' ? 'Mais perto' : ordem === 'completo' ? 'Tem tudo' : 'Menor preço') : 'Filtros'}{ocultosFiltro > 0 ? ` · ${ocultosFiltro} ${ocultosFiltro === 1 ? 'mercado oculto' : 'mercados ocultos'}` : ''}</span>
+          </summary>
+          {escolhaEf === 'mercado' && <>
+            <div className="segmentado ordem-mercados" role="radiogroup" aria-label="Critério de compra">
+              {([['preco', 'Menor preço'], ['perto', 'Mais perto'], ['completo', 'Tem tudo']] as const).map(([k, t]) => (
+                <button key={k} type="button" role="radio" aria-checked={ordem === k} className={ordem === k ? 'ativo' : ''}
+                  disabled={k === 'perto' && !locais.refs.length} title={k === 'perto' && !locais.refs.length ? 'Cadastre um endereço para ordenar pela distância' : undefined}
+                  onClick={() => setPref({ ordem: k })}>{t}</button>
+              ))}
+            </div>
+            <span className="muted ordem-ajuda">{ordem === 'perto' ? 'Mostra primeiro o mercado mais perto do seu endereço que tem preço para a maior parte da cesta.'
+              : ordem === 'completo' ? 'Mostra primeiro o mercado mais barato entre os que têm preço para todos os itens da cesta.'
+              : 'Mostra primeiro o mercado onde a cesta inteira sai mais barata.'}</span>
+          </>}
+          <div className="filtros-painel">
+            <div className="filtro-grupo" role="radiogroup" aria-label="Distância máxima">
+              <span>Distância máxima</span>
+              {([null, 2, 3, 5] as const).map((k) => (
+                <button key={String(k)} type="button" className={`tab-button${pref.maxKm === k ? ' active' : ''}`} aria-pressed={pref.maxKm === k}
+                  disabled={k !== null && !locais.refs.length} onClick={() => setPref({ maxKm: k })}>{k === null ? 'Sem limite' : `até ${k} km`}</button>
+              ))}
+            </div>
+            <label className="filtro-check"><input type="checkbox" checked={pref.semSocios} onChange={(e) => setPref({ semSocios: e.target.checked })} /> Ocultar mercados só para sócios (Sam&apos;s Club)</label>
+            {poucos > 0 && ranking.length > poucos && (
+              <label className="filtro-check"><input type="checkbox" checked={todosMercados} onChange={(e) => setTodosMercados(e.target.checked)} /> Mostrar mercados com poucos preços hoje ({poucos})</label>
+            )}
+            <span className="muted">{!locais.refs.length ? 'Cadastre um endereço para ordenar e filtrar pela distância. ' : ''}Os filtros ficam guardados neste aparelho.</span>
+          </div>
+        </details>
       )}
 
       <Enderecos refs={locais.refs} adicionar={locais.adicionar} remover={locais.remover} />
 
       {itens.length > 0 && (
-        <div className="section-header-bar">
-          <h2 className="section-title">Total em cada mercado</h2>
-        </div>
-      )}
-      {itens.length > 0 && (
+        <details className="dobra" id="todos-mercados">
+          <summary>
+            <span>Ver o total em cada mercado</span>
+            <span className="dobra-dica">{ranking.length} {ranking.length === 1 ? 'mercado' : 'mercados'}</span>
+          </summary>
         <div className="market-list">
           {lista.filter((r) => todosMercados || r.confiavel || poucos === ranking.length).map((r, i, vis) => (
             <div key={r.m} id={`mercado-${slug(r.m)}`} className={`market-card${r.confiavel ? '' : ' poucos-precos'}`}>
@@ -1054,6 +1046,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
             </div>
           ))}
         </div>
+        </details>
       )}
 
       <p className="muted">
@@ -1100,7 +1093,6 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </section>
       )}
       {!vazia && !itens.length && nuvem === 'carregando' && <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Carregando a sua cesta…</p>}
-      {!vazia && blocoResumo}
       {!vazia && novidades.length > 0 && (
         <section className="novidades" aria-labelledby="novidades-titulo">
           <h2 id="novidades-titulo" className="section-title">Novidades na sua cesta</h2>
@@ -1108,12 +1100,12 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </section>
       )}
       {vazia ? <h2 className="section-title">Ou digite um item</h2>
-        : <h2 className="section-title">Itens da cesta <small className="muted">· toque no sino para receber alerta de preço</small></h2>}
+        : <h2 className="section-title">Itens da cesta</h2>}
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
-            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350 ml, alho, sabão em pó omo 1,6 kg"
+            <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: ovos 20 un, alho, sabão em pó 1,6 kg"
               value={novo} onChange={(e) => { setNovo(e.target.value); setAvisoNovo(''); }} style={{ flex: 1, minWidth: 0 }} />
             <button className="btn btn-primary" disabled={!novo.trim()}>Adicionar</button>
             {sessao && !vazia && (
@@ -1126,12 +1118,15 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
               </button>
             )}
           </div>
-          <label className="row" style={{ gap: 8, fontWeight: 600, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-            <input type="checkbox" className="check" checked={novoEhHorti} onChange={(e) => setNovoHorti(e.target.checked)} />
-            <span>Hortifrúti (compara pelo preço do quilo, sem marca)</span>
-          </label>
+          {/* 16/11 (distill): a caixa de hortifrúti só aparece enquanto a pessoa digita; o app já marca sozinho quando reconhece */}
+          {novo.trim() && (
+            <label className="row" style={{ gap: 8, fontWeight: 600, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+              <input type="checkbox" className="check" checked={novoEhHorti} onChange={(e) => setNovoHorti(e.target.checked)} />
+              <span>É fruta, verdura ou legume (compara pelo preço do quilo)</span>
+            </label>
+          )}
           <span className="help">
-            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (350 ml, 1 kg). Use o sinal de menos para excluir: café -cápsula. Marcamos Hortifrúti sozinhos quando reconhecemos o item.'
+            {novoPrevia === null ? 'Para produtos embalados, inclua o tamanho (500 g, 1 kg, 900 ml).'
               : novoPrevia ? `${novoPrevia} preços encontrados hoje.` : 'Nenhum preço hoje com essas palavras. Tente menos palavras.'}
           </span>
           {avisoNovo && <div className="alert alert-error" role="alert">{avisoNovo}</div>}
@@ -1155,7 +1150,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </section>
       )}
       {!vazia && <>
-      <p className="ajuda-lista">Itens marcados entram na conta. Desmarque para deixar um item de fora sem apagar.</p>
+      <p className="ajuda-lista">Desmarque um item para deixá-lo de fora da conta sem apagar.</p>
       {(() => {
         const marcados = todos.filter((c) => sel[c.id]);
         const pares: [ItemCesta, ItemCesta][] = [];
@@ -1174,50 +1169,30 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           </ul>
         );
       })()}
+      {/* 16/11 (distill): só os itens marcados viram linha. Cada linha mostra o essencial (quantidade e o menor preço);
+          marca, alerta e hortifrúti ficam no "Ajustar" do item. Os itens desmarcados viram botões para pôr de volta. */}
       <div className="lista cesta">
-        {todos.map((c) => {
-          const ativo = !!sel[c.id];
+        {todos.filter((c) => sel[c.id]).map((c) => {
           const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
+          const nMarcas = kgs.has(c.id) ? 0 : marcasDe(c.id).length;
+          const podeMarca = nMarcas > 1 || !!marcas[c.id];
+          const a = alertaDoItem(c);
+          const nomeMarca = marcas[c.id] ? (marcasDe(c.id).find((m) => m.chave === marcaCompacta(marcas[c.id]))?.nome ?? marcas[c.id]) : '';
           return (
             <div className="item" key={c.id}>
-              <input type="checkbox" className="check" id={`ck-${c.id}`} checked={ativo} aria-label={`Incluir ${c.rotulo} na conta`}
-                onChange={(e) => { const n = { ...sel }; if (e.target.checked) n[c.id] = 1; else delete n[c.id]; mudar(n); }} />
+              <input type="checkbox" className="check" id={`ck-${c.id}`} checked aria-label={`Incluir ${c.rotulo} na conta`}
+                onChange={() => { const n = { ...sel }; delete n[c.id]; mudar(n); }} />
               <label className="nome" htmlFor={`ck-${c.id}`}>{c.rotulo}</label>
               <div className="qtd">
-                {ativo && <>
-                  <button type="button" aria-label={`Menos ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: Math.max(1, sel[c.id] - 1) })}>−</button>
-                  <span>{sel[c.id]}{kgs.has(c.id) ? ' kg' : ''}</span>
-                  <button type="button" aria-label={`Mais ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: sel[c.id] + 1 })}>+</button>
-                </>}
-                {sessao && (
-                  <button type="button" className={`sino${alertaDoItem(c) ? ' ligado' : ''}`} aria-expanded={sinoAberto === c.id}
-                    aria-label={alertaDoItem(c) ? `Alerta de ${c.rotulo} ligado: mudar` : `Criar alerta para ${c.rotulo}`}
-                    onClick={() => abrirSino(c, menor && v(c, menor))}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
-                  </button>
-                )}
+                <button type="button" aria-label={`Menos ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: Math.max(1, sel[c.id] - 1) })}>−</button>
+                <span>{sel[c.id]}{kgs.has(c.id) ? ' kg' : ''}</span>
+                <button type="button" aria-label={`Mais ${c.rotulo}`} onClick={() => mudar({ ...sel, [c.id]: sel[c.id] + 1 })}>+</button>
                 {c.termo && (
                   <button type="button" className="btn-lixeira" onClick={() => remover(c.id)} aria-label={`Remover ${c.rotulo}`} title="Remover da cesta">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
                   </button>
                 )}
               </div>
-              {(sinoAberto === c.id || alertaDoItem(c)) && (() => {
-                const a = alertaDoItem(c);
-                return sinoAberto === c.id ? (
-                  <form className="alvo-item" onSubmit={(e) => { e.preventDefault(); salvarAlerta(c); }}>
-                    <label htmlFor={`alvo-${c.id}`}>Avisar quando chegar a R$</label>
-                    <input id={`alvo-${c.id}`} className="input" inputMode="decimal" placeholder="sem alvo" value={alvoTxt} onChange={(e) => setAlvoTxt(e.target.value)} />
-                    <button className="btn btn-primary">{a ? 'Salvar' : 'Criar alerta'}</button>
-                    {a && <button type="button" className="btn btn-link" onClick={() => removerAlerta(c)}>Desligar alerta</button>}
-                    <span className="help">Sem preço-alvo, avisamos quando ficar 15% abaixo do normal.</span>
-                  </form>
-                ) : a && (
-                  <button type="button" className="alvo-resumo" onClick={() => abrirSino(c)}>
-                    Alerta ligado{a.preco_alvo != null ? ` · até ${brl(a.preco_alvo)}` : ' · 15% abaixo do normal'}{a.marca ? ` · ${a.marca}` : ''}
-                  </button>
-                );
-              })()}
               <div className="meta">
                 {menor ? (
                   <span className="encontrado">
@@ -1228,51 +1203,72 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                   </span>
                 ) : !dados ? <span className="esq-texto" aria-hidden="true" />
                   : <span className="cond">{marcas[c.id] ? 'esta marca não tem preço hoje' : 'sem preço hoje'}</span>}
-                {menor && ativo && !kgs.has(c.id) && marcasDe(c.id).length > 1 && trocando !== c.id && (
-                  <button type="button" className="btn-trocar" onClick={() => {
-                    if (marcasDe(c.id).length > 10) return setTrocando(c.id);
-                    const el = document.getElementById(`marca-${c.id}`) as HTMLSelectElement | null;
-                    el?.focus(); try { el?.showPicker?.(); } catch { /* navegador sem showPicker: o foco basta */ }
-                  }}>Não é esse? Trocar</button>
-                )}
-                {ativo && !kgs.has(c.id) && (marcasDe(c.id).length > 1 || marcas[c.id]) && (marcasDe(c.id).length <= 10 || trocando === c.id || marcas[c.id]) && (
-                  <span className="row" style={{ gap: 6, flexBasis: '100%' }}>
-                    {marcasDe(c.id).length > 10 ? (
-                      <MarcaBusca id={`marca-${c.id}`} rotulo={`Marca de ${c.rotulo}`} valor={marcaCompacta(marcas[c.id] ?? '')} opcoes={marcasDe(c.id)}
-                        abrir={trocando === c.id} aoEscolher={(k) => { fixarMarca(c.id, k); setTrocando(null); }} aoFechar={() => setTrocando(null)} />
-                    ) : (
-                      <select className="marca-sel" id={`marca-${c.id}`} aria-label={`Marca de ${c.rotulo}`} value={marcaCompacta(marcas[c.id] ?? '')}
-                        onChange={(e) => { fixarMarca(c.id, e.target.value); setTrocando(null); }}>
-                        <option value="">Qualquer marca</option>
-                        {marcasDe(c.id).map((m) => (
-                          <option key={m.chave} value={m.chave}>{m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
-                        ))}
-                      </select>
-                    )}
-                    {marcas[c.id] && (
-                      <button type="button" className="chip" onClick={() => fixarMarca(c.id, '')}>× qualquer marca</button>
-                    )}
+                {(nomeMarca || a) && (
+                  <span className="item-escolhas">
+                    {nomeMarca && <span>Marca: {nomeMarca}</span>}
+                    {a && <span>Alerta{a.preco_alvo != null ? ` até ${brl(a.preco_alvo)}` : ' ligado'}</span>}
                   </span>
                 )}
-                {c.termo && (pareceHorti(c.termo) || kgs.has(c.id) ? (
-                  <label className="row horti-item" style={{ gap: 6 }}>
-                    <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
-                    hortifrúti (por kg)
-                  </label>
-                ) : (
-                  <details className="ajustar-item">
-                    <summary>Ajustar item</summary>
-                    <label className="row" style={{ gap: 6 }}>
-                      <input type="checkbox" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
-                      Comparar como hortifrúti (pelo preço do quilo, sem marca)
-                    </label>
-                  </details>
-                ))}
               </div>
+              {(podeMarca || sessao || c.termo) && (
+                <details className="ajustar" onToggle={(e) => { if (!(e.currentTarget as HTMLDetailsElement).open && sinoAberto === c.id) setSinoAberto(null); }}>
+                  <summary>Ajustar {podeMarca && sessao ? 'marca e alerta' : podeMarca ? 'marca' : sessao ? 'alerta' : 'item'}</summary>
+                  <div className="ajustar-corpo">
+                    {podeMarca && (
+                      <div className="ajustar-linha">
+                        <span className="ajustar-rotulo">Marca</span>
+                        {nMarcas > 10 ? (
+                          <MarcaBusca id={`marca-${c.id}`} rotulo={`Marca de ${c.rotulo}`} valor={marcaCompacta(marcas[c.id] ?? '')} opcoes={marcasDe(c.id)}
+                            abrir={false} aoEscolher={(k) => fixarMarca(c.id, k)} aoFechar={() => {}} />
+                        ) : (
+                          <select className="marca-sel" id={`marca-${c.id}`} aria-label={`Marca de ${c.rotulo}`} value={marcaCompacta(marcas[c.id] ?? '')}
+                            onChange={(e) => fixarMarca(c.id, e.target.value)}>
+                            <option value="">Qualquer marca</option>
+                            {marcasDe(c.id).map((m) => (
+                              <option key={m.chave} value={m.chave}>{m.nome} ({m.mercados} {m.mercados === 1 ? 'mercado' : 'mercados'})</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+                    {sessao && (sinoAberto === c.id ? (
+                      <form className="alvo-item" onSubmit={(e) => { e.preventDefault(); salvarAlerta(c); }}>
+                        <label htmlFor={`alvo-${c.id}`}>Avisar quando chegar a R$</label>
+                        <input id={`alvo-${c.id}`} className="input" inputMode="decimal" placeholder="sem alvo" value={alvoTxt} onChange={(e) => setAlvoTxt(e.target.value)} />
+                        <button className="btn btn-primary">{a ? 'Salvar' : 'Criar alerta'}</button>
+                        {a && <button type="button" className="btn btn-link" onClick={() => removerAlerta(c)}>Desligar alerta</button>}
+                        <span className="help">Sem preço-alvo, avisamos quando ficar 15% abaixo do normal.</span>
+                      </form>
+                    ) : (
+                      <button type="button" className={`btn btn-secondary ajustar-alerta${a ? ' ligado' : ''}`} onClick={() => abrirSino(c, menor && v(c, menor))}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+                        {a ? `Alerta ligado${a.preco_alvo != null ? ` até ${brl(a.preco_alvo)}` : ''}: mudar` : 'Avisar quando o preço baixar'}
+                      </button>
+                    ))}
+                    {c.termo && (
+                      <label className="row horti-item" style={{ gap: 8 }}>
+                        <input type="checkbox" className="check" checked={kgs.has(c.id)} onChange={(e) => trocarHorti(c.id, e.target.checked)} />
+                        É fruta, verdura ou legume (compara pelo preço do quilo)
+                      </label>
+                    )}
+                  </div>
+                </details>
+              )}
             </div>
           );
         })}
       </div>
+      {todos.some((c) => !sel[c.id]) && (
+        <section className="fora-da-conta" aria-labelledby="fora-titulo">
+          <h3 id="fora-titulo" className="fora-titulo">Pôr de volta na cesta</h3>
+          <div className="chips" role="group" aria-labelledby="fora-titulo">
+            {todos.filter((c) => !sel[c.id]).map((c) => (
+              <button key={c.id} type="button" className="chip" aria-label={`Pôr ${c.rotulo} na cesta`}
+                onClick={() => mudar({ ...sel, [c.id]: 1 })}>＋ {c.rotulo}</button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* A lista grava sozinha a cada mudança: no fim dela fica só a confirmação, sem botão de salvar no caminho */}
       <div className="lista-rodape">
