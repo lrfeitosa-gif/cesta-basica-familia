@@ -176,9 +176,12 @@ export default function MinhaCompra() {
   const [foraRoteiro, setForaRoteiro] = useState<string[]>([]);   // mercados tirados do roteiro de vários mercados
   // Forma de comprar escolhida nos cards do resumo (16/11): o detalhe dela (lista, mapa, PDF) aparece logo abaixo dos cards
   type Escolha = 'roteiro' | 'dupla' | 'mercado';
-  const [escolha, setEscolhaEstado] = useState<Escolha>('mercado');
-  useEffect(() => { try { const e = localStorage.getItem('cesta-escolha'); if (e === 'roteiro' || e === 'dupla' || e === 'mercado') setEscolhaEstado(e); } catch {} }, []);
-  const setEscolha = (e: Escolha) => { setEscolhaEstado(e); try { localStorage.setItem('cesta-escolha', e); } catch {} };
+  // 16/11: sem escolha da pessoa (null), a resposta do topo é a forma de comprar mais barata. A escolha feita em
+  // "Outras formas de comprar" fica guardada neste aparelho. Chave nova ('cesta-forma'): a antiga ('cesta-escolha')
+  // guardava toques dados nos cartões da Minha cesta, que não eram uma preferência de fato.
+  const [escolha, setEscolhaEstado] = useState<Escolha | null>(null);
+  useEffect(() => { try { const e = localStorage.getItem('cesta-forma'); if (e === 'roteiro' || e === 'dupla' || e === 'mercado') setEscolhaEstado(e); localStorage.removeItem('cesta-escolha'); } catch {} }, []);
+  const setEscolha = (e: Escolha) => { setEscolhaEstado(e); try { localStorage.setItem('cesta-forma', e); } catch {} };
   useEffect(() => {
     try { const p = JSON.parse(localStorage.getItem('cesta-pref') || 'null'); if (p) setPrefEstado((x) => ({ ...x, ...p })); } catch {}
     try { setForaRoteiro(JSON.parse(localStorage.getItem('cesta-fora-roteiro') || '[]')); } catch {}
@@ -700,7 +703,9 @@ export default function MinhaCompra() {
   // forma escolhida que não existe hoje (ex.: sem compra em 2 mercados que valha a pena) volta para "um mercado só"
   const temDupla = !!dupla && economiaDupla >= 1;
   const temRoteiro = candidatosRoteiro.length > 1 && !!top;
-  const escolhaEf: Escolha = (escolha === 'dupla' && !temDupla) || (escolha === 'roteiro' && !temRoteiro) ? 'mercado' : escolha;
+  const padrao: Escolha = maisBarata?.k === 'roteiro' ? 'roteiro' : maisBarata?.k === 'dupla' ? 'dupla' : 'mercado';
+  const escolhaPedida = escolha ?? padrao;
+  const escolhaEf: Escolha = (escolhaPedida === 'dupla' && !temDupla) || (escolhaPedida === 'roteiro' && !temRoteiro) ? 'mercado' : escolhaPedida;
   const escolhida = (o: Opcao) => o.k === 'roteiro' ? escolhaEf === 'roteiro' : o.k === 'dupla' ? escolhaEf === 'dupla'
     : escolhaEf === 'mercado' && (o.k === 'um' ? ordem === 'preco' : ordem === 'perto');
   const irPara = (o: Opcao) => {
@@ -742,7 +747,8 @@ export default function MinhaCompra() {
     <details className="dobra" id="outras-formas">
       <summary>
         <span>Outras formas de comprar</span>
-        {economiaMax >= 1 && <span className="dobra-dica">até {brl(economiaMax)} a menos</span>}
+        {maisBarata && !escolhida(maisBarata) && economiaMax >= 1 ? <span className="dobra-dica">até {brl(economiaMax)} a menos</span>
+          : umSo && escolhaEf !== 'mercado' ? <span className="dobra-dica dobra-dica-neutra">Tudo num mercado só: {umSo.est ? '≈ ' : ''}{brl(umSo.valor)}</span> : null}
       </summary>
       <ul className="formas" aria-label="Formas de comprar">
         {opcoes.map((o) => {
@@ -874,82 +880,85 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       ) : null}
 
 
+      {/* 16/11: as três formas de comprar usam o mesmo cartão-resposta: total, economia, como chegar e lista;
+          os detalhes (itens por mercado, mercados do roteiro) ficam recolhidos dentro dele. */}
       {dupla && economiaDupla >= 1 && escolhaEf === 'dupla' && (() => {
         const totA = dupla.emA.reduce((t, x) => t + x.valor, 0), totB = dupla.emB.reduce((t, x) => t + x.valor, 0);
-        const pct = (x: number) => Math.round((x / (totA + totB)) * 100);
         const da = locais.distancia(dupla.a), db = locais.distancia(dupla.b);
         const entre = da && db ? km(da.loja, db.loja) : locais.entre(dupla.a, dupla.b);
         return (
-          <div className="dupla resposta" id="resposta">
-            <span className="muted">Dividindo em 2 mercados</span>
-            <span className="grande">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
-            {dupla.fora.length > 0 && <span className="est-resumo">{dupla.fora.length === 1 ? '1 item estimado' : `${dupla.fora.length} itens estimados`}: ≈ {brl(dupla.estimado)} do total</span>}
-            <span><b>{brl(economiaDupla)} a menos</b> que comprar tudo no {top!.m}</span>
-            <div className="dupla-lados">
-              {([[dupla.a, dupla.emA, totA, da], [dupla.b, dupla.emB, totB, db]] as const).map(([m, l, tot, d]) => (
-                <div key={m}>
-                  <b>{m}</b>
-                  <span>{l.length} {l.length === 1 ? 'item' : 'itens'} · {brl(tot)} ({pct(tot)}%)</span>
-                  {d && <span className="muted">📍 {fmtKm(d.km)} de {d.ref.rotulo} · {fmtTempo(d.km)}</span>}
-                  <details><summary>Ver itens</summary>
-                    <ul>{l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(o.preco)}{sel[c.id] !== 1 ? ` cada = ${brl(valor)}` : ''}</li>)}</ul>
-                  </details>
-                </div>
-              ))}
-            </div>
+          <div className="recommendation-card resposta" id="resposta">
+            <span className="resposta-titulo">Dividindo a compra em 2 mercados</span>
+            <span className="resposta-mercado"><b>{dupla.a}</b> e <b>{dupla.b}</b></span>
+            <span className="recommendation-price">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
+            <span className="resposta-economia">{brl(economiaDupla)} a menos que comprar tudo no {top!.m}</span>
+            {da && db && <span className="resposta-info">{fmtKm(da.km)} e {fmtKm(db.km)} de {da.ref.rotulo}{entre !== null ? ` · ${fmtKm(entre)} entre as lojas` : ''}</span>}
             {dupla.fora.length > 0 && (
-              <div className="dupla-fora">
-                <b>{dupla.fora.length === 1 ? '1 item sem preço' : `${dupla.fora.length} itens sem preço`} no {dupla.a} e no {dupla.b}</b>
-                <span className="muted">Entram no total com o preço do meio dos outros mercados (≈ {brl(dupla.estimado)}).</span>
-                <ul>{dupla.fora.map(({ c, valor }) => {
-                  const melhor = Object.values(porItem[c.id]).sort((x, y) => v(c, x) - v(c, y))[0];
-                  return <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: ≈ {brl(valor)}{melhor ? <> · mais barato no <b>{melhor.mercado}</b> ({brl(melhor.preco)})</> : ''}</li>;
-                })}</ul>
-              </div>
+              <span className="est-resumo">Sem preço hoje nos dois: {dupla.fora.map(({ c }) => c.rotulo).join(', ')}. Entra no total por estimativa (≈ {brl(dupla.estimado)}).</span>
             )}
-            {entre !== null && <span className="muted">Distância entre as duas lojas: {fmtKm(entre)} em linha reta.</span>}
-            <a className="btn-action-primary" href={linkRoteiro([dupla.a, dupla.b])} target="_blank" rel="noopener noreferrer">Ver roteiro de compra no mapa ↗</a>
+            <a className="btn-action-primary" href={linkRoteiro([dupla.a, dupla.b])} target="_blank" rel="noopener noreferrer">Ver o caminho no mapa ↗</a>
             <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Dividir entre ${dupla!.a} e ${dupla!.b}`,
               [grupoDe(dupla!.a, dupla!.emA), grupoDe(dupla!.b, dupla!.emB)], dupla!.valor,
               dupla!.fora.map(({ c, valor }) => `${sel[c.id]}${kgs.has(c.id) ? ' kg' : '×'} ${c.rotulo}: sem preço nos dois (≈ ${brl(valor)})`))}>Lista de compras (PDF)</button>
+            <details className="rec-itens">
+              <summary className="market-expand-link">O que comprar em cada um</summary>
+              {([[dupla.a, dupla.emA, totA], [dupla.b, dupla.emB, totB]] as const).map(([m, l, tot]) => (
+                <div key={m} className="resposta-grupo">
+                  <b>{m}: {l.length} {l.length === 1 ? 'item' : 'itens'} · {brl(tot)}</b>
+                  <ul>{l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(valor)}</li>)}</ul>
+                </div>
+              ))}
+              {dupla.fora.length > 0 && (
+                <div className="resposta-grupo">
+                  <b>Sem preço nos dois</b>
+                  <ul>{dupla.fora.map(({ c, valor }) => {
+                    const melhor = Object.values(porItem[c.id]).sort((x, y) => v(c, x) - v(c, y))[0];
+                    return <li key={c.id} className="estimado">{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: ≈ {brl(valor)}{melhor ? <> · mais barato no <b>{melhor.mercado}</b> ({brl(melhor.preco)})</> : ''}</li>;
+                  })}</ul>
+                </div>
+              )}
+            </details>
           </div>
         );
       })()}
 
       {temRoteiro && top && escolhaEf === 'roteiro' && (
-        <section className="ideal resposta" id="resposta">
-          <span className="ideal-titulo">Roteiro: cada item no mercado mais barato</span>
-          <span className="muted">Cada item no mercado mais barato. Toque nos mercados para tirar do roteiro os que você não quer visitar; o total se ajusta na hora.</span>
-          <div className="chips roteiro-mercados" role="group" aria-label="Mercados do roteiro">
-            {candidatosRoteiro.map((m) => (
-              <button key={m} type="button" className="chip" aria-pressed={!foraRoteiro.includes(m)} onClick={() => trocarRoteiro(m)}>
-                {foraRoteiro.includes(m) ? '＋' : '✓'} {m}
-              </button>
-            ))}
-          </div>
-          {semItem.length > 0 && <span className="cond">Fora do roteiro por falta de preço nos mercados escolhidos: {semItem.join('; ')}.</span>}
-          {!roteiro.length ? <span className="cond">Escolha ao menos um mercado.</span> : <>
-          <span className="grande">{brl(ideal)}</span>
-          {semItem.length > 0 && <span className="muted">Total sem os itens que ficaram fora do roteiro.</span>}
-          <span>{top.valor - ideal > 0 ? <><b>{brl(top.valor - ideal)} a menos</b> que tudo no {top.m}</> : <>Não compensa: sai {brl(ideal - top.valor)} a mais que tudo no {top.m}</>}, passando por {roteiro.length} {roteiro.length === 1 ? 'mercado' : 'mercados'}</span>
-          <ul className="ideal-mercados">
-            {roteiro.map((r) => (
-              <li key={r.m}>
-                <span><b>{r.m}</b>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{r.d && <span className="dist"> · 📍 {fmtKm(r.d.km)} de {r.d.ref.rotulo} · {fmtTempo(r.d.km)}</span>}</span>
-                <span>{r.l.length} {r.l.length === 1 ? 'item' : 'itens'} · {brl(r.total)}</span>
-                <details><summary>Ver itens</summary>
-                  <ul>{r.l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(valor)}</li>)}</ul>
-                </details>
-              </li>
-            ))}
-          </ul>
-          {percurso ? <span className="muted">Percurso aproximado: {fmtKm(percurso.km)} em linha reta (≈ {minCarro(percurso.km) + 2 * (roteiro.length - 1)} min de carro, sem contar o tempo dentro das lojas), saindo de {percurso.de} e voltando
-            {semLocal.length ? ` (sem ${semLocal.join(' e ')}, que ainda não ${semLocal.length === 1 ? 'tem' : 'têm'} o endereço da loja no app)` : ''}.</span>
-            : !locais.refs.length ? <span className="muted">Cadastre um endereço para ver a distância até cada mercado.</span> : null}
-          {roteiro.length > 1 && <a className="btn-action-primary" href={linkRoteiro(roteiro.map((r) => r.m))} target="_blank" rel="noopener noreferrer">Abrir roteiro no mapa ↗</a>}
+        <section className="recommendation-card resposta" id="resposta">
+          <span className="resposta-titulo">Cada item no mercado mais barato</span>
+          {!roteiro.length ? <span className="cond">Nenhum mercado no roteiro. Escolha ao menos um em &quot;Mercados do roteiro&quot;.</span> : <>
+          <span className="resposta-mercado"><b>{roteiro.length} {roteiro.length === 1 ? 'mercado' : 'mercados'}</b></span>
+          <span className="recommendation-price">{brl(ideal)}</span>
+          {top.valor - ideal > 0
+            ? <span className="resposta-economia">{brl(top.valor - ideal)} a menos que comprar tudo no {top.m}</span>
+            : <span className="resposta-info">Não compensa: sai {brl(ideal - top.valor)} a mais que comprar tudo no {top.m}</span>}
+          {percurso && <span className="resposta-info">≈ {fmtKm(percurso.km)} ida e volta a partir de {percurso.de} (≈ {minCarro(percurso.km) + 2 * (roteiro.length - 1)} min de carro, sem o tempo nas lojas)</span>}
+          {semItem.length > 0 && <span className="est-resumo">Fora do roteiro, sem preço nos mercados escolhidos: {semItem.join('; ')}. O total não inclui esses itens.</span>}
+          {roteiro.length > 1 && <a className="btn-action-primary" href={linkRoteiro(roteiro.map((r) => r.m))} target="_blank" rel="noopener noreferrer">Ver o caminho no mapa ↗</a>}
           <button type="button" className="btn-action-secundario" onClick={() => pdfLista(`Roteiro por ${roteiro.length} ${roteiro.length === 1 ? 'mercado' : 'mercados'}`,
             roteiro.map((r) => grupoDe(r.m, r.l)), ideal, semItem.map((x) => `${x}: fora do roteiro`))}>Lista de compras (PDF)</button>
+          <details className="rec-itens">
+            <summary className="market-expand-link">O que comprar em cada um</summary>
+            {roteiro.map((r) => (
+              <div key={r.m} className="resposta-grupo">
+                <b>{r.m}{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}: {r.l.length} {r.l.length === 1 ? 'item' : 'itens'} · {brl(r.total)}</b>
+                {r.d && <span className="muted">{fmtKm(r.d.km)} de {r.d.ref.rotulo} · {fmtTempo(r.d.km)}</span>}
+                <ul>{r.l.map(({ c, o, valor }) => <li key={c.id}>{sel[c.id]}{kgs.has(c.id) ? ' kg' : '×'} {c.rotulo}: <b>{o.nome}</b> · {brl(valor)}</li>)}</ul>
+              </div>
+            ))}
+            {semLocal.length > 0 && percurso && <span className="muted">O percurso não inclui {semLocal.join(' e ')}: {semLocal.length === 1 ? 'a loja ainda não tem' : 'as lojas ainda não têm'} endereço no app.</span>}
+          </details>
           </>}
+          <details className="rec-itens">
+            <summary className="market-expand-link">Mercados do roteiro ({roteiro.length} de {candidatosRoteiro.length})</summary>
+            <span className="muted">Tire os mercados que você não quer visitar; o total se ajusta na hora.</span>
+            <div className="chips roteiro-mercados" role="group" aria-label="Mercados do roteiro">
+              {candidatosRoteiro.map((m) => (
+                <button key={m} type="button" className="chip" aria-pressed={!foraRoteiro.includes(m)} onClick={() => trocarRoteiro(m)}>
+                  {foraRoteiro.includes(m) ? '＋' : '✓'} {m}
+                </button>
+              ))}
+            </div>
+          </details>
         </section>
       )}
 
