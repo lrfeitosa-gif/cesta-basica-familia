@@ -1174,6 +1174,29 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .opcao-est, .est-resumo { font-size: 12px; color: var(--destaque-escuro); }
 @media (prefers-color-scheme: dark) { .opcao-economia { color: var(--marca); } .opcao-est, .est-resumo { color: #FDBA74; } .selo-equilibrio { color: #022C22; } }
 
+/* ===== Minha cesta como tela inicial (15/11, Fase 2) ===== */
+.boas-vindas-cesta h1 { font-size: 24px; line-height: 1.2; text-wrap: balance; }
+.basicos .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.basicos .chip { min-height: 44px; padding: 8px 14px; font-size: 15px; }
+.basicos .chip[aria-pressed="true"] { background: var(--marca-clara); border-color: var(--marca-escura); color: var(--marca-escura); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .basicos .chip[aria-pressed="true"] { color: var(--foreground); } }
+.novidades { display: grid; gap: 6px; }
+.novidades ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.novidades li { background: var(--card); border: 1px solid var(--card-borda); border-left: 4px solid var(--destaque); border-radius: 12px;
+  padding: 10px 12px; font-size: 14px; line-height: 1.4; }
+.btn-camera { flex: none; min-width: 44px; min-height: 44px; padding: 0 10px; display: grid; place-items: center; }
+.btn-camera[aria-expanded="true"] { border-color: var(--marca-escura); color: var(--marca-escura); }
+.ofertas-hoje { display: grid; gap: 6px; }
+.ofertas-hoje .ver-todas { font-weight: 600; color: var(--link-ink, var(--primary)); min-height: 44px; display: inline-flex; align-items: center; }
+.ofertas-hoje ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ofertas-hoje li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; background: var(--card); border: 1px solid var(--card-borda);
+  border-radius: 12px; padding: 10px 12px; }
+.oh-nome { font-weight: 600; font-size: 14px; }
+.oh-onde { grid-column: 1; font-size: 13px; color: var(--muted-foreground); }
+.oh-preco { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; font-size: 14px; white-space: nowrap; }
+.oh-preco s { color: var(--muted-foreground); font-size: 12px; }
+.oh-pct { display: inline-block; margin-left: 4px; font-size: 12px; font-weight: 700; color: #fff; background: var(--destaque-escuro); border-radius: 999px; padding: 1px 6px; }
+
 /* ===== Navegação nova (14/11): abas Preços e Cesta no topo, sem a barra de baixo ===== */
 .abas-topo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-lg);
   background: var(--card); border: 1px solid var(--card-borda); position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4;

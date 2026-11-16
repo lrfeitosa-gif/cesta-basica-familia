@@ -13,8 +13,9 @@ import CaixaOpiniao from './opiniao';
 // Duas abas no topo, logo abaixo do cabeçalho (14/11): Preços (antes Ofertas e Comparar) e Cesta (com a nota
 // e os alertas). Notas, alertas e histórico saíram da barra: ficam na Cesta, em Meus dados e nos cartões de preço.
 const ABAS = [
+  // 15/11 (Fase 2): Minha cesta vem primeiro e é a tela inicial; a aba de preços continua "Preços"
+  { href: '/compra', rotulo: 'Minha cesta', outras: ['/notas', '/lista'] },
   { href: '/ofertas', rotulo: 'Preços', outras: ['/comparar', '/evolucao'] },
-  { href: '/compra', rotulo: 'Cesta', outras: ['/notas', '/lista'] },
 ];
 
 // Área logada: cabeçalho verde com a marca e a cidade, e as abas Preços e Cesta logo abaixo.
@@ -56,7 +57,7 @@ export default function AreaLogada({ children }: { children: ReactNode }) {
     <>
       <header className="barra-topo">
         <span className="topo-marca">
-          <Link href="/ofertas" className="logo-link" aria-label="Ir para as ofertas"><Logo size={28} /></Link>
+          <Link href="/compra" className="logo-link" aria-label="Ir para o início (Minha cesta)"><Logo size={28} /></Link>
           <span className="topo-cidade">Indaiatuba</span>
         </span>
         <details className="menu-conta" ref={menu}>

@@ -11,7 +11,7 @@ export default function Inicio() {
   const [passo, setPasso] = useState(0);
   // quem já está logado vai direto para os preços
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { if (data.session) router.replace('/ofertas'); });
+    supabase.auth.getSession().then(({ data }) => { if (data.session) router.replace('/compra'); });
   }, [router]);
   // quem viu a apresentação aqui não precisa vê-la de novo depois do cadastro
   useEffect(() => { if (passo === PASSOS.length - 1) try { localStorage.setItem(CHAVE, '1'); } catch {} }, [passo]);
