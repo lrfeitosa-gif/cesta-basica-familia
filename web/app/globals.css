@@ -1197,6 +1197,30 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 .oh-preco s { color: var(--muted-foreground); font-size: 12px; }
 .oh-pct { display: inline-block; margin-left: 4px; font-size: 12px; font-weight: 700; color: #fff; background: var(--destaque-escuro); border-radius: 999px; padding: 1px 6px; }
 
+/* ===== Edição da Cesta (15/11, Fase 4) ===== */
+.ajuda-lista { margin: 0; font-size: 14px; color: var(--muted-foreground); }
+.repetidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.repetidos li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 12px; border-radius: 12px;
+  background: var(--aviso-bg, #FFF7ED); border: 1px solid var(--destaque, #F97316); font-size: 14px; }
+.repetidos .btn { flex: none; min-height: 44px; }
+.btn-lixeira { width: 40px; height: 40px; min-width: 40px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--danger); cursor: pointer; }
+.btn-lixeira svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.encontrado { display: grid; gap: 2px; flex-basis: 100%; }
+.encontrado-nome { font-size: 14px; font-weight: 600; color: var(--foreground); }
+.encontrado-emb { font-weight: 700; color: var(--foreground); background: var(--chip-bg, rgb(15 23 42 / .06)); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+.btn-trocar { font: inherit; font-size: 13px; font-weight: 600; color: var(--link-ink, var(--primary)); background: none; border: 0; padding: 6px 0;
+  min-height: 44px; cursor: pointer; text-decoration: underline; }
+.ajustar-item summary { cursor: pointer; font-size: 13px; color: var(--muted-foreground); min-height: 44px; display: flex; align-items: center; }
+.horti-item { min-height: 44px; }
+.marca-botao { text-align: left; min-height: 44px; cursor: pointer; }
+.marca-busca { display: grid; gap: 6px; flex: 1; min-width: 0; }
+.marca-busca ul { list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--card-borda); border-radius: 10px; background: var(--card); }
+.marca-busca li button { width: 100%; min-height: 44px; text-align: left; padding: 6px 10px; border: 0; border-radius: 8px; background: none; font: inherit; color: var(--foreground); cursor: pointer; }
+.marca-busca li button[aria-pressed="true"] { background: color-mix(in srgb, var(--primary) 12%, transparent); font-weight: 600; }
+.marca-busca li button:hover, .marca-busca li button:focus-visible { background: color-mix(in srgb, var(--primary) 8%, transparent); outline: none; }
+.marca-nada { padding: 8px 10px; }
+
 /* ===== Navegação nova (14/11): abas Preços e Cesta no topo, sem a barra de baixo ===== */
 .abas-topo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-lg);
   background: var(--card); border: 1px solid var(--card-borda); position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4;
