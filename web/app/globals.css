@@ -1155,6 +1155,25 @@ nav.abas a[aria-current="page"] svg { background: var(--marca-clara); }
 @media (prefers-color-scheme: dark) { .selo-menor { color: #1A0A00; } }
 .selo-dif { border-radius: 999px; font-size: 11px; }
 
+/* ===== Onde comprar (15/11, Fase 1): resumo das formas de comprar e itens estimados ===== */
+.resumo-opcoes { display: grid; gap: 8px; }
+#opcao-mercado, #opcao-dupla, #opcao-roteiro { scroll-margin-top: calc(84px + env(safe-area-inset-top, 0px)); }
+.resumo-opcoes ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 720px) { .resumo-opcoes ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.resumo-opcoes .opcao { width: 100%; height: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  text-align: left; font: inherit; color: var(--foreground); background: var(--card); border: 1px solid var(--card-borda);
+  border-radius: 14px; padding: 10px 12px; cursor: pointer; box-shadow: var(--card-sombra); }
+.resumo-opcoes .opcao:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.resumo-opcoes .opcao.equilibrio { border: 2px solid var(--marca-escura); padding: 9px 11px; }
+.opcao-titulo { font-size: 13px; font-weight: 600; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.selo-equilibrio { font-size: 11px; font-weight: 700; color: #fff; background: var(--marca-escura); border-radius: 999px; padding: 1px 8px; }
+.opcao-total { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.opcao-onde { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.opcao-info { font-size: 12px; color: var(--muted-foreground); }
+.opcao-economia { font-size: 13px; font-weight: 700; color: var(--marca-escura); }
+.opcao-est, .est-resumo { font-size: 12px; color: var(--destaque-escuro); }
+@media (prefers-color-scheme: dark) { .opcao-economia { color: var(--marca); } .opcao-est, .est-resumo { color: #FDBA74; } .selo-equilibrio { color: #022C22; } }
+
 /* ===== Navegação nova (14/11): abas Preços e Cesta no topo, sem a barra de baixo ===== */
 .abas-topo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-lg);
   background: var(--card); border: 1px solid var(--card-borda); position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 4;

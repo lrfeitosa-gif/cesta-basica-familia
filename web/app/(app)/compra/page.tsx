@@ -60,6 +60,12 @@ const contagem = (o: Oferta) => {
   return m ? Number(m[1]) : 0;
 };
 // Mediana: um preço fora da curva (cadastro errado num mercado) não puxa a estimativa.
+// Fração máxima de itens estimados (sem preço no mercado) para o mercado entrar no topo do ranking por menor preço.
+// Acima disso ele vai para o fim, em "Poucos itens com preço hoje". Decisão de 15/11: 20%.
+const LIMITE_ESTIMADOS = 0.2;
+// Opção destacada como "Equilíbrio" no resumo de Onde comprar (decisão de 15/11: 2 mercados).
+const OPCAO_EQUILIBRIO: 'roteiro' | 'dupla' | 'um' | 'perto' = 'dupla';
+const estTxt = (n: number, valor: number) => n ? `${n} ${n === 1 ? 'item estimado' : 'itens estimados'}${valor > 0 ? ` (≈ ${brl(valor)})` : ''}` : '';
 const mediana = (xs: number[]) => {
   const o = [...xs].sort((a, b) => a - b), k = Math.floor(o.length / 2);
   return o.length % 2 ? o[k] : (o[k - 1] + o[k]) / 2;
@@ -491,9 +497,9 @@ export default function MinhaCompra() {
     }
     return { m, total, estimado, falta, escolhas, estimados, valor: total + estimado };
   }).filter((r) => r.falta.length < itens.length && permitido(r.m))
-    // Primeiro quem tem preço para a maioria dos itens (no máximo 30% estimado), do menor para o maior valor;
-    // mercados com poucos itens com preço (ex.: só o encarte) vêm depois, porque o total deles é quase só estimativa.
-    .map((x) => ({ ...x, confiavel: x.falta.length <= Math.floor(itens.length * 0.3) }))
+    // Primeiro quem tem preço para a maioria dos itens (no máximo LIMITE_ESTIMADOS do total de itens estimado), do menor
+    // para o maior valor; mercados com muitos itens estimados (ex.: só o encarte) vêm depois. 15/11: limite de 30% para 20%.
+    .map((x) => ({ ...x, confiavel: x.falta.length <= itens.length * LIMITE_ESTIMADOS }))
     .sort((a, b) => Number(b.confiavel) - Number(a.confiavel) || a.valor - b.valor);
   const completos = ranking.filter((r) => !r.falta.length);
   // compara com o segundo mais barato (a alternativa real) e mostra também o mais caro
@@ -595,6 +601,35 @@ export default function MinhaCompra() {
       ? [...ranking].sort((a, b) => a.falta.length - b.falta.length || a.valor - b.valor)
       : ranking;
 
+  // Resumo das formas de comprar (15/11, item 1.1): as quatro opções lado a lado, com a economia em relação ao
+  // "Mais perto". Sem endereço cadastrado, não há "Mais perto": a referência passa a ser "Um mercado só".
+  const maisPerto = locais.refs.length
+    ? [...(confiaveis.length ? confiaveis : ranking)].sort((a, b) => (locais.distancia(a.m)?.km ?? 999) - (locais.distancia(b.m)?.km ?? 999))[0]
+    : undefined;
+  type Opcao = { k: typeof OPCAO_EQUILIBRIO; titulo: string; valor: number; nMerc: number; dist: string | null; est: string; destino: string; aoTocar?: () => void };
+  const opcoes: Opcao[] = [];
+  if (roteiro.length > 1) opcoes.push({ k: 'roteiro', titulo: 'Menor preço total', valor: ideal, nMerc: roteiro.length,
+    dist: percurso ? `${fmtKm(percurso.km)} ida e volta` : null,
+    est: semItem.length ? `${semItem.length} ${semItem.length === 1 ? 'item fora' : 'itens fora'}` : '', destino: 'opcao-roteiro' });
+  if (dupla && economiaDupla >= 1) {
+    const da = locais.distancia(dupla.a), db = locais.distancia(dupla.b);
+    opcoes.push({ k: 'dupla', titulo: '2 mercados', valor: dupla.valor, nMerc: 2,
+      dist: da && db ? `${fmtKm(da.km)} e ${fmtKm(db.km)}` : null, est: estTxt(dupla.fora.length, dupla.estimado), destino: 'opcao-dupla' });
+  }
+  if (top) opcoes.push({ k: 'um', titulo: 'Um mercado só', valor: top.valor, nMerc: 1,
+    dist: locais.distancia(top.m) ? fmtKm(locais.distancia(top.m)!.km) : null, est: estTxt(top.falta.length, top.estimado),
+    destino: 'opcao-mercado', aoTocar: () => setPref({ ordem: 'preco' }) });
+  if (maisPerto) opcoes.push({ k: 'perto', titulo: 'Mais perto', valor: maisPerto.valor, nMerc: 1,
+    dist: locais.distancia(maisPerto.m) ? fmtKm(locais.distancia(maisPerto.m)!.km) : null, est: estTxt(maisPerto.falta.length, maisPerto.estimado),
+    destino: 'opcao-mercado', aoTocar: () => setPref({ ordem: 'perto' }) });
+  const referencia = opcoes.find((o) => o.k === 'perto') ?? opcoes.find((o) => o.k === 'um');
+  const nomeOpcao = (o: Opcao) => o.k === 'um' ? top!.m : o.k === 'perto' ? maisPerto!.m : o.k === 'dupla' ? `${dupla!.a} e ${dupla!.b}` : `${o.nMerc} mercados`;
+  const irPara = (o: Opcao) => {
+    o.aoTocar?.();
+    const reduzir = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => document.getElementById(o.destino)?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' }));
+  };
+
   // Lista de compras em PDF (14/11): a lista da opção escolhida (um mercado, dois ou o roteiro), agrupada por mercado,
   // com caixinhas para marcar. Abre numa janela própria e chama a impressão do navegador ("Salvar como PDF";
   // no iPhone, Compartilhar → Salvar em Arquivos).
@@ -652,6 +687,33 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
 
+      {itens.length > 0 && opcoes.length > 1 && referencia && (
+        <section className="resumo-opcoes" aria-labelledby="resumo-titulo">
+          <h2 id="resumo-titulo" className="section-title">Quanto sai cada forma de comprar</h2>
+          <ul>
+            {opcoes.map((o) => {
+              const economia = referencia.valor - o.valor;
+              return (
+                <li key={o.k}>
+                  <button type="button" className={`opcao${o.k === OPCAO_EQUILIBRIO ? ' equilibrio' : ''}`} onClick={() => irPara(o)}
+                    aria-label={`${o.titulo}: ${brl(o.valor)}, ${nomeOpcao(o)}. Ver detalhes`}>
+                    <span className="opcao-titulo">{o.titulo}{o.k === OPCAO_EQUILIBRIO && <span className="selo-equilibrio">Equilíbrio</span>}</span>
+                    <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈ ' : ''}{brl(o.valor)}</span>
+                    <span className="opcao-onde">{nomeOpcao(o)}</span>
+                    {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
+                    {o === referencia ? <span className="opcao-info">Referência da economia</span>
+                      : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos</span>
+                      : <span className="opcao-info">{brl(-economia)} a mais</span>}
+                    {o.est && <span className="opcao-est">{o.est}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <span className="muted">Economia comparada com {referencia.k === 'perto' ? `comprar tudo no mais perto (${maisPerto!.m})` : `comprar tudo no ${top!.m}`}. Toque numa opção para ver a lista, o mapa e o PDF.</span>
+        </section>
+      )}
+
       {/* Critério de compra no topo (14/11): a pessoa escolhe antes de ver a recomendação; vale para o mercado
           recomendado e para a ordem da lista. Os filtros de lojas ficam junto. */}
       {itens.length > 0 && (
@@ -696,9 +758,10 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </div>
       )}
       {!itens.length ? <div className="empty">Sua lista está vazia.<br /><button type="button" className="btn btn-primary" onClick={() => setAba('lista')}>Montar a lista</button></div> : rec ? (
-        <div className="recommendation-card">
+        <div className="recommendation-card" id="opcao-mercado">
           <span className="muted">{tituloRec}</span>
           <span className="recommendation-price">{fmt(rec)}</span>
+          {rec.falta.length > 0 && <span className="est-resumo">{rec.falta.length === 1 ? '1 item estimado' : `${rec.falta.length} itens estimados`}: ≈ {brl(rec.estimado)} do total</span>}
           <span><b>{rec.m}</b>{SO_SOCIOS.has(rec.m) && <> <TagSocios /></>}{rec === top ? segundo && ` · ${brl(segundo.valor - top.valor)} a menos que o 2º mais barato (${segundo.m})` : top && ` · ${brl(rec.valor - top.valor)} a mais que o mais barato (${top.m})`}</span>
           {(() => { const d = locais.distancia(rec.m); return d && <span className="dist">📍 {fmtKm(d.km)} de {d.ref.rotulo} ({d.loja.nome}) · {fmtTempo(d.km)}</span>; })()}
           {rec.falta.length > 0 && (
@@ -738,9 +801,10 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         const da = locais.distancia(dupla.a), db = locais.distancia(dupla.b);
         const entre = da && db ? km(da.loja, db.loja) : locais.entre(dupla.a, dupla.b);
         return (
-          <div className="dupla">
+          <div className="dupla" id="opcao-dupla">
             <span className="muted">Dividindo em 2 mercados</span>
             <span className="grande">{dupla.estimado > 0 ? '≈ ' : ''}{brl(dupla.valor)}</span>
+            {dupla.fora.length > 0 && <span className="est-resumo">{dupla.fora.length === 1 ? '1 item estimado' : `${dupla.fora.length} itens estimados`}: ≈ {brl(dupla.estimado)} do total</span>}
             <span><b>{brl(economiaDupla)} a menos</b> que comprar tudo no {top!.m}</span>
             <div className="dupla-lados">
               {([[dupla.a, dupla.emA, totA, da], [dupla.b, dupla.emB, totB, db]] as const).map(([m, l, tot, d]) => (
@@ -789,6 +853,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
                 <span><span className="market-name">{r.m}</span>{SO_SOCIOS.has(r.m) && <> <TagSocios /></>}{distTxt(r.m) && <span className="market-distance">📍 {distTxt(r.m)}</span>}</span>
                 <span className="market-total">{fmt(r)}</span>
               </div>
+              {r.falta.length > 0 && <span className="est-resumo">{r.falta.length === 1 ? '1 item estimado' : `${r.falta.length} itens estimados`} de {itens.length}: ≈ {brl(r.estimado)} do total</span>}
               {r.falta.length > 0 && (
                 <span className="market-warning">
                   <span aria-hidden="true">⚠</span>
@@ -826,7 +891,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
         </div>
       )}
       {candidatosRoteiro.length > 1 && top && (
-        <section className="ideal">
+        <section className="ideal" id="opcao-roteiro">
           <span className="ideal-titulo">Roteiro inteligente <span className="muted">(opcional)</span></span>
           <span className="muted">Cada item no mercado mais barato. Toque nos mercados para tirar do roteiro os que você não quer visitar; o total se ajusta na hora.</span>
           <div className="chips roteiro-mercados" role="group" aria-label="Mercados do roteiro">
