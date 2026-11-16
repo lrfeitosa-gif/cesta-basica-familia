@@ -1192,6 +1192,41 @@ body:has(.cta-fixo) .aviso { bottom: calc(96px + env(safe-area-inset-bottom, 0px
 .product-actions .card-btn-secundario { color: var(--foreground); }
 .card-btn-sino { flex: none; width: 46px; padding: 0; }
 .card-btn-sino svg, .sino svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ===== Preços (15/11, Fase 3): card com uma ação principal + menu "⋯"; filtros no botão ao lado da busca ===== */
+.product-actions { position: relative; align-items: stretch; }
+.product-actions .card-btn { min-height: 44px; }
+.card-btn-mais { flex: none; width: 48px; padding: 0; display: grid; place-items: center; }
+.card-btn-mais svg { fill: currentColor; }
+.card-btn-mais[aria-expanded="true"] { border-color: var(--primary); color: var(--primary); }
+.acoes-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 6; list-style: none; margin: 0; padding: 6px; min-width: 240px;
+  background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; box-shadow: 0 12px 28px -8px rgb(15 23 42 / .3); }
+.acoes-menu button, .acoes-menu a { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px;
+  background: none; font: inherit; font-size: 15px; color: var(--foreground); text-align: left; text-decoration: none; cursor: pointer; }
+.acoes-menu button:hover, .acoes-menu a:hover, .acoes-menu button:focus-visible, .acoes-menu a:focus-visible { background: color-mix(in srgb, var(--primary) 9%, transparent); outline: none; }
+.acoes-menu li + li { border-top: 1px solid var(--card-borda); }
+.fechar-painel { justify-self: start; background: none; border: 0; padding: 8px 0; min-height: 44px; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--link-ink, var(--primary)); cursor: pointer; }
+.busca-linha { display: flex; gap: 8px; align-items: stretch; }
+.busca-linha .busca-topo { flex: 1; min-width: 0; }
+.btn-filtros { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 12px; font: inherit;
+  font-size: 14px; font-weight: 600; background: var(--card); color: var(--foreground); border: 1px solid var(--card-borda); cursor: pointer; }
+.btn-filtros svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.btn-filtros[aria-expanded="true"], .btn-filtros.ativo { border-color: var(--primary); color: var(--primary); }
+.painel-filtros { display: grid; gap: 8px; background: var(--card); border: 1px solid var(--card-borda); border-radius: 12px; padding: 12px; }
+.painel-filtros-rotulo { font-size: 13px; font-weight: 700; }
+.painel-filtros .chip { min-height: 40px; }
+.product-card { padding: 12px 14px; gap: 8px; }
+.product-card .price-tag-container { text-align: right; }
+.product-card .old-price { display: inline; margin-right: 4px; }
+.product-card .discount-badge { margin-top: 2px; }
+.product-card .product-meta { border-top: 0; padding-top: 0; gap: 4px 10px; }
+/* celular: o botão Filtros fica só com o ícone, para a busca não perder espaço; o nome continua para leitores de tela */
+@media (max-width: 480px) {
+  .btn-filtros { width: 48px; padding: 0; justify-content: center; position: relative; }
+  .btn-filtros span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .btn-filtros.ativo::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--destaque); }
+}
 .card-btn-sino.ativo, .sino.ligado { background: var(--destaque-claro); border-color: var(--destaque-escuro); color: var(--destaque-escuro); }
 .product-links { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .product-links a, .product-links button { font: inherit; color: var(--link-ink); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: none; }
