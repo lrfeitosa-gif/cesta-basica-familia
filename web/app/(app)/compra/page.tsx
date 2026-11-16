@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { brl, chaveMarca, filtrar, filtrarFoco, grupo, norm, SO_SOCIOS, useOfertas, type Oferta } from '@/lib/ofertas';
 import { Carregando, ErroCarga, TagSocios } from '../linha-oferta';
 import { useSessao } from '@/lib/sessao';
@@ -116,7 +116,17 @@ const CESTA: ItemCesta[] = [
 ];
 // Mercados coletados só pelos encartes: item fora da promoção não aparece, mas a loja pode ter.
 const ENCARTE = new Set(['Roldão', 'Sumerbol', 'Assaí', 'Sonda', 'Revolução', 'Cato']);
-const PADRAO: Record<string, number> = { arroz: 1, feijao: 2, cafe: 1, oleo: 2, leite: 6, macarrao: 2 };
+// 15/11 (Fase 2): conta nova começa com a cesta vazia e vê as boas-vindas, com os itens básicos para marcar.
+// Antes, começava com 6 itens marcados e a tela de boas-vindas nunca aparecia.
+const PADRAO: Record<string, number> = {};
+// Itens básicos da cesta vazia (lista única; decisão de 15/11). `id` = item fixo da cesta; `termo` = item adicionado.
+// Os 6 primeiros já vêm marcados: "Adicionar 6 itens" monta a cesta num toque.
+const BASICOS: { rotulo: string; id?: string; termo?: string }[] = [
+  { rotulo: 'Arroz 5 kg', id: 'arroz' }, { rotulo: 'Feijão 1 kg', id: 'feijao' }, { rotulo: 'Café 500 g', id: 'cafe' },
+  { rotulo: 'Leite 1 l', id: 'leite' }, { rotulo: 'Óleo 900 ml', id: 'oleo' }, { rotulo: 'Açúcar 1 kg', id: 'acucar' },
+  { rotulo: 'Macarrão 500 g', id: 'macarrao' }, { rotulo: 'Ovos 20 un', termo: 'Ovos 20 un' },
+];
+const BASICOS_MARCADOS = 6;
 
 export default function MinhaCompra() {
   const { dados, erro, tentarDeNovo } = useOfertas();
@@ -128,6 +138,8 @@ export default function MinhaCompra() {
   const [novo, setNovo] = useState('');
   const [novoHorti, setNovoHorti] = useState<boolean | null>(null);   // null = o app decide pelo nome
   const [avisoNovo, setAvisoNovo] = useState('');
+  const [notaAberta, setNotaAberta] = useState(false);   // painel da nota, recolhido quando a cesta já tem itens (2.5)
+  const [basicos, setBasicos] = useState<string[]>(BASICOS.slice(0, BASICOS_MARCADOS).map((b) => b.rotulo));
   const [aba, setAbaEstado] = useState<'lista' | 'comparar'>('lista');
   const [todosMercados, setTodosMercados] = useState(false);   // mostra também os mercados com poucos preços hoje
   // Preferências de lojas (filtros da comparação), guardadas neste aparelho: valem para toda a análise de "Onde comprar".
@@ -248,6 +260,21 @@ export default function MinhaCompra() {
     salvarExtras([...extras, { id, termo, horti: novoEhHorti }]);
     mudar({ ...sel, [id]: 1 });
     setNovo(''); setNovoHorti(null); setAvisoNovo('');
+  };
+  // Cesta vazia (2.3): os básicos marcados entram de uma vez, com quantidade 1
+  const adicionarBasicos = () => {
+    const escolhidos = BASICOS.filter((b) => basicos.includes(b.rotulo));
+    if (!escolhidos.length) return;
+    const n = { ...sel }; const novosExtras = [...extras];
+    escolhidos.forEach((b, i) => {
+      if (b.id) { n[b.id] = n[b.id] ?? 1; return; }
+      const ja = novosExtras.find((x) => norm(x.termo) === norm(b.termo!));
+      const id = ja?.id ?? `x-${Date.now()}-${i}`;
+      if (!ja) novosExtras.push({ id, termo: b.termo!, horti: false });
+      n[id] = n[id] ?? 1;
+    });
+    salvarExtras(novosExtras); mudar(n);
+    window.scrollTo(0, 0);   // volta ao topo: o resumo de onde comprar aparece logo
   };
   // Monta a compra com os itens da última nota enviada: cada linha vira o item da cesta com a mesma palavra
   // principal (ou um item novo), com a quantidade comprada. Linhas sem oferta parecida nos mercados ficam de fora.
@@ -626,9 +653,61 @@ export default function MinhaCompra() {
   const nomeOpcao = (o: Opcao) => o.k === 'um' ? top!.m : o.k === 'perto' ? maisPerto!.m : o.k === 'dupla' ? `${dupla!.a} e ${dupla!.b}` : `${o.nMerc} mercados`;
   const irPara = (o: Opcao) => {
     o.aoTocar?.();
+    if (aba !== 'comparar') setAba('comparar');   // tocado no resumo da Minha cesta (2.1): abre Onde comprar no detalhe
     const reduzir = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    requestAnimationFrame(() => document.getElementById(o.destino)?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' }));
+    setTimeout(() => document.getElementById(o.destino)?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' }), 60);
   };
+
+  // Novidades na sua cesta (2.4): alerta atingido, alerta a menos de 10% do alvo e item com preço "de/por" hoje.
+  // Usa o menor preço do item (o mesmo valor que o sino sugere como alvo).
+  type Novidade = { k: string; ordem: number; texto: ReactNode };
+  const novidades: Novidade[] = [];
+  if (dados) for (const c of itens) {
+    const menor = Object.values(porItem[c.id]).sort((a, b) => v(c, a) - v(c, b))[0];
+    if (!menor) continue;
+    const valor = v(c, menor); const a = alertaDoItem(c);
+    if (a?.preco_alvo != null && valor <= a.preco_alvo) {
+      novidades.push({ k: `a-${c.id}`, ordem: 0, texto: <><b>{c.rotulo}</b> chegou ao seu alvo: {brl(valor)} no {menor.mercado} (alvo {brl(a.preco_alvo)})</> });
+    } else if (a?.preco_alvo != null && valor <= a.preco_alvo * 1.1) {
+      novidades.push({ k: `p-${c.id}`, ordem: 1, texto: <><b>{c.rotulo}</b>: {brl(valor)} no {menor.mercado}, faltam {brl(valor - a.preco_alvo)} para o seu alvo de {brl(a.preco_alvo)}</> });
+    }
+    if (menor.de > menor.preco) {
+      novidades.push({ k: `b-${c.id}`, ordem: 2, texto: <><b>{c.rotulo}</b> baixou: {brl(menor.preco)} no {menor.mercado} (era {brl(menor.de)}, −{Math.round((1 - menor.preco / menor.de) * 100)}%)</> });
+    }
+  }
+  novidades.sort((x, y) => x.ordem - y.ordem);
+
+  // Cesta vazia (2.3): só depois de ler a cesta do aparelho e da conta, para quem tem itens não ver as boas-vindas piscarem
+  const vazia = !itens.length && nuvem !== 'carregando';
+  const ofertasHoje = (dados?.lista ?? []).filter((o) => o.de > o.preco && o.preco / o.de >= 0.4)
+    .sort((a, b) => a.preco / a.de - b.preco / b.de).slice(0, 3);
+
+  const blocoResumo = itens.length > 0 && opcoes.length > 1 && referencia ? (
+    <section className="resumo-opcoes" aria-labelledby="resumo-titulo">
+      <h2 id="resumo-titulo" className="section-title">{aba === 'lista' ? 'Onde a sua cesta sai mais barata' : 'Quanto sai cada forma de comprar'}</h2>
+      <ul>
+        {opcoes.map((o) => {
+          const economia = referencia.valor - o.valor;
+          return (
+            <li key={o.k}>
+              <button type="button" className={`opcao${o.k === OPCAO_EQUILIBRIO ? ' equilibrio' : ''}`} onClick={() => irPara(o)}
+                aria-label={`${o.titulo}: ${brl(o.valor)}, ${nomeOpcao(o)}. Ver detalhes`}>
+                <span className="opcao-titulo">{o.titulo}{o.k === OPCAO_EQUILIBRIO && <span className="selo-equilibrio">Equilíbrio</span>}</span>
+                <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈ ' : ''}{brl(o.valor)}</span>
+                <span className="opcao-onde">{nomeOpcao(o)}</span>
+                {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
+                {o === referencia ? <span className="opcao-info">Referência da economia</span>
+                  : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos</span>
+                  : <span className="opcao-info">{brl(-economia)} a mais</span>}
+                {o.est && <span className="opcao-est">{o.est}</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <span className="muted">Economia comparada com {referencia.k === 'perto' ? `comprar tudo no mais perto (${maisPerto!.m})` : `comprar tudo no ${top!.m}`}. Toque numa opção para ver a lista, o mapa e o PDF.</span>
+    </section>
+  ) : null;
 
   // Lista de compras em PDF (14/11): a lista da opção escolhida (um mercado, dois ou o roteiro), agrupada por mercado,
   // com caixinhas para marcar. Abre numa janela própria e chama a impressão do navegador ("Salvar como PDF";
@@ -667,12 +746,17 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
 
   return (
     <>
-      {aba === 'lista' ? (
+      {aba === 'lista' ? (vazia ? (
+        <div className="boas-vindas-cesta">
+          <h1>Monte sua cesta e veja onde ela sai mais barata</h1>
+          {dados && <p className="lead">{dados.lista.length.toLocaleString('pt-BR')} preços de hoje em {dados.mercados.length} mercados de Indaiatuba.</p>}
+        </div>
+      ) : (
         <div>
           <h1>Minha cesta</h1>
           <p className="lead">Marque os itens e ajuste as quantidades. Depois, veja onde sai mais barato.</p>
         </div>
-      ) : (
+      )) : (
         <div className="passo-topo">
           <button type="button" className="voltar-lista" onClick={() => setAba('lista')}>← Editar lista ({itens.length} {itens.length === 1 ? 'item' : 'itens'})</button>
           <h1>Onde comprar</h1>
@@ -682,37 +766,11 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       {aba === 'lista' && !dados && !erro && (
         <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Buscando os preços de hoje nos mercados…</p>
       )}
-      {aba === 'lista' && !itens.length && dados && <div className="empty">Marque ao menos um item abaixo.</div>}
 
       {aba === 'comparar' && !dados && <Carregando />}
       {aba === 'comparar' && dados && <>
 
-      {itens.length > 0 && opcoes.length > 1 && referencia && (
-        <section className="resumo-opcoes" aria-labelledby="resumo-titulo">
-          <h2 id="resumo-titulo" className="section-title">Quanto sai cada forma de comprar</h2>
-          <ul>
-            {opcoes.map((o) => {
-              const economia = referencia.valor - o.valor;
-              return (
-                <li key={o.k}>
-                  <button type="button" className={`opcao${o.k === OPCAO_EQUILIBRIO ? ' equilibrio' : ''}`} onClick={() => irPara(o)}
-                    aria-label={`${o.titulo}: ${brl(o.valor)}, ${nomeOpcao(o)}. Ver detalhes`}>
-                    <span className="opcao-titulo">{o.titulo}{o.k === OPCAO_EQUILIBRIO && <span className="selo-equilibrio">Equilíbrio</span>}</span>
-                    <span className="opcao-total">{o.est && o.k !== 'roteiro' ? '≈ ' : ''}{brl(o.valor)}</span>
-                    <span className="opcao-onde">{nomeOpcao(o)}</span>
-                    {o.dist && <span className="opcao-info">📍 {o.dist}</span>}
-                    {o === referencia ? <span className="opcao-info">Referência da economia</span>
-                      : economia >= 0.01 ? <span className="opcao-economia">{brl(economia)} a menos</span>
-                      : <span className="opcao-info">{brl(-economia)} a mais</span>}
-                    {o.est && <span className="opcao-est">{o.est}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <span className="muted">Economia comparada com {referencia.k === 'perto' ? `comprar tudo no mais perto (${maisPerto!.m})` : `comprar tudo no ${top!.m}`}. Toque numa opção para ver a lista, o mapa e o PDF.</span>
-        </section>
-      )}
+      {blocoResumo}
 
       {/* Critério de compra no topo (14/11): a pessoa escolhe antes de ver a recomendação; vale para o mercado
           recomendado e para a ordem da lista. Os filtros de lojas ficam junto. */}
@@ -935,9 +993,27 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
       </>}
 
       {aba === 'lista' && <>
-      {sessao && (
-        <section className="card stack cesta-nota" aria-label="Montar a cesta pela nota fiscal">
-          <h2 className="section-title">Montar pela nota da compra</h2>
+      {vazia && (
+        <section className="card stack basicos" aria-labelledby="basicos-titulo">
+          <h2 id="basicos-titulo" className="section-title">Começar pelos básicos</h2>
+          <div className="chips" role="group" aria-label="Itens básicos">
+            {BASICOS.map((b) => {
+              const on = basicos.includes(b.rotulo);
+              return (
+                <button key={b.rotulo} type="button" className="chip" aria-pressed={on}
+                  onClick={() => setBasicos((x) => on ? x.filter((y) => y !== b.rotulo) : [...x, b.rotulo])}>{on ? '✓ ' : '＋ '}{b.rotulo}</button>
+              );
+            })}
+          </div>
+          <button type="button" className="btn btn-primary" disabled={!basicos.length} onClick={adicionarBasicos}>
+            {basicos.length ? `Adicionar ${basicos.length} ${basicos.length === 1 ? 'item' : 'itens'}` : 'Escolha ao menos um item'}
+          </button>
+        </section>
+      )}
+      {sessao && (vazia || notaAberta || notaPendente || avisoNota) && (
+        <section className="card stack cesta-nota" id="painel-nota" aria-label="Montar a cesta pela nota fiscal">
+          <h2 className="section-title">{vazia ? 'Usar a nota da última compra' : 'Montar pela nota da compra'}</h2>
+          {vazia && <span className="muted">Fotografe a nota ou leia o QR Code: os itens que você comprou viram a sua cesta.</span>}
           <EnviarNota textoBotao="Ler a nota e montar a cesta" aoLer={(id) => usarNota(id)} />
           <button type="button" className="btn btn-link" onClick={() => usarNota()}>Usar de novo a última nota enviada</button>
           {notaPendente && (
@@ -952,7 +1028,16 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           <Link href="/notas" className="muted cesta-nota-link">Ver as notas enviadas</Link>
         </section>
       )}
-      <h2 className="section-title">Itens da cesta <small className="muted">· toque no sino para receber alerta de preço</small></h2>
+      {!vazia && !itens.length && nuvem === 'carregando' && <p className="buscando" role="status"><span className="giro" aria-hidden="true" />Carregando a sua cesta…</p>}
+      {!vazia && blocoResumo}
+      {!vazia && novidades.length > 0 && (
+        <section className="novidades" aria-labelledby="novidades-titulo">
+          <h2 id="novidades-titulo" className="section-title">Novidades na sua cesta</h2>
+          <ul>{novidades.slice(0, 5).map((n) => <li key={n.k}>{n.texto}</li>)}</ul>
+        </section>
+      )}
+      {vazia ? <h2 className="section-title">Ou digite um item</h2>
+        : <h2 className="section-title">Itens da cesta <small className="muted">· toque no sino para receber alerta de preço</small></h2>}
       <form className="card stack" onSubmit={adicionar}>
         <div className="field">
           <label htmlFor="novo-item">Adicionar item</label>
@@ -960,6 +1045,15 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
             <input id="novo-item" className="input" autoComplete="off" placeholder="Ex.: heineken 350 ml, alho, sabão em pó omo 1,6 kg"
               value={novo} onChange={(e) => { setNovo(e.target.value); setAvisoNovo(''); }} style={{ flex: 1, minWidth: 0 }} />
             <button className="btn btn-primary" disabled={!novo.trim()}>Adicionar</button>
+            {sessao && !vazia && (
+              <button type="button" className="btn btn-secondary btn-camera" aria-expanded={notaAberta} aria-controls="painel-nota"
+                aria-label="Montar pela nota da compra" title="Montar pela nota da compra"
+                onClick={() => { setNotaAberta(!notaAberta); if (!notaAberta) setTimeout(() => document.getElementById('painel-nota')?.scrollIntoView({ block: 'start' }), 60); }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" />
+                </svg>
+              </button>
+            )}
           </div>
           <label className="row" style={{ gap: 8, fontWeight: 600, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
             <input type="checkbox" className="check" checked={novoEhHorti} onChange={(e) => setNovoHorti(e.target.checked)} />
@@ -972,6 +1066,24 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           {avisoNovo && <div className="alert alert-error" role="alert">{avisoNovo}</div>}
         </div>
       </form>
+      {vazia && ofertasHoje.length > 0 && (
+        <section className="ofertas-hoje" aria-labelledby="ofertas-hoje-titulo">
+          <div className="section-header-bar">
+            <h2 id="ofertas-hoje-titulo" className="section-title">Ofertas de hoje</h2>
+            <Link href="/ofertas" className="ver-todas">Ver todas</Link>
+          </div>
+          <ul>
+            {ofertasHoje.map((o) => (
+              <li key={o.id}>
+                <span className="oh-nome">{o.marca && !norm(o.nome).includes(norm(o.marca)) ? `${o.marca} · ` : ''}{o.nome}</span>
+                <span className="oh-onde">{o.mercado}</span>
+                <span className="oh-preco"><s>{brl(o.de)}</s> <b>{brl(o.preco)}</b> <span className="oh-pct">−{Math.round((1 - o.preco / o.de) * 100)}%</span></span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {!vazia && <>
       <div className="lista cesta">
         {todos.map((c) => {
           const ativo = !!sel[c.id];
@@ -1064,6 +1176,7 @@ ${avisos.length ? `<p class="m">${avisos.map(esc).join('<br>')}</p>` : ''}
           }}>Limpar lista</button>
         )}
       </div>
+      </>}
       {itens.length > 0 && (
         <div className="cta-fixo">
           <button type="button" className="cta-fixo-btn" onClick={() => setAba('comparar')}>
