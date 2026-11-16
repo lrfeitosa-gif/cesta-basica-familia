@@ -128,6 +128,10 @@ export default function Admin() {
   const desistencias = eventos.filter((e) => e.tipo === 'cadastro_inicio'
     && !eventos.some((x) => x.tipo === 'cadastro_ok' && x.detalhe === e.detalhe && x.criado_em >= e.criado_em)).length;
   const lista = filtro ? eventos.filter((e) => e.tipo === filtro) : eventos;
+  // 16/11: senhas erradas por dia (são tentativas, não pessoas: o app guarda só o domínio do e-mail)
+  const diaBr = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const errosPorDia = [...errosLogin.reduce((m, e) => m.set(diaBr(e.criado_em), (m.get(diaBr(e.criado_em)) ?? 0) + 1), new Map<string, number>())];
+  const periodoErros = errosPorDia.length ? (errosPorDia.length === 1 ? errosPorDia[0][0] : `${errosPorDia[errosPorDia.length - 1][0]} a ${errosPorDia[0][0]}`) : '';
 
   // número ao lado da aba só onde pede atenção
   const contagem: Partial<Record<Aba, number>> = { ajuda: precisaAjuda.length, opinioes: opinioes.length };
@@ -157,7 +161,17 @@ export default function Admin() {
             <div><b>{piloto.length}</b><span>contas de {resumo?.max_contas} no piloto</span></div>
             <div><b>{ativas}</b><span>fizeram ao menos 1 ação de valor</span></div>
             <div><b>{ativos7}</b><span>entraram nos últimos 7 dias</span></div>
-            <div><b>{desistencias + errosLogin.length}</b><span>{desistencias} desistências no cadastro, {errosLogin.length} erros ao entrar</span></div>
+            <details className="adm-num-detalhe">
+              <summary><b>{errosLogin.length}</b>
+                <span>{errosLogin.length === 1 ? 'senha errada' : 'senhas erradas'} ao entrar{periodoErros && ` (${periodoErros})`} · {desistencias} {desistencias === 1 ? 'desistência' : 'desistências'} no cadastro</span>
+              </summary>
+              {errosPorDia.length > 0 ? (
+                <ul>
+                  {errosPorDia.map(([d, n]) => <li key={d}>{d}: {n} {n === 1 ? 'tentativa recusada' : 'tentativas recusadas'}</li>)}
+                  <li className="muted">Conta tentativas, não pessoas: quem erra 3 vezes aparece 3 vezes.</li>
+                </ul>
+              ) : <p className="muted">Nenhuma senha errada no período.</p>}
+            </details>
           </section>
           {previsao && (
             <section className="card stack">

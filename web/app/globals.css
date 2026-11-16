@@ -340,6 +340,13 @@ h2 { margin-top: 4px; }
 .adm-numeros > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
 .adm-numeros b { font-size: 1.6rem; line-height: 1.1; }
 .adm-numeros span { color: var(--muted); font-size: .8rem; }
+.adm-num-detalhe { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.adm-num-detalhe summary { display: flex; flex-direction: column; gap: 2px; cursor: pointer; list-style: none; min-height: 44px; }
+.adm-num-detalhe summary::-webkit-details-marker { display: none; }
+.adm-num-detalhe summary span::after { content: " ▾"; }
+.adm-num-detalhe[open] summary span::after { content: " ▴"; }
+.adm-num-detalhe ul { margin: 8px 0 0; padding-left: 18px; font-size: .85rem; display: grid; gap: 2px; }
+.adm-num-detalhe[open] { grid-column: 1 / -1; }
 .adm-barras { display: flex; align-items: flex-end; gap: 4px; height: 110px; overflow-x: auto; }
 .adm-barras > div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 22px; }
 .adm-barras span { width: 14px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
