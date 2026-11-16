@@ -111,7 +111,11 @@ def tentar(f, tentativas: int = 4):
             time.sleep(5 * (i + 1))
 
 
-def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None) -> int:
+def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None, substituir_encarte: bool = False) -> int:
+    """Grava as ofertas do mercado nos dias. Com substituir_encarte (coleta automática de encartes), a leitura de
+    hoje passa a ser a única do encarte naquele dia: saem as linhas de encarte do mesmo mercado e dia que esta leitura
+    não regravou (cargas por print, pelo painel ou por tarefa no computador, com nomes escritos de outro jeito).
+    Até 15/11 elas ficavam junto e o app mostrava o mesmo produto duas vezes (Revolução em 13/11, Tenda em 16/11)."""
     loja = tentar(lambda: db.table("mercado").select("id").eq("rede", mercado).limit(1).execute().data)
     if not loja:
         raise RuntimeError(f"mercado '{mercado}' não cadastrado (rode a migração 0002)")
@@ -125,6 +129,7 @@ def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None)
             por_chave[k] = n
     dias = dias or [date.today().isoformat()]
     total = 0
+    gravados: dict[str, set[int]] = {dia: set() for dia in dias}
     lista = list(por_chave.values())
     for i in range(0, len(lista), 200):
         lote = lista[i:i + 200]
@@ -142,7 +147,22 @@ def gravar(db, mercado: str, ofertas: list[dict], dias: list[str] | None = None)
                   if (not n["oferta"]["valido_ate"] or n["oferta"]["valido_ate"] >= dia)
                   and vale_no_dia(n["oferta"]["condicao"], dia)]
         tentar(lambda: db.table("oferta").upsert(linhas, on_conflict="produto_id,mercado_id,valido_de,fonte").execute())
+        for l in linhas:
+            if l.get("fonte") == "tabloide":
+                gravados[l["valido_de"]].add(l["produto_id"])
         total += len(linhas)
+    if substituir_encarte:
+        for dia, ids_dia in gravados.items():
+            if not ids_dia:
+                continue      # leitura vazia (site fora do ar, encarte vencido): não apaga o que já existe
+            velhas = tentar(lambda: db.table("oferta").select("id,produto_id").eq("mercado_id", mercado_id)
+                            .eq("valido_de", dia).eq("fonte", "tabloide").execute().data) or []
+            sobra = [v["id"] for v in velhas if v["produto_id"] not in ids_dia]
+            for i in range(0, len(sobra), 200):
+                parte = sobra[i:i + 200]
+                tentar(lambda: db.table("oferta").delete().in_("id", parte).execute())
+            if sobra:
+                print(f"{mercado}: {len(sobra)} ofertas de encarte de outras cargas saíram de {dia} (substituídas pela leitura de hoje)", flush=True)
     return total
 
 
@@ -170,7 +190,7 @@ def main(argv: list[str] | None = None) -> None:
     def rodar(nome: str) -> bool:
         rede = REDES.get(nome) or (vtex.LOJAS.get(nome) or (None,))[0] or encartes.SITES[nome]["mercado"]
         try:
-            n = gravar(conectar(), rede, COLETORES[nome]())
+            n = gravar(conectar(), rede, COLETORES[nome](), substituir_encarte=nome in encartes.SITES)
             print(f"{rede}: {n} ofertas gravadas", flush=True)
             return True
         except Exception as erro:  # um mercado com problema não derruba os outros
